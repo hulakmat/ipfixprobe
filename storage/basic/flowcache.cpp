@@ -46,7 +46,6 @@
  */
 
 #include <cstdlib>
-#include <iostream>
 #include <cstring>
 #include <sys/time.h>
 
@@ -60,6 +59,7 @@ __attribute__((constructor)) static void register_this_plugin()
    static PluginRecord rec = PluginRecord("cache", [](){return new NHTFlowCache();});
    register_plugin(&rec);
 }
+
 NHTFlowCache::NHTFlowCache() :
    m_cache_size(0), m_line_size(0), m_line_mask(0), m_line_new_idx(0),
    m_timeout_idx(0), m_active(0), m_inactive(0),
@@ -328,6 +328,8 @@ void NHTFlowCache::export_expired(time_t ts)
 }
 
 #ifdef FLOW_CACHE_STATS
+#include <iostream>
+using namespace std;
 void NHTFlowCache::print_report()
 {
    float tmp = float(m_lookups) / m_hits;
