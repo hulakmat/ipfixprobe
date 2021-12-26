@@ -60,10 +60,13 @@ ipfixprobe_input_src+=\
 endif
 
 ipfixprobe_storage_src=\
-		storage/cache.cpp \
-		storage/cache.hpp \
-		storage/xxhash.c \
-		storage/xxhash.h
+		storage/basic/flowringbuffer.hpp \
+		storage/basic/flowcache.cpp \
+		storage/basic/flowcache.hpp \
+		storage/basic/record.cpp \
+		storage/basic/record.hpp \
+		storage/basic/xxhash.c \
+		storage/basic/xxhash.h
 
 ipfixprobe_output_src=\
 		output/ipfix.cpp \
