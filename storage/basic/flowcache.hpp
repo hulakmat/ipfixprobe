@@ -56,6 +56,8 @@
 #include "record.hpp"
 #include "flowringbuffer.hpp"
 
+#define FLOW_CACHE_STATS
+
 namespace ipxp {
 #ifdef IPXP_FLOW_CACHE_SIZE
 static const uint32_t DEFAULT_FLOW_CACHE_SIZE = IPXP_FLOW_CACHE_SIZE;
@@ -118,7 +120,6 @@ public:
    }
 };
 
-
 class NHTFlowCache : public StoragePlugin
 {
 public:
@@ -149,6 +150,11 @@ private:
    };
    const void moveToFront(const FlowIndex flowIndex)
    {
+#ifdef FLOW_CACHE_STATS
+      const size_t lookup_len =  (flowIndex.flow_index - flowIndex.line_index + 1);
+      m_lookups += lookup_len;
+      m_lookups2 += lookup_len * lookup_len;
+#endif
       /* Moving pointers operate with FCRecord** otherwise would be operating with Values */
       std::rotate(m_flow_table + flowIndex.line_index, //Index of the first element
                   m_flow_table + flowIndex.flow_index, //Index of the element that should be first
@@ -178,6 +184,9 @@ private:
       for (rIndex.flow_index = rIndex.line_index; rIndex.flow_index < next_line; rIndex.flow_index++) {
          if (m_flow_table[rIndex.flow_index]->getHash() == hash) {
             rIndex.valid = true;
+#ifdef FLOW_CACHE_STATS
+      m_hits++;
+#endif
             return rIndex;
          }
       }
