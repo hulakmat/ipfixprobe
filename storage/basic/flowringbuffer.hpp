@@ -74,12 +74,18 @@ public:
 
    FCRecord *put(FCRecord *rec)
    {
-      ipx_ring_push(m_queue, &rec->m_flow);
       std::swap(m_ptrs[m_qidx], rec);
+      ipx_ring_push(m_queue, &m_ptrs[m_qidx]->m_flow);
       qinc();
       return rec;
    }
 
+   void putcpy(FCRecord *rec)
+   {
+      *m_ptrs[m_qidx] = *rec;
+      ipx_ring_push(m_queue, &m_ptrs[m_qidx]->m_flow);
+      qinc();
+   }
 private:
    ipx_ring_t *m_queue;
    FCRecord **m_ptrs;

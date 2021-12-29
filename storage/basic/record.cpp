@@ -48,22 +48,6 @@
 
 namespace ipxp {
 
-FCKey FCKey::from_packet(const Packet &pkt, bool inverse) {
-    flow_key_t key;
-    key.proto = pkt.ip_proto;
-    key.ip_version = pkt.ip_version;
-    key.src_port = !inverse ? pkt.src_port : pkt.dst_port;
-    key.dst_port = !inverse ? pkt.dst_port : pkt.src_port;
-    if (pkt.ip_version == IP::v4) {
-        key.ip.v4.src_ip = !inverse ? pkt.src_ip.v4 : pkt.dst_ip.v4;
-        key.ip.v4.dst_ip = !inverse ? pkt.dst_ip.v4 : pkt.src_ip.v4;
-    } else if (pkt.ip_version == IP::v6) {
-        memcpy(key.ip.v6.src_ip.data(), !inverse ? pkt.src_ip.v6 : pkt.dst_ip.v6, sizeof(pkt.src_ip.v6));
-        memcpy(key.ip.v6.dst_ip.data(), !inverse ? pkt.dst_ip.v6 : pkt.src_ip.v6, sizeof(pkt.dst_ip.v6));
-    }
-    return FCKey(key);
-}
-
 FCRecord::FCRecord()
 {
    erase();
@@ -106,12 +90,12 @@ void FCRecord::reuse()
    m_flow.dst_tcp_flags = 0;
 }
 
-void FCRecord::create(const Packet &pkt, uint64_t hash)
+void FCRecord::create(FCPacketInfo &pkt_info)
 {
+   const Packet &pkt = pkt_info.getPacket();
    m_flow.src_packets = 1;
 
-   m_hash = hash;
-
+   m_hash = pkt_info.getHash();
    m_flow.time_first = pkt.ts;
    m_flow.time_last = pkt.ts;
 
@@ -146,8 +130,9 @@ void FCRecord::create(const Packet &pkt, uint64_t hash)
    }
 }
 
-void FCRecord::update(const Packet &pkt, bool src)
+void FCRecord::update(FCPacketInfo &pkt_info, bool src)
 {
+   Packet &pkt = pkt_info.getPacket();
    m_flow.time_last = pkt.ts;
    if (src) {
       m_flow.src_packets++;
