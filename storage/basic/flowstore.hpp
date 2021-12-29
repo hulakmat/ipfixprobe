@@ -1,14 +1,11 @@
 /**
- * \file record.hpp
- * \brief "NewHashTable" flow cache record
- * \author Martin Zadnik <zadnik@cesnet.cz>
- * \author Vaclav Bartos <bartos@cesnet.cz>
- * \author Jiri Havranek <havranek@cesnet.cz>
- * \author Tomas Benes <benes@cesnet.cz>
+ * \file cache.hpp
+ * \brief "FlowStore" Flow store abstraction
+ * \author Tomas Benes <tomasbenes@cesnet.cz>
  * \date 2021
  */
 /*
- * Copyright (C) 2014-2021 CESNET
+ * Copyright (C) 2014-2016 CESNET
  *
  * LICENSE TERMS
  *
@@ -43,65 +40,54 @@
  * if advised of the possibility of such damage.
  *
  */
-#ifndef IPXP_BASIC_CACHE_RECORD_HPP
-#define IPXP_BASIC_CACHE_RECORD_HPP
+#ifndef IPXP_FLOW_STORE_HPP
+#define IPXP_FLOW_STORE_HPP
 
 #include <string>
 
 #include <ipfixprobe/storage.hpp>
 #include <ipfixprobe/options.hpp>
-#include <ipfixprobe/flowifc.hpp>
-#include <ipfixprobe/utils.hpp>
-#include "xxhash.h"
+#include "record.hpp"
 
 namespace ipxp {
 
-typedef uint64_t FCHash;
-
-class FCPacketInfo {
-    Packet &m_pkt;
-protected:
-    FCHash m_hash;
-public:
-    FCPacketInfo(FCPacketInfo &&info) : m_pkt(info.m_pkt), m_hash(info.m_hash) {} 
-    FCPacketInfo(Packet &pkt) : m_pkt(pkt), m_hash(0) {} 
-    /* Check if packet is getPacket used in same context as the Packet which it depends on */
-    Packet &getPacket() const { return m_pkt; }
-    virtual bool isValid() const = 0;
-    virtual FCHash getHash() const { return m_hash; }
-
-    FCPacketInfo& operator=(FCPacketInfo&& other)
-    {
-         m_pkt = other.m_pkt;
-         m_hash = other.m_hash;
-         return *this;
-    }
-};
-
-
-class FCRecord
+class FlowRingBuffer;
+template <typename PacketInfo, typename Access, typename Iter>
+class FlowStore
 {
-    FCHash m_hash;
 public:
-    Flow m_flow;
+    typedef PacketInfo packet_info;
+    typedef Iter iterator; /* Iterator over accessors */
+    typedef Access accessor;
+    /* Parser options API */
+    virtual OptionsParser *get_parser() const = 0;
+    void init(const char *params) {};
 
-    FCRecord();
-    ~FCRecord();
+    /* Iteration API */
+    virtual Iter begin() = 0;
+    virtual Iter end() = 0;
 
-    void erase();
-    void reuse();
+    /* Prepare packet for processing. Calculates shared items for lookup/free operations */
+    virtual PacketInfo prepare(Packet &pkt, bool inverse) = 0;
+    /* Looksup records for given hash. */
+    virtual Access lookup(const PacketInfo &pkt ) = 0;
+    virtual Access lookup_empty(const PacketInfo &pkt) = 0;
 
-    inline __attribute__((always_inline)) bool isEmpty() const { return m_hash == 0; }
+    /* Lookup operation invalid accessor signaling NotFound */
+    virtual Access lookup_end() = 0;
 
-    void create(FCPacketInfo &pkt_info);
-    void update(FCPacketInfo &pkt_info, bool src);
+    /* Return iterator to item to be freed from cache for given hash */
+    virtual Access free(const PacketInfo &pkt) = 0;
 
-    inline __attribute__((always_inline)) FCHash getHash() const { return m_hash; }
+    /* Signals to Store end of operation with record. Export does the same. */
+    virtual Access put(const Access &index) = 0;
+
+    /* Exports given index and returns field for flow with same hash */
+    virtual Access index_export(const Access &index, FlowRingBuffer &rb) = 0;
+
+    /* Exports given iterator and returns field for flow with same hash */
+    virtual Access iter_export(const Iter &iter, FlowRingBuffer &rb) = 0;
 };
-
-typedef FCRecord* FCRecordPtr;
-typedef std::vector<FCRecordPtr> FCRPtrVector;
-typedef std::vector<FCRecord> FCRVector;
 
 }
-#endif /* IPXP_BASIC_CACHE_RECORD_HPP */
+#endif /* IPXP_FLOW_STORE_HPP */
