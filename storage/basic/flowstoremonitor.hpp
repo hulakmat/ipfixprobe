@@ -1,14 +1,11 @@
 /**
- * \file record.hpp
- * \brief "NewHashTable" flow cache record
- * \author Martin Zadnik <zadnik@cesnet.cz>
- * \author Vaclav Bartos <bartos@cesnet.cz>
- * \author Jiri Havranek <havranek@cesnet.cz>
- * \author Tomas Benes <benes@cesnet.cz>
+ * \file cache.hpp
+ * \brief "FlowStore" Flow store abstraction
+ * \author Tomas Benes <tomasbenes@cesnet.cz>
  * \date 2021
  */
 /*
- * Copyright (C) 2014-2021 CESNET
+ * Copyright (C) 2014-2016 CESNET
  *
  * LICENSE TERMS
  *
@@ -43,65 +40,39 @@
  * if advised of the possibility of such damage.
  *
  */
-#ifndef IPXP_BASIC_CACHE_RECORD_HPP
-#define IPXP_BASIC_CACHE_RECORD_HPP
+#ifndef IPXP_FLOW_STORE_MONITOR_HPP
+#define IPXP_FLOW_STORE_MONITOR_HPP
 
 #include <string>
 
-#include <ipfixprobe/storage.hpp>
-#include <ipfixprobe/options.hpp>
-#include <ipfixprobe/flowifc.hpp>
-#include <ipfixprobe/utils.hpp>
-#include "xxhash.h"
+#include "flowstore.hpp"
 
 namespace ipxp {
 
-typedef uint64_t FCHash;
 
-class FCPacketInfo {
-    Packet &m_pkt;
-protected:
-    FCHash m_hash;
-public:
-    FCPacketInfo(FCPacketInfo &&info) : m_pkt(info.m_pkt), m_hash(info.m_hash) {} 
-    FCPacketInfo(Packet &pkt) : m_pkt(pkt), m_hash(0) {} 
-    /* Check if packet is getPacket used in same context as the Packet which it depends on */
-    Packet &getPacket() const { return m_pkt; }
-    virtual bool isValid() const = 0;
-    virtual FCHash getHash() const { return m_hash; }
-
-    FCPacketInfo& operator=(FCPacketInfo&& other)
-    {
-         m_pkt = other.m_pkt;
-         m_hash = other.m_hash;
-         return *this;
-    }
-};
-
-
-class FCRecord
+template <typename F>
+class FlowStoreMonitor :  public FlowStore<typename F::packet_info, typename F::accessor, typename F::iterator>
 {
-    FCHash m_hash;
+    typedef typename F::packet_info PacketInfo;
+    typedef typename F::accessor Access;
+    typedef typename F::iterator Iter;
 public:
-    Flow m_flow;
+    OptionsParser *get_parser() const { return m_flowstore.get_parser(); }
+    void init(const char *params) { m_flowstore.init(params); }
+    Iter begin() { return m_flowstore.begin(); }
+    Iter end() { return m_flowstore.end(); }
+    PacketInfo prepare(Packet &pkt, bool inverse = false) {return m_flowstore.prepare(pkt, inverse); }
+    Access lookup(const PacketInfo &pkt) { return m_flowstore.lookup(pkt); };
+    Access lookup_empty(const PacketInfo &pkt) { return m_flowstore.lookup_empty(pkt); }
+    Access lookup_end() { return m_flowstore.lookup_end(); }
+    Access free(const PacketInfo &pkt) { return m_flowstore.free(pkt); }
+    Access put(const Access &index) { return m_flowstore.put(index); }
+    Access index_export(const Access &index, FlowRingBuffer &rb) { return m_flowstore.index_export(index, rb); }
+    Access iter_export(const Iter &iter, FlowRingBuffer &rb) { return m_flowstore.iter_export(iter, rb); }
 
-    FCRecord();
-    ~FCRecord();
-
-    void erase();
-    void reuse();
-
-    inline __attribute__((always_inline)) bool isEmpty() const { return m_hash == 0; }
-
-    void create(FCPacketInfo &pkt_info);
-    void update(FCPacketInfo &pkt_info, bool src);
-
-    inline __attribute__((always_inline)) FCHash getHash() const { return m_hash; }
+private:
+    F m_flowstore;
 };
-
-typedef FCRecord* FCRecordPtr;
-typedef std::vector<FCRecordPtr> FCRPtrVector;
-typedef std::vector<FCRecord> FCRVector;
 
 }
-#endif /* IPXP_BASIC_CACHE_RECORD_HPP */
+#endif /* IPXP_FLOW_STORE_MONITOR_HPP */

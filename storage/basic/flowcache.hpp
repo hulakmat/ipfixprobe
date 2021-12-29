@@ -120,13 +120,15 @@ public:
    }
 };
 
+template <typename F>
 class NHTFlowCache : public StoragePlugin
 {
 public:
+   typedef typename F::iterator FIter;
+   typedef typename F::accessor FAccess;
+
    NHTFlowCache();
-   ~NHTFlowCache();
    void init(const char *params);
-   void close();
    void set_queue(ipx_ring_t *queue);
    OptionsParser *get_parser() const { return new CacheOptParser(); }
    std::string get_name() const { return "cache"; }
@@ -135,73 +137,11 @@ public:
    void export_expired(time_t ts);
 
 private:
-   typedef struct 
-   {
-      bool valid;
-      uint32_t line_index;
-      uint32_t flow_index;
-   } FlowIndex;
-   const FlowIndex makeRowIndex(const FCHash hash) {
-      return {
-         true,
-         ((uint32_t)hash) & this->m_line_mask,
-         0
-      };
-   };
-   const void moveToFront(const FlowIndex flowIndex)
-   {
-#ifdef FLOW_CACHE_STATS
-      const size_t lookup_len =  (flowIndex.flow_index - flowIndex.line_index + 1);
-      m_lookups += lookup_len;
-      m_lookups2 += lookup_len * lookup_len;
-#endif
-      /* Moving pointers operate with FCRecord** otherwise would be operating with Values */
-      std::rotate(m_flow_table + flowIndex.line_index, //Index of the first element
-                  m_flow_table + flowIndex.flow_index, //Index of the element that should be first
-                  m_flow_table + flowIndex.flow_index+1  //Index of last element in array
-                  );
-   }
-
-   const FlowIndex searchEmptyLine(const FlowIndex lIndex)
-   {
-      FlowIndex rIndex = lIndex;
-      const uint32_t next_line = rIndex.line_index + this->m_line_size;
-      /* Find existing flow record in flow cache. */
-      for (rIndex.flow_index = rIndex.line_index; rIndex.flow_index < next_line; rIndex.flow_index++) {
-         if (m_flow_table[rIndex.flow_index]->isEmpty()) {
-            rIndex.valid = true;
-            return rIndex;
-         }
-      }
-      rIndex.valid = false;
-      return rIndex;
-   }
-   const FlowIndex searchLine(const FlowIndex lIndex, const FCHash hash)
-   {
-      FlowIndex rIndex = lIndex;
-      const uint32_t next_line = rIndex.line_index + this->m_line_size;
-      /* Find existing flow record in flow cache. */
-      for (rIndex.flow_index = rIndex.line_index; rIndex.flow_index < next_line; rIndex.flow_index++) {
-         if (m_flow_table[rIndex.flow_index]->getHash() == hash) {
-            rIndex.valid = true;
-#ifdef FLOW_CACHE_STATS
-      m_hits++;
-#endif
-            return rIndex;
-         }
-      }
-      rIndex.valid = false;
-      return rIndex;
-   }
-
    FlowRingBuffer m_out_queue;
-   uint32_t m_cache_size;
-   uint32_t m_line_size;
-   uint32_t m_line_mask;
-   uint32_t m_line_new_idx;
-   uint32_t m_qsize;
-   uint32_t m_qidx;
-   uint32_t m_timeout_idx;
+   F m_flow_store;
+   
+   uint32_t m_timeout_step;
+   FIter m_timeout_iter;
 #ifdef FLOW_CACHE_STATS
    uint64_t m_empty;
    uint64_t m_not_empty;
@@ -214,12 +154,11 @@ private:
    uint32_t m_active;
    uint32_t m_inactive;
    bool m_split_biflow;
-   uint8_t m_keylen;
-   FCRecord **m_flow_table;
-   FCRecord *m_flow_records;
 
-   void flush(Packet &pkt, size_t flow_index, int ret, bool source_flow);
-   FCRecord* export_flow(size_t index, uint8_t reason = FLOW_END_NO_RES, bool pre_export_hook = true);
+   void flush(FCPacketInfo &pkt_info, FAccess flowIt, int ret, bool source_flow);
+   void export_prepare(FCRecord *flow, uint8_t reason = FLOW_END_NO_RES, bool pre_export_hook = true);
+   FAccess export_acc(const FAccess &flowAcc, uint8_t reason = FLOW_END_NO_RES, bool pre_export_hook = true);
+   FAccess export_iter(const FIter &flowIt, uint8_t reason = FLOW_END_NO_RES, bool pre_export_hook = true);
    void finish();
 
 #ifdef FLOW_CACHE_STATS

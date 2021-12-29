@@ -9,9 +9,9 @@ bin_PROGRAMS=ipfixprobe ipfixprobe_stats
 
 DISTCHECK_CONFIGURE_FLAGS="--with-systemdsystemunitdir=$$dc_install_base/$(systemdsystemunitdir)"
 
-ipfixprobe_LDFLAGS=-lpthread -ldl -latomic
+ipfixprobe_LDFLAGS=-lpthread -ldl -latomic $(BOOST_RANGE_LDFLAGS) $(BOOST_RANGE_LIBS)
 ipfixprobe_CFLAGS=-I$(srcdir)/include/
-ipfixprobe_CXXFLAGS=-std=gnu++11 -Wno-write-strings -I$(srcdir)/include/
+ipfixprobe_CXXFLAGS=-std=gnu++11 -Wno-write-strings -I$(srcdir)/include/ $(BOOST_CPPFLAGS)
 
 if OS_CYGWIN
 ipfixprobe_CXXFLAGS+=-Wl,--export-all-symbols
@@ -61,8 +61,12 @@ endif
 
 ipfixprobe_storage_src=\
 		storage/basic/flowringbuffer.hpp \
+		storage/basic/flowstoremonitor.hpp \
 		storage/basic/flowcache.cpp \
 		storage/basic/flowcache.hpp \
+		storage/basic/flowstore.hpp \
+		storage/basic/hashtablestore.cpp \
+		storage/basic/hashtablestore.hpp \
 		storage/basic/record.cpp \
 		storage/basic/record.hpp \
 		storage/basic/xxhash.c \
