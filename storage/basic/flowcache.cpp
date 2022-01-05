@@ -51,6 +51,7 @@
 
 #include "hashtablestore.hpp"
 #include "flowstoremonitor.hpp"
+#include "hiearchyflowstore.hpp"
 #include "flowcache.hpp"
 #include "xxhash.h"
 
@@ -59,24 +60,31 @@ namespace ipxp {
 __attribute__((constructor)) static void register_this_plugin()
 {
    static PluginRecord rec = PluginRecord("cache", []() {
-      return new NHTFlowCache<
+      // return new FlowCache<
+      //                FlowStoreMonitor<
+      //                   HTFlowStore
+      //                >
+      //             >();
+         return new FlowCache<
+                  FlowStoreHiearchy<
                      FlowStoreMonitor<
                         HTFlowStore
                      >
-                  >();
+                  >
+               >();
    });
    register_plugin(&rec);
 }
 
 template <class F>
-NHTFlowCache<F>::NHTFlowCache() :
+FlowCache<F>::FlowCache() :
    m_active(0), m_inactive(0),
    m_split_biflow(false)
 {
 }
 
 template <class F>
-void NHTFlowCache<F>::init(const char *params)
+void FlowCache<F>::init(const char *params)
 {
    CacheOptParser parser;
    try {
@@ -84,16 +92,22 @@ void NHTFlowCache<F>::init(const char *params)
    } catch (ParserError &e) {
       throw PluginError(e.what());
    }
+   init(parser);
+}
 
+
+template <class F>
+void FlowCache<F>::init(CacheOptParser &parser)
+{
    m_active = parser.m_active;
    m_inactive = parser.m_inactive;
-   m_timeout_step = parser.m_line_size / 2;
+   m_timeout_step = parser.m_timeout_step;
 
    if (m_export_queue == nullptr) {
       throw PluginError("output queue must be set before init");
    }
 
-   m_flow_store.init(params);
+   m_flow_store.init(static_cast<BaseParser&>(parser));
    m_timeout_iter = m_flow_store.begin();
    m_split_biflow = parser.m_split_biflow;
 
@@ -107,7 +121,7 @@ void NHTFlowCache<F>::init(const char *params)
 }
 
 template <class F>
-void NHTFlowCache<F>::set_queue(ipx_ring_t *queue)
+void FlowCache<F>::set_queue(ipx_ring_t *queue)
 {
    m_out_queue.set_queue(queue);
    StoragePlugin::set_queue(queue);
@@ -115,7 +129,7 @@ void NHTFlowCache<F>::set_queue(ipx_ring_t *queue)
 
 
 template <class F>
-void NHTFlowCache<F>::export_prepare(FCRecord *flow, uint8_t reason, bool pre_export_hook)
+void FlowCache<F>::export_prepare(FCRecord *flow, uint8_t reason, bool pre_export_hook)
 {
    flow->m_flow.end_reason = reason;
    if(pre_export_hook) {
@@ -124,21 +138,21 @@ void NHTFlowCache<F>::export_prepare(FCRecord *flow, uint8_t reason, bool pre_ex
 }
 
 template <class F>
-typename NHTFlowCache<F>::FAccess NHTFlowCache<F>::export_acc(const FAccess &flowAcc, uint8_t reason, bool pre_export_hook)
+typename FlowCache<F>::FAccess FlowCache<F>::export_acc(const FAccess &flowAcc, uint8_t reason, bool pre_export_hook)
 {
    export_prepare(*flowAcc, reason, pre_export_hook);
    return m_flow_store.index_export(flowAcc, m_out_queue);
 }
 
 template <class F>
-typename NHTFlowCache<F>::FAccess NHTFlowCache<F>::export_iter(const FIter &flowIt, uint8_t reason, bool pre_export_hook)
+typename FlowCache<F>::FAccess FlowCache<F>::export_iter(const FIter &flowIt, uint8_t reason, bool pre_export_hook)
 {
    export_prepare(*flowIt, reason, pre_export_hook);
    return m_flow_store.iter_export(flowIt, m_out_queue);
 }
 
 template <class F>
-void NHTFlowCache<F>::finish()
+void FlowCache<F>::finish()
 {
    for(auto it = m_flow_store.begin(); it != m_flow_store.end(); ++it) {
       if (!(*it)->isEmpty()) {
@@ -151,7 +165,7 @@ void NHTFlowCache<F>::finish()
 }
 
 template <class F>
-void NHTFlowCache<F>::flush(FCPacketInfo &pkt_info, FAccess flowIt, int ret, bool source_flow)
+void FlowCache<F>::flush(FInfo &pkt_info, FAccess flowIt, int ret, bool source_flow)
 {
 #ifdef FLOW_CACHE_STATS
    m_flushed++;
@@ -173,7 +187,7 @@ void NHTFlowCache<F>::flush(FCPacketInfo &pkt_info, FAccess flowIt, int ret, boo
       /* Mark flow as updated apply cache policy */
       flowIt = m_flow_store.put(flowIt);
 
-      ret = plugins_post_create(flow->m_flow, pkt_info.getPacket());
+      ret = plugins_post_create(flow->m_flow, *pkt_info.getPacket());
       if (ret & FLOW_FLUSH) {
          flush(pkt_info, flowIt, ret, source_flow);
       }
@@ -182,20 +196,16 @@ void NHTFlowCache<F>::flush(FCPacketInfo &pkt_info, FAccess flowIt, int ret, boo
    }
 }
 
-
 template <class F>
-int NHTFlowCache<F>::put_pkt(Packet &pkt)
+int FlowCache<F>::put_pkt(Packet &pkt)
 {
-   int ret = plugins_pre_create(pkt);
-
+   plugins_pre_create(pkt);
    auto pkt_info = m_flow_store.prepare(pkt);
    if (!pkt_info.isValid()) {
       return 0;
    }
 
-   bool source_flow = true;
    auto flowIt = m_flow_store.lookup(pkt_info);
-
    /* Find inversed flow. */
    if (flowIt == m_flow_store.lookup_end() && !m_split_biflow) {
       auto pkt_inv_info = m_flow_store.prepare(pkt, true);
@@ -204,8 +214,6 @@ int NHTFlowCache<F>::put_pkt(Packet &pkt)
          /* When inverse flow found declare it as operatinal field */
          flowIt = flowInvIt;
          pkt_info = std::move(pkt_inv_info);
-
-         source_flow = false;
       }
    }
 
@@ -215,8 +223,12 @@ int NHTFlowCache<F>::put_pkt(Packet &pkt)
       if (flowIt == m_flow_store.lookup_end()) {
          /* If free place was not found (flow line is full), find
           * record which will be replaced by new record. */
-
-         flowIt = export_acc(m_flow_store.free(pkt_info), FLOW_END_NO_RES);
+         auto freeIt = m_flow_store.free(pkt_info);
+         if(freeIt == m_flow_store.lookup_end()) {
+            //Throw unable to store flow. or return ?
+            return 0;
+         }
+         flowIt = export_acc(freeIt, FLOW_END_NO_RES);
          /* Flow index has been freed for the incoming flow */
 #ifdef FLOW_CACHE_STATS
          m_not_empty++;
@@ -229,29 +241,37 @@ int NHTFlowCache<F>::put_pkt(Packet &pkt)
       m_hits++;
 #endif /* FLOW_CACHE_STATS */
    }
+   return process_flow(pkt, pkt_info, flowIt);
+}
 
-   /* TODO: Remove source variable already contained in pkt */
-   pkt.source_pkt = source_flow;
+template <class F>
+int FlowCache<F>::process_flow(Packet &pkt, FInfo &pkt_info, FAccess &flowIt)
+{
+   int ret;
+   pkt.source_pkt = !pkt_info.isInverse();
    FCRecord *flow = (*flowIt);
 
    /* Processing new flow insertion into the flow cache */
    if (flow->isEmpty()) {
-      flow->create(pkt_info);
+      flow->create(static_cast<FCPacketInfo &>(pkt_info));
       ret = plugins_post_create(flow->m_flow, pkt);
+
+      /* Used by derivate classes to track flow and packet info */
+      flow_updated(pkt_info, flowIt);
 
       /* Mark flow as updated apply cache policy */
       flowIt = m_flow_store.put(flowIt);
       if (ret & FLOW_FLUSH) {
-         flush(pkt_info, flowIt, ret, source_flow);
+         flush(pkt_info, flowIt, ret, pkt.source_pkt);
       }
       return 0;
    }
 
    /* Processing existing flow inside the flow cache */
-   uint8_t flw_flags = source_flow ? flow->m_flow.src_tcp_flags : flow->m_flow.dst_tcp_flags;
+   uint8_t flw_flags = pkt.source_pkt ? flow->m_flow.src_tcp_flags : flow->m_flow.dst_tcp_flags;
    if ((pkt.tcp_flags & 0x02) && (flw_flags & (0x01 | 0x04))) //TODO: Make some enum/flags constants
    {
-      // Flows with FIN or RST TCP flags are exported when new SYN packet arrives
+      // Flows with FIN or RST TCP flags are exported when new SYN packet arrives TODO: Why ? only complicates flow
       export_acc(flowIt, FLOW_END_EOF, false);
       put_pkt(pkt);
       return 0;
@@ -270,20 +290,26 @@ int NHTFlowCache<F>::put_pkt(Packet &pkt)
    ret = plugins_pre_update(flow->m_flow, pkt);
    if (ret & FLOW_FLUSH)
    {
-      flush(pkt_info, flowIt, ret, source_flow);
+      /* Used by derivate classes to track flow and packet info */
+      flow_updated(pkt_info, flowIt);
+
+      flush(pkt_info, flowIt, ret, pkt.source_pkt);
       return 0;
    }
    else
    {
-      flow->update(pkt_info, source_flow);
+      flow->update(static_cast<FCPacketInfo &>(pkt_info), pkt.source_pkt);
       ret = plugins_post_update(flow->m_flow, pkt);
 
+      /* Used by derivate classes to track flow and packet info */
+      flow_updated(pkt_info, flowIt);
+      
       /* Mark flow as updated apply cache policy */
       flowIt = m_flow_store.put(flowIt);
 
       if (ret & FLOW_FLUSH)
       {
-         flush(pkt_info, flowIt, ret, source_flow);
+         flush(pkt_info, flowIt, ret, pkt.source_pkt);
          return 0;
       }
    }
@@ -304,7 +330,7 @@ int NHTFlowCache<F>::put_pkt(Packet &pkt)
 }
 
 template <class F>
-void NHTFlowCache<F>::export_expired(time_t ts)
+void FlowCache<F>::export_expired(time_t ts)
 {
    for(uint32_t i = 0; i < m_timeout_step && m_timeout_iter != m_flow_store.end(); ++i) {
       if (!(*m_timeout_iter)->isEmpty() && ts - (*m_timeout_iter)->m_flow.time_last.tv_sec >= m_inactive) {
@@ -324,7 +350,7 @@ void NHTFlowCache<F>::export_expired(time_t ts)
 #include <iostream>
 using namespace std;
 template <class F>
-void NHTFlowCache<F>::print_report()
+void FlowCache<F>::print_report()
 {
    cout << "Hits: " << m_hits << endl;
    cout << "Empty: " << m_empty << endl;

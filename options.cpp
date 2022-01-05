@@ -35,11 +35,11 @@
 
 namespace ipxp {
 
-OptionsParser::OptionsParser() : m_name(""), m_info(""), m_delim(OptionsParser::DELIM)
+OptionsParser::OptionsParser() : m_ignore_unknown(false), m_name(""), m_info(""), m_delim(OptionsParser::DELIM)
 {
 }
 
-OptionsParser::OptionsParser(const std::string &name, const std::string &info) : m_name(name), m_info(info), m_delim(OptionsParser::DELIM)
+OptionsParser::OptionsParser(const std::string &name, const std::string &info) : m_ignore_unknown(false), m_name(name), m_info(info), m_delim(OptionsParser::DELIM)
 {
 }
 
@@ -112,6 +112,9 @@ void OptionsParser::parse(int argc, const char **argv) const
       } else if (m_short.find(opt) != m_short.end()) {
          opt_spec = m_short.at(opt);
       } else {
+         if(m_ignore_unknown) {
+            continue;
+         }
          throw ParserError("invalid option " + opt);
       }
 

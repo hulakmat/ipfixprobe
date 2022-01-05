@@ -64,6 +64,10 @@ ipfixprobe_storage_src=\
 		storage/basic/flowstoremonitor.hpp \
 		storage/basic/flowcache.cpp \
 		storage/basic/flowcache.hpp \
+		storage/basic/flowcacheoutput.cpp \
+		storage/basic/flowcacheoutput.hpp \
+		storage/basic/hiearchyflowstore.hpp \
+		storage/basic/hiearchyjoiniterator.hpp \
 		storage/basic/flowstore.hpp \
 		storage/basic/hashtablestore.cpp \
 		storage/basic/hashtablestore.hpp \
@@ -117,6 +121,8 @@ ipfixprobe_process_src=\
 		process/phists.hpp \
 		process/pstats.hpp \
 		process/pstats.cpp \
+		process/last_pkt.cpp \
+		process/last_pkt.hpp \
 		process/ovpn.hpp \
 		process/ovpn.cpp \
 		process/ssdp.hpp \
