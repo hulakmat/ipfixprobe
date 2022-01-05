@@ -182,20 +182,6 @@ void init_packets(ipxp_conf_t &conf)
    }
 }
 
-void process_plugin_argline(const std::string &args, std::string &plugin, std::string &params)
-{
-   size_t delim;
-
-   params = args;
-   delim = params.find(OptionsParser::DELIM);
-
-   plugin = params.substr(0, delim);
-   params.erase(0, delim == std::string::npos ? delim : delim + 1);
-
-   trim_str(plugin);
-   trim_str(params);
-}
-
 bool process_plugin_args(ipxp_conf_t &conf, IpfixprobeOptParser &parser)
 {
    auto deleter = [&](OutputPlugin::Plugins *p) {
@@ -211,10 +197,10 @@ bool process_plugin_args(ipxp_conf_t &conf, IpfixprobeOptParser &parser)
    std::string output_params = "";
 
    if (parser.m_storage.size()) {
-      process_plugin_argline(parser.m_storage[0], storage_name, storage_params);
+      OptionsParser::process_plugin_argline(parser.m_storage[0], storage_name, storage_params);
    }
    if (parser.m_output.size()) {
-      process_plugin_argline(parser.m_output[0], output_name, output_params);
+      OptionsParser::process_plugin_argline(parser.m_output[0], output_name, output_params);
    }
 
    // Process
@@ -222,7 +208,7 @@ bool process_plugin_args(ipxp_conf_t &conf, IpfixprobeOptParser &parser)
       ProcessPlugin *process_plugin = nullptr;
       std::string process_params;
       std::string process_name;
-      process_plugin_argline(it, process_name, process_params);
+      OptionsParser::process_plugin_argline(it, process_name, process_params);
       for (auto &it : *process_plugins) {
          std::string plugin_name = it.first;
          if (plugin_name == process_name) {
@@ -301,7 +287,7 @@ bool process_plugin_args(ipxp_conf_t &conf, IpfixprobeOptParser &parser)
       StoragePlugin *storage_plugin = nullptr;
       std::string input_params;
       std::string input_name;
-      process_plugin_argline(it, input_name, input_params);
+      OptionsParser::process_plugin_argline(it, input_name, input_params);
 
       try {
          input_plugin = dynamic_cast<InputPlugin *>(conf.mgr.get(input_name));

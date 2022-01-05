@@ -51,21 +51,21 @@ namespace ipxp {
 
 
 template <typename F>
-class FlowStoreMonitor :  public FlowStore<typename F::packet_info, typename F::accessor, typename F::iterator>
+class FlowStoreMonitor :  public FlowStore<typename F::packet_info, typename F::accessor, typename F::iterator, typename F::parser>
 {
     typedef typename F::packet_info PacketInfo;
     typedef typename F::accessor Access;
     typedef typename F::iterator Iter;
+    typedef typename F::parser Parser;
 public:
-    OptionsParser *get_parser() const { return m_flowstore.get_parser(); }
-    void init(const char *params) { m_flowstore.init(params); }
+    void init(Parser &parser) { m_flowstore.init(parser); }
     Iter begin() { return m_flowstore.begin(); }
     Iter end() { return m_flowstore.end(); }
     PacketInfo prepare(Packet &pkt, bool inverse = false) {return m_flowstore.prepare(pkt, inverse); }
-    Access lookup(const PacketInfo &pkt) { return m_flowstore.lookup(pkt); };
-    Access lookup_empty(const PacketInfo &pkt) { return m_flowstore.lookup_empty(pkt); }
+    Access lookup(PacketInfo &pkt) { return m_flowstore.lookup(pkt); };
+    Access lookup_empty(PacketInfo &pkt) { return m_flowstore.lookup_empty(pkt); }
     Access lookup_end() { return m_flowstore.lookup_end(); }
-    Access free(const PacketInfo &pkt) { return m_flowstore.free(pkt); }
+    Access free(PacketInfo &pkt) { return m_flowstore.free(pkt); }
     Access put(const Access &index) { return m_flowstore.put(index); }
     Access index_export(const Access &index, FlowRingBuffer &rb) { return m_flowstore.index_export(index, rb); }
     Access iter_export(const Iter &iter, FlowRingBuffer &rb) { return m_flowstore.iter_export(iter, rb); }

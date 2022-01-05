@@ -49,6 +49,55 @@
 namespace ipxp {
 #define FLOW_CACHE_STATS
 
+
+#ifdef IPXP_FLOW_CACHE_SIZE
+static const uint32_t DEFAULT_FLOW_CACHE_SIZE = IPXP_FLOW_CACHE_SIZE;
+#else
+static const uint32_t DEFAULT_FLOW_CACHE_SIZE = 17; // 131072 records total
+#endif /* IPXP_FLOW_CACHE_SIZE */
+
+#ifdef IPXP_FLOW_LINE_SIZE
+static const uint32_t DEFAULT_FLOW_LINE_SIZE = IPXP_FLOW_LINE_SIZE;
+#else
+static const uint32_t DEFAULT_FLOW_LINE_SIZE = 4; // 16 records per line
+#endif /* IPXP_FLOW_LINE_SIZE */
+
+static_assert(std::is_unsigned<decltype(DEFAULT_FLOW_CACHE_SIZE)>(), "Static checks of default cache sizes won't properly work without unsigned type.");
+static_assert(bitcount<decltype(DEFAULT_FLOW_CACHE_SIZE)>(-1) > DEFAULT_FLOW_CACHE_SIZE, "Flow cache size is too big to fit in variable!");
+static_assert(bitcount<decltype(DEFAULT_FLOW_LINE_SIZE)>(-1) > DEFAULT_FLOW_LINE_SIZE, "Flow cache line size is too big to fit in variable!");
+
+static_assert(DEFAULT_FLOW_LINE_SIZE >= 1, "Flow cache line size must be at least 1!");
+static_assert(DEFAULT_FLOW_CACHE_SIZE >= DEFAULT_FLOW_LINE_SIZE, "Flow cache size must be at least cache line size!");
+
+class HashTableStoreParser : public OptionsParser
+{
+public:
+   uint32_t m_cache_size;
+   uint32_t m_line_size;
+   uint32_t m_active;
+   uint32_t m_inactive;
+
+   HashTableStoreParser(const std::string &name = "hash", const std::string &desc = "Desc") : OptionsParser(name, desc),
+      m_cache_size(1 << DEFAULT_FLOW_CACHE_SIZE), m_line_size(1 << DEFAULT_FLOW_LINE_SIZE)
+   {
+      register_option("s", "size", "EXPONENT", "Cache size exponent to the power of two",
+         [this](const char *arg){try {unsigned exp = str2num<decltype(exp)>(arg);
+               if (exp < 4 || exp > 30) {
+                  throw PluginError("Flow cache size must be between 4 and 30");
+               }
+               m_cache_size = static_cast<uint32_t>(1) << exp;
+            } catch(std::invalid_argument &e) {return false;} return true;},
+         OptionFlags::RequiredArgument);
+      register_option("l", "line", "EXPONENT", "Cache line size exponent to the power of two",
+         [this](const char *arg){try {m_line_size = static_cast<uint32_t>(1) << str2num<decltype(m_line_size)>(arg);
+               if (m_line_size < 1) {
+                  throw PluginError("Flow cache line size must be at least 1");
+               }
+            } catch(std::invalid_argument &e) {return false;} return true;},
+         OptionFlags::RequiredArgument);
+   }
+};
+
 typedef uint32_t flow_ip_v4_t;
 typedef std::array<uint8_t, 16> flow_ip_v6_t;
 
@@ -89,41 +138,29 @@ class HTFlowsStorePacketInfo : public FCPacketInfo {
     size_t getLength() const { return this->m_type == KeyType::v4 ? flow_key_v4_len : flow_key_v6_len; }
     void calcHash() { this->m_hash = XXH64(reinterpret_cast<uint8_t*>(&this->m_key), this->getLength(), 0);};
 public:
-    HTFlowsStorePacketInfo(HTFlowsStorePacketInfo &&info) : FCPacketInfo(std::move(info)), m_key(info.m_key), m_type(info.m_type)
-        { }
-    HTFlowsStorePacketInfo(Packet &pkt, flow_key_t key) : FCPacketInfo(pkt), m_key(key), m_type(static_cast<KeyType>(key.ip_version))
+    HTFlowsStorePacketInfo(Packet &pkt, bool inverse, flow_key_t key) : FCPacketInfo(pkt, inverse), m_key(key), m_type(static_cast<KeyType>(key.ip_version))
         { this->calcHash(); }
     static HTFlowsStorePacketInfo from_packet(Packet &pkt, bool inverse = false);
     bool isValid() const { return this->m_type != KeyType::None; };
-
-
-    HTFlowsStorePacketInfo& operator=(HTFlowsStorePacketInfo&& other)
-    {
-        FCPacketInfo::operator=(std::move(other));
-        m_key = other.m_key;
-        m_type = other.m_type;
-        return *this;
-    }
-
     friend class HTFlowStore;
 };
 
-class HTFlowStore : public FlowStore<HTFlowsStorePacketInfo, FCRPtrVector::iterator, FCRPtrVector::iterator>
+class HTFlowStore : public FlowStore<HTFlowsStorePacketInfo, FCRPtrVector::iterator, FCRPtrVector::iterator, HashTableStoreParser>
 {
 public:
     /* Parser options API */
     OptionsParser *get_parser() const;
-    void init(const char *params);
+    void init(HashTableStoreParser& parser);
 
     /* Iteration API */
     iterator begin() { return m_flow_table.begin(); }
     iterator end() { return m_flow_table.end(); } 
     packet_info prepare(Packet &pkt, bool inverse);
 
-    accessor lookup(const packet_info &pkt);
-    accessor lookup_empty(const packet_info &pkt);
+    accessor lookup(packet_info &pkt);
+    accessor lookup_empty(packet_info &pkt);
     accessor lookup_end() { return end(); }
-    accessor free(const packet_info &pkt);
+    accessor free(packet_info &pkt);
 
     accessor put(const accessor &index);
     accessor index_export(const accessor &index, FlowRingBuffer &rb);
@@ -194,9 +231,6 @@ private:
             if (m_flow_table[rIndex.flow_index]->getHash() == hash)
             {
                 rIndex.valid = true;
-#ifdef FLOW_CACHE_STATS
-                m_hits++;
-#endif
                 return rIndex;
             }
         }
@@ -213,11 +247,6 @@ private:
     FCRVector m_flow_records;
 
 #ifdef FLOW_CACHE_STATS
-   uint64_t m_empty;
-   uint64_t m_not_empty;
-   uint64_t m_hits;
-   uint64_t m_expired;
-   uint64_t m_flushed;
    uint64_t m_lookups;
    uint64_t m_lookups2;
 #endif /* FLOW_CACHE_STATS */

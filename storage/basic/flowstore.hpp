@@ -52,16 +52,16 @@
 namespace ipxp {
 
 class FlowRingBuffer;
-template <typename PacketInfo, typename Access, typename Iter>
+template <typename PacketInfo, typename Access, typename Iter, typename Parser>
 class FlowStore
 {
 public:
     typedef PacketInfo packet_info;
     typedef Iter iterator; /* Iterator over accessors */
     typedef Access accessor;
+    typedef Parser parser;
     /* Parser options API */
-    virtual OptionsParser *get_parser() const = 0;
-    void init(const char *params) {};
+    void init(parser &parser) {};
 
     /* Iteration API */
     virtual Iter begin() = 0;
@@ -70,14 +70,14 @@ public:
     /* Prepare packet for processing. Calculates shared items for lookup/free operations */
     virtual PacketInfo prepare(Packet &pkt, bool inverse) = 0;
     /* Looksup records for given hash. */
-    virtual Access lookup(const PacketInfo &pkt ) = 0;
-    virtual Access lookup_empty(const PacketInfo &pkt) = 0;
+    virtual Access lookup(PacketInfo &pkt ) = 0;
+    virtual Access lookup_empty(PacketInfo &pkt) = 0;
 
     /* Lookup operation invalid accessor signaling NotFound */
     virtual Access lookup_end() = 0;
 
     /* Return iterator to item to be freed from cache for given hash */
-    virtual Access free(const PacketInfo &pkt) = 0;
+    virtual Access free(PacketInfo &pkt) = 0;
 
     /* Signals to Store end of operation with record. Export does the same. */
     virtual Access put(const Access &index) = 0;

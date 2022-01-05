@@ -59,81 +59,56 @@
 #define FLOW_CACHE_STATS
 
 namespace ipxp {
-#ifdef IPXP_FLOW_CACHE_SIZE
-static const uint32_t DEFAULT_FLOW_CACHE_SIZE = IPXP_FLOW_CACHE_SIZE;
-#else
-static const uint32_t DEFAULT_FLOW_CACHE_SIZE = 17; // 131072 records total
-#endif /* IPXP_FLOW_CACHE_SIZE */
-
-#ifdef IPXP_FLOW_LINE_SIZE
-static const uint32_t DEFAULT_FLOW_LINE_SIZE = IPXP_FLOW_LINE_SIZE;
-#else
-static const uint32_t DEFAULT_FLOW_LINE_SIZE = 4; // 16 records per line
-#endif /* IPXP_FLOW_LINE_SIZE */
 
 static const uint32_t DEFAULT_INACTIVE_TIMEOUT = 30;
 static const uint32_t DEFAULT_ACTIVE_TIMEOUT = 300;
-
-static_assert(std::is_unsigned<decltype(DEFAULT_FLOW_CACHE_SIZE)>(), "Static checks of default cache sizes won't properly work without unsigned type.");
-static_assert(bitcount<decltype(DEFAULT_FLOW_CACHE_SIZE)>(-1) > DEFAULT_FLOW_CACHE_SIZE, "Flow cache size is too big to fit in variable!");
-static_assert(bitcount<decltype(DEFAULT_FLOW_LINE_SIZE)>(-1) > DEFAULT_FLOW_LINE_SIZE, "Flow cache line size is too big to fit in variable!");
-
-static_assert(DEFAULT_FLOW_LINE_SIZE >= 1, "Flow cache line size must be at least 1!");
-static_assert(DEFAULT_FLOW_CACHE_SIZE >= DEFAULT_FLOW_LINE_SIZE, "Flow cache size must be at least cache line size!");
-
-class CacheOptParser : public OptionsParser
-{
-public:
-   uint32_t m_cache_size;
-   uint32_t m_line_size;
-   uint32_t m_active;
-   uint32_t m_inactive;
-   bool m_split_biflow;
-
-   CacheOptParser() : OptionsParser("cache", "Storage plugin implemented as a hash table"),
-      m_cache_size(1 << DEFAULT_FLOW_CACHE_SIZE), m_line_size(1 << DEFAULT_FLOW_LINE_SIZE),
-      m_active(DEFAULT_ACTIVE_TIMEOUT), m_inactive(DEFAULT_INACTIVE_TIMEOUT), m_split_biflow(false)
-   {
-      register_option("s", "size", "EXPONENT", "Cache size exponent to the power of two",
-         [this](const char *arg){try {unsigned exp = str2num<decltype(exp)>(arg);
-               if (exp < 4 || exp > 30) {
-                  throw PluginError("Flow cache size must be between 4 and 30");
-               }
-               m_cache_size = static_cast<uint32_t>(1) << exp;
-            } catch(std::invalid_argument &e) {return false;} return true;},
-         OptionFlags::RequiredArgument);
-      register_option("l", "line", "EXPONENT", "Cache line size exponent to the power of two",
-         [this](const char *arg){try {m_line_size = static_cast<uint32_t>(1) << str2num<decltype(m_line_size)>(arg);
-               if (m_line_size < 1) {
-                  throw PluginError("Flow cache line size must be at least 1");
-               }
-            } catch(std::invalid_argument &e) {return false;} return true;},
-         OptionFlags::RequiredArgument);
-      register_option("a", "active", "TIME", "Active timeout in seconds",
-         [this](const char *arg){try {m_active = str2num<decltype(m_active)>(arg);} catch(std::invalid_argument &e) {return false;} return true;},
-         OptionFlags::RequiredArgument);
-      register_option("i", "inactive", "TIME", "Inactive timeout in seconds",
-         [this](const char *arg){try {m_inactive = str2num<decltype(m_inactive)>(arg);} catch(std::invalid_argument &e) {return false;} return true;},
-         OptionFlags::RequiredArgument);
-      register_option("S", "split", "", "Split biflows into uniflows",
-         [this](const char *arg){ m_split_biflow = true; return true;}, OptionFlags::NoArgument);
-   }
-};
+static const uint32_t DEFAULT_TIMEOUT_STEP = 8;
 
 template <typename F>
-class NHTFlowCache : public StoragePlugin
+class FlowCache : public StoragePlugin
 {
+   typedef typename F::parser BaseParser;
+   class CacheOptParser : public BaseParser
+   {
+   public:
+      uint32_t m_timeout_step;
+      uint32_t m_active;
+      uint32_t m_inactive;
+      bool m_split_biflow;
+
+      CacheOptParser(const std::string &name = "cache", const std::string &desc = "Desciption") : BaseParser(name, desc),
+         m_timeout_step(DEFAULT_TIMEOUT_STEP), m_active(DEFAULT_ACTIVE_TIMEOUT), m_inactive(DEFAULT_INACTIVE_TIMEOUT), m_split_biflow(false)
+      {
+         this->register_option("a", "active", "TIME", "Active timeout in seconds",
+            [this](const char *arg){try {m_active = str2num<decltype(m_active)>(arg);} catch(std::invalid_argument &e) {return false;} return true;},
+            OptionsParser::OptionFlags::RequiredArgument);
+         this->register_option("i", "inactive", "TIME", "Inactive timeout in seconds",
+            [this](const char *arg){try {m_inactive = str2num<decltype(m_inactive)>(arg);} catch(std::invalid_argument &e) {return false;} return true;},
+            OptionsParser::OptionFlags::RequiredArgument);
+         this->register_option("t", "timeoutstep", "", "Number of records check each timeout check",
+            [this](const char *arg){try {m_timeout_step = str2num<decltype(m_timeout_step)>(arg);} catch(std::invalid_argument &e) {return false;} return true;},
+            OptionsParser::OptionFlags::RequiredArgument);
+         this->register_option("S", "split", "", "Split biflows into uniflows",
+            [this](const char *arg){ m_split_biflow = true; return true;}, 
+            OptionsParser::OptionFlags::NoArgument);
+      }
+   };
+
 public:
+   typedef CacheOptParser parser;
    typedef typename F::iterator FIter;
    typedef typename F::accessor FAccess;
+   typedef typename F::packet_info FInfo;
 
-   NHTFlowCache();
+   FlowCache();
    void init(const char *params);
+   void init(CacheOptParser &parser);
    void set_queue(ipx_ring_t *queue);
    OptionsParser *get_parser() const { return new CacheOptParser(); }
    std::string get_name() const { return "cache"; }
 
    int put_pkt(Packet &pkt);
+   int process_flow(Packet &pkt, FInfo &pkt_info, FAccess &flowIt);
    void export_expired(time_t ts);
 
 private:
@@ -148,14 +123,13 @@ private:
    uint64_t m_hits;
    uint64_t m_expired;
    uint64_t m_flushed;
-   uint64_t m_lookups;
-   uint64_t m_lookups2;
 #endif /* FLOW_CACHE_STATS */
    uint32_t m_active;
    uint32_t m_inactive;
    bool m_split_biflow;
 
-   void flush(FCPacketInfo &pkt_info, FAccess flowIt, int ret, bool source_flow);
+   virtual void flow_updated(FInfo &pkt_info, FAccess &flowIt) {};
+   void flush(FInfo &pkt_info, FAccess flowIt, int ret, bool source_flow);
    void export_prepare(FCRecord *flow, uint8_t reason = FLOW_END_NO_RES, bool pre_export_hook = true);
    FAccess export_acc(const FAccess &flowAcc, uint8_t reason = FLOW_END_NO_RES, bool pre_export_hook = true);
    FAccess export_iter(const FIter &flowIt, uint8_t reason = FLOW_END_NO_RES, bool pre_export_hook = true);

@@ -82,6 +82,11 @@ AC_SUBST([defaultsocketdir], [$with_defaultsocketdir])
 AC_DEFINE_DIR([DEFAULTSOCKETDIR], [defaultsocketdir], [Default path to socket directory])
 
 AC_CHECK_LIB(atomic, __atomic_store, [libatomic=yes], AC_MSG_ERROR([libatomic not found]))
+### Boost ranges
+
+BOOST_REQUIRE
+BOOST_RANGE
+
 
 ### gtest
 AC_ARG_WITH([gtest],

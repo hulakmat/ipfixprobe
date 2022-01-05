@@ -1,14 +1,15 @@
 /**
- * \file record.hpp
- * \brief "NewHashTable" flow cache record
+ * \file cache.hpp
+ * \brief "NewHashTable" flow cache
  * \author Martin Zadnik <zadnik@cesnet.cz>
  * \author Vaclav Bartos <bartos@cesnet.cz>
  * \author Jiri Havranek <havranek@cesnet.cz>
- * \author Tomas Benes <benes@cesnet.cz>
- * \date 2021
+ * \date 2014
+ * \date 2015
+ * \date 2016
  */
 /*
- * Copyright (C) 2014-2021 CESNET
+ * Copyright (C) 2014-2016 CESNET
  *
  * LICENSE TERMS
  *
@@ -43,60 +44,54 @@
  * if advised of the possibility of such damage.
  *
  */
-#ifndef IPXP_BASIC_CACHE_RECORD_HPP
-#define IPXP_BASIC_CACHE_RECORD_HPP
+#ifndef IPXP_STORAGE_CACHE_OUTPUT_HPP
+#define IPXP_STORAGE_CACHE_OUTPUT_HPP
 
 #include <string>
 
 #include <ipfixprobe/storage.hpp>
+#include <ipfixprobe/output.hpp>
 #include <ipfixprobe/options.hpp>
 #include <ipfixprobe/flowifc.hpp>
 #include <ipfixprobe/utils.hpp>
-#include "xxhash.h"
+#include "record.hpp"
+#include "flowringbuffer.hpp"
+#include "flowcache.hpp"
 
 namespace ipxp {
 
-typedef uint64_t FCHash;
-
-class FCPacketInfo {
-    Packet *m_pkt;
-    bool m_inverse;
-protected:
-    FCHash m_hash;
-public:
-    FCPacketInfo() : m_pkt(nullptr), m_hash(0) {}
-    FCPacketInfo(Packet &pkt, bool inverse) : m_pkt(&pkt), m_inverse(inverse), m_hash(0) {} 
-    /* Check if packet is getPacket used in same context as the Packet which it depends on */
-    virtual Packet *getPacket() { return m_pkt; }
-    virtual bool isInverse() const { return m_inverse; }
-    virtual bool isValid() const = 0;
-    virtual FCHash getHash() const { return m_hash; }
-};
-
-
-class FCRecord
+template <typename F>
+class FlowCacheOutput : public FlowCache<F>
 {
-    FCHash m_hash;
+   typedef FlowCache<F> Base;
+   class CacheLogOptParser : public Base::parser
+   {
+   public:
+      std::vector<std::string> m_output;
+      CacheLogOptParser() : Base::parser("cache_output", "Description")
+      {
+         this->register_option("o", "output", "ARGS", "Activate output plugin (-h output for help)",
+                           [this](const char *arg) {
+                              m_output.push_back(arg);
+                              return true;
+                           }, OptionsParser::OptionFlags::RequiredArgument);
+      }
+   };
+   
 public:
-    Flow m_flow;
+   typedef typename Base::FIter FIter;
+   typedef typename Base::FAccess FAccess;
+   typedef typename Base::FInfo FInfo;
 
-    FCRecord();
-    ~FCRecord();
+   FlowCacheOutput();
+   ~FlowCacheOutput();
+   void init(const char *params);
+   OptionsParser *get_parser() const { return new CacheLogOptParser(); }
+   std::string get_name() const { return "cache_output"; }
+   void flow_updated(FInfo &pkt_info, FAccess& flowAcc) override;
 
-    void erase();
-    void reuse();
-
-    inline __attribute__((always_inline)) bool isEmpty() const { return m_hash == 0; }
-
-    void create(FCPacketInfo &pkt_info);
-    void update(FCPacketInfo &pkt_info, bool src);
-
-    inline __attribute__((always_inline)) FCHash getHash() const { return m_hash; }
+private:
+   OutputPlugin *m_output_plugin; 
 };
-
-typedef FCRecord* FCRecordPtr;
-typedef std::vector<FCRecordPtr> FCRPtrVector;
-typedef std::vector<FCRecord> FCRVector;
-
 }
-#endif /* IPXP_BASIC_CACHE_RECORD_HPP */
+#endif /* IPXP_STORAGE_CACHE_HPP */

@@ -16,24 +16,11 @@ HTFlowsStorePacketInfo HTFlowsStorePacketInfo::from_packet(Packet &pkt, bool inv
         memcpy(key.ip.v6.src_ip.data(), !inverse ? pkt.src_ip.v6 : pkt.dst_ip.v6, sizeof(pkt.src_ip.v6));
         memcpy(key.ip.v6.dst_ip.data(), !inverse ? pkt.dst_ip.v6 : pkt.src_ip.v6, sizeof(pkt.dst_ip.v6));
     }
-    return HTFlowsStorePacketInfo(pkt, key);
+    return HTFlowsStorePacketInfo(pkt, inverse, key);
 }
 
-
-OptionsParser *HTFlowStore::get_parser() const
+void HTFlowStore::init(HashTableStoreParser& parser)
 {
-    return new CacheOptParser(); 
-}
-
-void HTFlowStore::init(const char *params)
-{
-   CacheOptParser parser;
-   try {
-      parser.parse(params);
-   } catch (ParserError &e) {
-      throw PluginError(e.what());
-   }
-
    m_cache_size = parser.m_cache_size;
    m_line_size = parser.m_line_size;
    m_line_mask = (m_cache_size - 1) & ~(m_line_size - 1);
@@ -57,11 +44,6 @@ void HTFlowStore::init(const char *params)
    }
 
 #ifdef FLOW_CACHE_STATS
-   m_empty = 0;
-   m_not_empty = 0;
-   m_hits = 0;
-   m_expired = 0;
-   m_flushed = 0;
    m_lookups = 0;
    m_lookups2 = 0;
 #endif /* FLOW_CACHE_STATS */
@@ -72,27 +54,29 @@ HTFlowStore::packet_info HTFlowStore::prepare(Packet &pkt, bool inverse = false)
    return HTFlowsStorePacketInfo::from_packet(pkt, inverse);
 }
 
-HTFlowStore::accessor HTFlowStore::lookup(const packet_info &pkt)
+HTFlowStore::accessor HTFlowStore::lookup(packet_info &pkt)
 {
     FlowIndex flowRow_index = makeRowIndex(pkt.getHash());
     FlowIndex flowIndex = searchLine(flowRow_index, pkt.getHash());
     if(flowIndex.valid) {
-        return (m_flow_table.begin() + flowIndex.flow_index);
+        auto ind = (m_flow_table.begin() + flowIndex.flow_index);
+        return ind;
     }
     return lookup_end();
 }
 
-HTFlowStore::accessor HTFlowStore::lookup_empty(const packet_info &pkt)
+HTFlowStore::accessor HTFlowStore::lookup_empty(packet_info &pkt)
 {
     FlowIndex flowRow_index = makeRowIndex(pkt.getHash());
     FlowIndex flowIndex = searchEmptyLine(flowRow_index);
     if(flowIndex.valid) {
-        return (m_flow_table.begin() + flowIndex.flow_index);
+        auto ind = (m_flow_table.begin() + flowIndex.flow_index);
+        return ind;
     }
     return lookup_end();
 }
 
-HTFlowStore::accessor HTFlowStore::free(const packet_info &pkt)
+HTFlowStore::accessor HTFlowStore::free(packet_info &pkt)
 {
     FlowIndex flowRow_index = makeRowIndex(pkt.getHash());
     return (m_flow_table.begin()+flowRow_index.line_index+m_line_size-1);

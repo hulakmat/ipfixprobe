@@ -117,6 +117,28 @@ struct Packet : public Record {
       source_pkt(true)
    {
    }
+
+   /* Copy needs to be freed after use */
+   static Packet make_cpy(const Packet &pkt) {
+      Packet new_pkt = pkt;
+      memcpy(&new_pkt.dst_mac, &pkt.dst_mac, sizeof(new_pkt.dst_mac));
+      memcpy(&new_pkt.src_mac, &pkt.src_mac, sizeof(new_pkt.dst_mac));
+      memcpy(&new_pkt.src_ip,  &pkt.src_ip, sizeof(new_pkt.src_ip));
+      memcpy(&new_pkt.dst_ip,  &pkt.dst_ip, sizeof(new_pkt.dst_ip));
+
+      new_pkt.buffer = new uint8_t[pkt.buffer_size];
+      memcpy(new_pkt.buffer, pkt.buffer, pkt.buffer_size);
+
+      new_pkt.packet = new_pkt.buffer + (pkt.packet - pkt.buffer);
+      new_pkt.payload = new_pkt.buffer + (pkt.payload - pkt.buffer);
+      new_pkt.custom = new_pkt.buffer + (pkt.custom - pkt.buffer);
+      return new_pkt;
+   }
+
+   void free() 
+   {
+      delete this->buffer;
+   }
 };
 
 struct PacketBlock {
