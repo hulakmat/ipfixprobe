@@ -204,7 +204,7 @@ void OptionsParser::usage(std::ostream &os, int indentation, std::string mod_nam
          os << m_delim << it->m_short << arg_str;
       }
       os << std::endl;
-      os << "Params:" << std::endl;
+      os << indent_str << "Params:" << std::endl;
    }
    indent_str += "  ";
    for (const auto &it : m_options) {
