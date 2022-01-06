@@ -67,12 +67,8 @@ public:
 
    OptionsParser();
    OptionsParser(const std::string &name, const std::string &info);
-   ~OptionsParser();
-   OptionsParser(OptionsParser &p) = delete;
-   OptionsParser(OptionsParser &&p) = delete;
-   void operator=(OptionsParser &p) = delete;
-   void operator=(OptionsParser &&p) = delete;
-   void parse(const char *args) const;
+   virtual ~OptionsParser();
+   virtual void parse(const char *args) const;
    void parse(int argc, const char **argv) const;
    void usage(std::ostream &os, int indentation = 0, std::string mod_name = "") const;
 
@@ -90,6 +86,10 @@ public:
       trim_str(params);
    }
    bool m_ignore_unknown;
+
+   void setDelim(char delim) {
+      m_delim = delim;
+   }
 protected:
    std::string m_name;
    std::string m_info;

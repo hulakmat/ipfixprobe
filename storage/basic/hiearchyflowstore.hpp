@@ -7,6 +7,7 @@
 #include <cassert>
 #include <utility>
 #include <iterator>
+#include <sstream>
 #include <ipfixprobe/options.hpp>
 #include "hiearchyjoiniterator.hpp"
 
@@ -330,6 +331,82 @@ private:
     F* m_fstore;
 };
 
+
+
+template <typename ...Fs>
+class FlowStoreHiearchyParser : public OptionsParser {
+public:
+    typedef std::tuple<
+        std::pair<
+            std::string,
+            typename Fs::parser
+        >...
+    > ParserOptions;
+
+    ParserOptions m_hiearchy_options;
+
+    ParserOptions& get_options()
+    {
+        return m_hiearchy_options;
+    }
+
+    template<std::size_t I = 0, typename... Tp>
+    inline typename std::enable_if<I == sizeof...(Tp), void>::type
+    register_options_for_each(std::tuple<Tp...> &) // Unused arguments are given no names.
+    { 
+    }
+
+    template<std::size_t I = 0, typename... Tp>
+    inline typename std::enable_if<I < sizeof...(Tp), void>::type
+    register_options_for_each(std::tuple<Tp...>& t)
+    {
+        auto &p = std::get<I>(t);
+        auto &destStr = std::get<0>(p);
+        auto &parser = std::get<1>(p);
+        parser.setDelim('|');
+        
+        std::stringstream ss;
+        ss << std::endl;
+        parser.usage(ss, 8);
+        register_option(("-" + std::to_string(I)), ("--" + std::to_string(I)), std::string("ARG1|ARG2|ARG3"), std::string(ss.str()),
+                [&](const char *arg) {
+                    destStr = std::string(arg);
+                    return true;
+                }, OptionFlags::RequiredArgument);
+        register_options_for_each<I + 1, Tp...>(t);
+    }
+
+    FlowStoreHiearchyParser(const std::string &name = "hiearchy", const std::string &desc = "Desc") : OptionsParser(name, desc)
+    {
+        register_options_for_each(m_hiearchy_options);
+    }
+
+
+    template<std::size_t I = 0, typename... Tp>
+    inline typename std::enable_if<I == sizeof...(Tp), void>::type
+    parse_for_each(const std::tuple<Tp...> &) const// Unused arguments are given no names.
+    { 
+    }
+
+    template<std::size_t I = 0, typename... Tp>
+    inline typename std::enable_if<I < sizeof...(Tp), void>::type
+    parse_for_each(const std::tuple<Tp...>& t) const
+    {
+        auto &p = std::get<I>(t);
+        auto &destStr = std::get<0>(p);
+        auto &parser = std::get<1>(p);
+        parser.parse(destStr.c_str());
+        parse_for_each<I + 1, Tp...>(t);
+    }
+
+    void parse(const char *args) const
+    {
+        OptionsParser::parse(args);
+        parse_for_each(this->m_hiearchy_options);
+    }
+};
+
+
 template <typename ...Fs>
 struct FSHTypes
 {
@@ -350,7 +427,7 @@ struct FSHTypes
     typedef typename range::iterator iter;
     typedef FSHierarchyPacketInfo<Fs...> info;
     typedef FSHierarchyAccessor<Fs...> access; 
-    typedef OptionsParser parser; 
+    typedef FlowStoreHiearchyParser<Fs...> parser; 
     typedef FlowStore
     <
         info, 
@@ -486,29 +563,32 @@ public:
     }
 
 
-    struct InitVisitor : public boost::static_visitor<void>
+    template<std::size_t I = 0, 
+        template<typename...> class Tuple,
+        typename... Tp, typename... Opt
+    >
+    inline typename std::enable_if<I == sizeof...(Tp), void>::type
+    init_for_each(Tuple<Tp...>&, Tuple<Opt...>&) // Unused arguments are given no names.
+    { 
+    }
+
+    template<std::size_t I = 0, 
+        template<typename...> class Tuple,
+        typename... Tp, typename... Opt
+    >
+    inline typename std::enable_if<I < sizeof...(Tp), void>::type
+    init_for_each(Tuple<Tp...>& t, Tuple<Opt...>& opt)
     {
-        template <
-            template<   
-                typename,
-                typename> class T, 
-            typename FH, typename F>
-        void operator () (T<FH, F> &pair) const
-        {
-            auto &wrapper = std::get<0>(pair);
-            typename F::parser p;
-               try {
-                p.parse("");
-            } catch (ParserError &e) {
-                throw PluginError(e.what());
-            }
-            wrapper.init(p);
-        }
-    };
+        auto &p = std::get<I>(t);
+        auto &store = std::get<1>(p);
+        auto &optP = std::get<I>(opt);
+        auto &parser = std::get<1>(optP);
+        store.init(parser);
+        init_for_each<I + 1>(t, opt);
+    }
 
     void init(parser &parser) { 
-        auto initVis = InitVisitor();
-        for_each(m_fstores, initVis);
+        init_for_each(m_fstores, parser.get_options());
     }
 
     range m_current_range;
