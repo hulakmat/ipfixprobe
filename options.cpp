@@ -148,11 +148,11 @@ void OptionsParser::parse(int argc, const char **argv) const
 
 void OptionsParser::register_option(std::string arg_short, std::string arg_long, std::string arg_hint, std::string description, OptionParserFunc parser, OptionsParser::OptionFlags flags)
 {
-   if (arg_short.empty() || arg_long.empty() || description.empty()) {
+   if (arg_long.empty() || description.empty()) {
       throw std::runtime_error("invalid option registration: short, long or description string is missing");
    }
 
-   if (m_short.find(arg_short) != m_short.end() ||
+   if ((!arg_short.empty() && m_short.find(arg_short) != m_short.end()) ||
        m_long.find(arg_long) != m_long.end()) {
       throw std::runtime_error("invalid option registration: option " + arg_short + " " + arg_long + " already exists");
    }
@@ -166,7 +166,9 @@ void OptionsParser::register_option(std::string arg_short, std::string arg_long,
    opt->m_flags = flags;
 
    m_options.push_back(opt);
-   m_short[arg_short] = opt;
+   if(!arg_short.empty()) {
+    m_short[arg_short] = opt;
+   }
    m_long[arg_long] = opt;
 }
 

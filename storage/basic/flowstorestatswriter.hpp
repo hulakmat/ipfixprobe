@@ -40,64 +40,57 @@
  * if advised of the possibility of such damage.
  *
  */
-#ifndef IPXP_FLOW_STORE_HPP
-#define IPXP_FLOW_STORE_HPP
+#ifndef IPXP_FLOW_STORE_STATS_WRITER_HPP
+#define IPXP_FLOW_STORE_STATS_WRITER_HPP
 
 #include <string>
+#include <fstream>
 
-#include <ipfixprobe/storage.hpp>
+#include "flowstoreproxy.hpp"
 #include <ipfixprobe/options.hpp>
-#include "record.hpp"
-#include <memory>
-#include <sstream>
-#include "flowstorestats.hpp"
+
 
 namespace ipxp {
 
-class FlowRingBuffer;
-template <typename PacketInfo, typename Access, typename Iter, typename Parser>
-class FlowStore
+template <typename FsParser>
+class FlowStoreStatsWriterParser : public FsParser {
+public:
+    std::string m_stats_file;
+
+    FlowStoreStatsWriterParser(const std::string &name = std::string("Stats of ") + typeid(FsParser).name(), const std::string &desc = "") : FsParser(name, desc) {
+        this->register_option("", "stats", "Stats file Path", "File where statistics will be saved",
+            [this](const char *arg){
+                m_stats_file = std::string(arg);
+                return true;
+            },
+            OptionsParser::RequiredArgument);
+    }
+};
+
+template <typename F>
+class FlowStoreStatsWriter: public FlowStoreProxy<F, typename F::packet_info, typename F::accessor, typename F::iterator, FlowStoreStatsWriterParser<typename F::parser>>
 {
 public:
-    typedef PacketInfo packet_info;
-    typedef Iter iterator; /* Iterator over accessors */
-    typedef Access accessor;
-    typedef Parser parser;
+    typedef typename F::packet_info PacketInfo;
+    typedef typename F::accessor Access;
+    typedef typename F::iterator Iter;
+    typedef FlowStoreStatsWriterParser<typename F::parser> Parser;
 
-    /* Virtual destructor for overriding */
-    virtual ~FlowStore() {};
+    void init(Parser &parser) { m_stats_file = parser.m_stats_file; this->m_flowstore.init(parser); }
+    ~FlowStoreStatsWriter() { WriteStats(); }
 
-    /* Parser options API */
-    void init(parser &parser) {};
+private:
+    std::string m_stats_file;
 
-    /* Iteration API */
-    virtual Iter begin() = 0;
-    virtual Iter end() = 0;
-
-    /* Prepare packet for processing. Calculates shared items for lookup/free operations */
-    virtual PacketInfo prepare(Packet &pkt, bool inverse) = 0;
-    /* Looksup records for given hash. */
-    virtual Access lookup(PacketInfo &pkt ) = 0;
-    virtual Access lookup_empty(PacketInfo &pkt) = 0;
-
-    /* Lookup operation invalid accessor signaling NotFound */
-    virtual Access lookup_end() = 0;
-
-    /* Return iterator to item to be freed from cache for given hash */
-    virtual Access free(PacketInfo &pkt) = 0;
-
-    /* Signals to Store end of operation with record. Export does the same. */
-    virtual Access put(const Access &index) = 0;
-
-    /* Exports given index and returns field for flow with same hash */
-    virtual Access index_export(const Access &index, FlowRingBuffer &rb) = 0;
-
-    /* Exports given iterator and returns field for flow with same hash */
-    virtual Access iter_export(const Iter &iter, FlowRingBuffer &rb) = 0;
-
-    /* Interface for getting statistic/performance information from the FlowStore */
-    virtual FlowStoreStat::Ptr stats_export() { return nullptr; };
+    void WriteStats() {
+        std::ofstream outFile;
+        outFile.open(m_stats_file);
+        if(outFile) {
+            FlowStoreStatJSON(outFile, this->m_flowstore.stats_export());
+        }
+        outFile.close();
+    }
 };
 
 }
-#endif /* IPXP_FLOW_STORE_HPP */
+#endif /* IPXP_FLOW_STORE_MONITOR_HPP */

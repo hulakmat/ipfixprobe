@@ -368,7 +368,7 @@ public:
         std::stringstream ss;
         ss << std::endl;
         parser.usage(ss, 8);
-        register_option(("-" + std::to_string(I)), ("--" + std::to_string(I)), std::string("ARG1|ARG2|ARG3"), std::string(ss.str()),
+        register_option((std::to_string(I)), ("--" + std::to_string(I)), std::string("ARG1|ARG2|ARG3"), std::string(ss.str()),
                 [&](const char *arg) {
                     destStr = std::string(arg);
                     return true;
@@ -651,7 +651,7 @@ public:
         auto pktInfo = fstore.prepare(*pkt.getPacket(), pkt.isInverse());
         auto lRes = fstore.lookup_empty(pktInfo);
         if(lRes == fstore.lookup_end()) {
-            return loopup_for_each<I + 1, Tp...>(t, pkt);
+            return loopup_empty_for_each<I + 1, Tp...>(t, pkt);
         }
         pkt = pktInfo;
         pkt.dummy = false;
@@ -766,6 +766,29 @@ public:
     accessor index_export(const accessor &index, FlowRingBuffer &rb) {
         return index_export_for_each(m_fstores, index, rb);
     }
+
+    template<std::size_t I = 0, typename... Tp>
+    inline typename std::enable_if<I == sizeof...(Tp), FlowStoreStat::Ptr>::type
+    stats_export_for_each(std::tuple<Tp...> &, FlowStoreStat::Ptr agg) // Unused arguments are given no names.
+    {
+        return agg;
+    }
+
+    template<std::size_t I = 0, typename... Tp>
+    inline typename std::enable_if<I < sizeof...(Tp), FlowStoreStat::Ptr>::type
+    stats_export_for_each(std::tuple<Tp...>& t, FlowStoreStat::Ptr agg)
+    {
+        auto &p = std::get<I>(t);
+        auto &fhstore = std::get<0>(p);
+        auto &fstore = std::get<1>(p);
+        auto ptr = fstore.stats_export();
+        FlowStoreStat::PtrVector ptrVec = { ptr };
+        return stats_export_for_each<I + 1, Tp...>(t, FlowStoreStatExpand(agg, ptrVec));
+    }
+
+    FlowStoreStat::Ptr stats_export() {
+        return stats_export_for_each(m_fstores, std::make_shared<FlowStoreStatVector>(""));
+    };
 
 
     template<std::size_t I = 0, typename... Tp>

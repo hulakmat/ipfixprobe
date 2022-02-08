@@ -44,34 +44,81 @@
 #define IPXP_FLOW_STORE_MONITOR_HPP
 
 #include <string>
+#include <fstream>
 
-#include "flowstore.hpp"
+#include "flowstoreproxy.hpp"
+#include <ipfixprobe/options.hpp>
+
 
 namespace ipxp {
 
-
 template <typename F>
-class FlowStoreMonitor :  public FlowStore<typename F::packet_info, typename F::accessor, typename F::iterator, typename F::parser>
+class FlowStoreMonitor : public FlowStoreProxySimple<F>
 {
+    struct {
+        uint32_t prepared;
+        uint32_t lookups;
+        uint32_t lookups_failed;
+        uint32_t lookups_empty;
+        uint32_t lookups_empty_failed;
+        uint32_t free;
+        uint32_t free_failed;
+        uint32_t index_export;
+        uint32_t iter_export;
+    } monitorStats = {
+        0
+    };
+public:
     typedef typename F::packet_info PacketInfo;
     typedef typename F::accessor Access;
     typedef typename F::iterator Iter;
     typedef typename F::parser Parser;
-public:
-    void init(Parser &parser) { m_flowstore.init(parser); }
-    Iter begin() { return m_flowstore.begin(); }
-    Iter end() { return m_flowstore.end(); }
-    PacketInfo prepare(Packet &pkt, bool inverse = false) {return m_flowstore.prepare(pkt, inverse); }
-    Access lookup(PacketInfo &pkt) { return m_flowstore.lookup(pkt); };
-    Access lookup_empty(PacketInfo &pkt) { return m_flowstore.lookup_empty(pkt); }
-    Access lookup_end() { return m_flowstore.lookup_end(); }
-    Access free(PacketInfo &pkt) { return m_flowstore.free(pkt); }
-    Access put(const Access &index) { return m_flowstore.put(index); }
-    Access index_export(const Access &index, FlowRingBuffer &rb) { return m_flowstore.index_export(index, rb); }
-    Access iter_export(const Iter &iter, FlowRingBuffer &rb) { return m_flowstore.iter_export(iter, rb); }
 
-private:
-    F m_flowstore;
+    PacketInfo prepare(Packet &pkt, bool inverse = false) { monitorStats.prepared++; return this->m_flowstore.prepare(pkt, inverse); }
+    Access lookup(PacketInfo &pkt) {
+        monitorStats.lookups++;
+        auto it = this->m_flowstore.lookup(pkt);
+        if(it == lookup_end()) {
+            monitorStats.lookups_failed++;
+        }
+        return it;
+    };
+    Access lookup_empty(PacketInfo &pkt) {
+        monitorStats.lookups_empty++;
+        auto it = this->m_flowstore.lookup_empty(pkt);
+        if(it == lookup_end()) {
+            monitorStats.lookups_empty_failed++;
+        }
+        return it;
+    }
+    Access lookup_end() { return this->m_flowstore.lookup_end(); }
+    Access free(PacketInfo &pkt) {
+        monitorStats.free++;
+        auto it = this->m_flowstore.free(pkt);
+        if(it == lookup_end()){
+            monitorStats.free_failed++;
+        }
+        return it;
+    }
+    Access index_export(const Access &index, FlowRingBuffer &rb) { monitorStats.index_export++; return this->m_flowstore.index_export(index, rb); }
+    Access iter_export(const Iter &iter, FlowRingBuffer &rb) { monitorStats.iter_export++; return this->m_flowstore.iter_export(iter, rb); }
+
+    FlowStoreStat::Ptr stats_export() {
+        auto ptr = this->m_flowstore.stats_export();
+        FlowStoreStat::PtrVector statVec = {
+            make_FSStatPrimitive("prepared" , monitorStats.prepared),
+            make_FSStatPrimitive("lookups" , monitorStats.lookups),
+            make_FSStatPrimitive("lookups_failed" , monitorStats.lookups_failed),
+            make_FSStatPrimitive("lookups_empty" , monitorStats.lookups_empty),
+            make_FSStatPrimitive("lookups_empty_failed" , monitorStats.lookups_empty_failed),
+            make_FSStatPrimitive("free" , monitorStats.free),
+            make_FSStatPrimitive("free_failed" , monitorStats.free_failed),
+            make_FSStatPrimitive("index_export" , monitorStats.index_export),
+            make_FSStatPrimitive("iter_export" , monitorStats.iter_export)
+        };
+        FlowStoreStat::PtrVector monitorVec = { std::make_shared<FlowStoreStatVector>("monitor", statVec) };
+        return FlowStoreStatExpand(ptr, monitorVec);
+    };
 };
 
 }
