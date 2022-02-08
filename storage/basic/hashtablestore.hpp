@@ -148,6 +148,11 @@ public:
 class HTFlowStore : public FlowStore<HTFlowsStorePacketInfo, FCRPtrVector::iterator, FCRPtrVector::iterator, HashTableStoreParser>
 {
 public:
+    typedef HTFlowsStorePacketInfo packet_info;
+    typedef FCRPtrVector::iterator iterator;
+    typedef FCRPtrVector::iterator access;
+    typedef HashTableStoreParser parser;
+
     /* Parser options API */
     OptionsParser *get_parser() const;
     void init(HashTableStoreParser& parser);
@@ -191,7 +196,7 @@ private:
             0};
     };
 
-    const void moveToFront(const FlowIndex &flowIndex)
+    void moveToFront(const FlowIndex &flowIndex)
     {
 #ifdef FLOW_CACHE_STATS
         const size_t lookup_len = (flowIndex.flow_index - flowIndex.line_index + 1);
@@ -247,10 +252,18 @@ private:
     FCRVector m_flow_records;
 
 #ifdef FLOW_CACHE_STATS
-   uint64_t m_lookups;
-   uint64_t m_lookups2;
+    uint64_t m_lookups;
+    uint64_t m_lookups2;
 #endif /* FLOW_CACHE_STATS */
-};
 
+public:
+    FlowStoreStat::Ptr stats_export() {
+        FlowStoreStat::PtrVector statVec = {
+            make_FSStatPrimitive("lookups" , m_lookups),
+            make_FSStatPrimitive("lookups2" , m_lookups2),
+        };
+        return std::make_shared<FlowStoreStatVector>("", statVec);
+    };
+};
 }
 #endif /* IPXP_HASH_TABLE_STORE_HPP */

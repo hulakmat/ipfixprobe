@@ -40,64 +40,63 @@
  * if advised of the possibility of such damage.
  *
  */
-#ifndef IPXP_FLOW_STORE_HPP
-#define IPXP_FLOW_STORE_HPP
+#ifndef IPXP_FLOW_STORE_STATS_HPP
+#define IPXP_FLOW_STORE_STATS_HPP
 
 #include <string>
-
-#include <ipfixprobe/storage.hpp>
-#include <ipfixprobe/options.hpp>
-#include "record.hpp"
 #include <memory>
 #include <sstream>
-#include "flowstorestats.hpp"
+#include <vector>
 
 namespace ipxp {
 
-class FlowRingBuffer;
-template <typename PacketInfo, typename Access, typename Iter, typename Parser>
-class FlowStore
-{
+class FlowStoreStat {
+    std::string m_name;
 public:
-    typedef PacketInfo packet_info;
-    typedef Iter iterator; /* Iterator over accessors */
-    typedef Access accessor;
-    typedef Parser parser;
+    enum Type {
+        Leaf = 0,
+        Array
+    };
+    typedef std::shared_ptr<FlowStoreStat> Ptr;
+    typedef std::vector<Ptr> PtrVector;
 
-    /* Virtual destructor for overriding */
-    virtual ~FlowStore() {};
-
-    /* Parser options API */
-    void init(parser &parser) {};
-
-    /* Iteration API */
-    virtual Iter begin() = 0;
-    virtual Iter end() = 0;
-
-    /* Prepare packet for processing. Calculates shared items for lookup/free operations */
-    virtual PacketInfo prepare(Packet &pkt, bool inverse) = 0;
-    /* Looksup records for given hash. */
-    virtual Access lookup(PacketInfo &pkt ) = 0;
-    virtual Access lookup_empty(PacketInfo &pkt) = 0;
-
-    /* Lookup operation invalid accessor signaling NotFound */
-    virtual Access lookup_end() = 0;
-
-    /* Return iterator to item to be freed from cache for given hash */
-    virtual Access free(PacketInfo &pkt) = 0;
-
-    /* Signals to Store end of operation with record. Export does the same. */
-    virtual Access put(const Access &index) = 0;
-
-    /* Exports given index and returns field for flow with same hash */
-    virtual Access index_export(const Access &index, FlowRingBuffer &rb) = 0;
-
-    /* Exports given iterator and returns field for flow with same hash */
-    virtual Access iter_export(const Iter &iter, FlowRingBuffer &rb) = 0;
-
-    /* Interface for getting statistic/performance information from the FlowStore */
-    virtual FlowStoreStat::Ptr stats_export() { return nullptr; };
+    FlowStoreStat(std::string name) : m_name(name) {}
+    virtual Type getType() { return Type::Leaf; }
+    virtual std::string getName() { return m_name; }
+    virtual std::string getValue() { throw std::logic_error("Not supported"); return 0; }
+    virtual PtrVector getArray() { throw std::logic_error("Not supported"); return PtrVector(); };
 };
 
+class FlowStoreStatVector : public FlowStoreStat {
+    FlowStoreStat::PtrVector m_vec;
+public:
+    FlowStoreStatVector(std::string name, FlowStoreStat::PtrVector vec = FlowStoreStat::PtrVector()) : FlowStoreStat(name), m_vec(vec) {}
+    Type getType() { return Type::Array; };
+    PtrVector getArray() { return m_vec; };
+};
+
+template<typename T>
+class FlowStoreStatPrimitive : public FlowStoreStat {
+    T m_prim;
+    std::stringstream ss;
+public:
+    FlowStoreStatPrimitive(std::string name, T prim) : FlowStoreStat(name), m_prim(prim) {}
+    Type getType() { return Type::Leaf; };
+    std::string getValue() {
+        ss.clear();
+        ss << m_prim;
+        return ss.str();
+    }
+};
+
+template<typename T>
+FlowStoreStat::Ptr make_FSStatPrimitive(std::string name, T prim) {
+    return std::make_shared<FlowStoreStatPrimitive<T>>(name, prim);
 }
-#endif /* IPXP_FLOW_STORE_HPP */
+
+FlowStoreStat::Ptr FlowStoreStatExpand(FlowStoreStat::Ptr ptr, FlowStoreStat::PtrVector expand);
+void FlowStoreStatJSON(std::ostream &out, FlowStoreStat::Ptr ptr);
+
+}
+
+#endif //IPXP_FLOW_STORE_STATS_HPP
