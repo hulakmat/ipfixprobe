@@ -40,23 +40,20 @@
  * if advised of the possibility of such damage.
  *
  */
-#ifndef IPXP_FLOW_STORE_HPP
-#define IPXP_FLOW_STORE_HPP
+#ifndef IPXP_FLOW_STORE_PROXY_HPP
+#define IPXP_FLOW_STORE_PROXY_HPP
 
 #include <string>
+#include <fstream>
 
-#include <ipfixprobe/storage.hpp>
+#include "flowstore.hpp"
 #include <ipfixprobe/options.hpp>
-#include "record.hpp"
-#include <memory>
-#include <sstream>
-#include "flowstorestats.hpp"
+
 
 namespace ipxp {
 
-class FlowRingBuffer;
-template <typename PacketInfo, typename Access, typename Iter, typename Parser>
-class FlowStore
+template <typename F, typename PacketInfo, typename Access, typename Iter, typename Parser>
+class FlowStoreProxy : public FlowStore<PacketInfo, Access, Iter, Parser>
 {
 public:
     typedef PacketInfo packet_info;
@@ -64,40 +61,32 @@ public:
     typedef Access accessor;
     typedef Parser parser;
 
-    /* Virtual destructor for overriding */
-    virtual ~FlowStore() {};
+    void init(Parser &parser) { m_flowstore.init(parser); }
+    Iter begin() { return m_flowstore.begin(); }
+    Iter end() { return m_flowstore.end(); }
+    PacketInfo prepare(Packet &pkt, bool inverse = false) {return m_flowstore.prepare(pkt, inverse); }
+    Access lookup(PacketInfo &pkt) { return m_flowstore.lookup(pkt); };
+    Access lookup_empty(PacketInfo &pkt) { return m_flowstore.lookup_empty(pkt); }
+    Access lookup_end() { return m_flowstore.lookup_end(); }
+    Access free(PacketInfo &pkt) { return m_flowstore.free(pkt); }
+    Access put(const Access &index) { return m_flowstore.put(index); }
+    Access index_export(const Access &index, FlowRingBuffer &rb) { return m_flowstore.index_export(index, rb); }
+    Access iter_export(const Iter &iter, FlowRingBuffer &rb) { return m_flowstore.iter_export(iter, rb); }
 
-    /* Parser options API */
-    void init(parser &parser) {};
+    virtual FlowStoreStat::Ptr stats_export() { return m_flowstore.stats_export(); };
+protected:
+    F m_flowstore;
+};
 
-    /* Iteration API */
-    virtual Iter begin() = 0;
-    virtual Iter end() = 0;
-
-    /* Prepare packet for processing. Calculates shared items for lookup/free operations */
-    virtual PacketInfo prepare(Packet &pkt, bool inverse) = 0;
-    /* Looksup records for given hash. */
-    virtual Access lookup(PacketInfo &pkt ) = 0;
-    virtual Access lookup_empty(PacketInfo &pkt) = 0;
-
-    /* Lookup operation invalid accessor signaling NotFound */
-    virtual Access lookup_end() = 0;
-
-    /* Return iterator to item to be freed from cache for given hash */
-    virtual Access free(PacketInfo &pkt) = 0;
-
-    /* Signals to Store end of operation with record. Export does the same. */
-    virtual Access put(const Access &index) = 0;
-
-    /* Exports given index and returns field for flow with same hash */
-    virtual Access index_export(const Access &index, FlowRingBuffer &rb) = 0;
-
-    /* Exports given iterator and returns field for flow with same hash */
-    virtual Access iter_export(const Iter &iter, FlowRingBuffer &rb) = 0;
-
-    /* Interface for getting statistic/performance information from the FlowStore */
-    virtual FlowStoreStat::Ptr stats_export() { return nullptr; };
+template <typename F>
+class FlowStoreProxySimple : public FlowStoreProxy<F, typename F::packet_info, typename F::access, typename F::iterator, typename F::parser>
+{
+public:
+    typedef typename F::packet_info packet_info;
+    typedef typename F::iterator iterator; /* Iterator over accessors */
+    typedef typename F::accessor accessor;
+    typedef typename F::parser parser;
 };
 
 }
-#endif /* IPXP_FLOW_STORE_HPP */
+#endif /* IPXP_FLOW_STORE_PROXY_HPP */

@@ -45,6 +45,7 @@
  */
 
 #include "record.hpp"
+#include <cstring>
 
 namespace ipxp {
 

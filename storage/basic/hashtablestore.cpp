@@ -1,5 +1,6 @@
 #include "hashtablestore.hpp"
 #include "flowcache.hpp"
+#include <cstring>
 
 namespace ipxp {
 

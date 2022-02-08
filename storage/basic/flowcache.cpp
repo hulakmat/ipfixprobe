@@ -51,28 +51,40 @@
 
 #include "hashtablestore.hpp"
 #include "flowstoremonitor.hpp"
+#include "flowstorestatswriter.hpp"
 #include "hiearchyflowstore.hpp"
 #include "flowcache.hpp"
 #include "xxhash.h"
 
 namespace ipxp {
 
-__attribute__((constructor)) static void register_this_plugin()
+Plugin *cons_func()
 {
-   static PluginRecord rec = PluginRecord("cache", []() {
-      // return new FlowCache<
-      //                FlowStoreMonitor<
-      //                   HTFlowStore
-      //                >
-      //             >();
-         return new FlowCache<
-                  FlowStoreHiearchy<
-                     FlowStoreMonitor<
+   //   return new FlowCache<
+   //                  FlowStoreStatsWriter<
+   //                      FlowStoreMonitor<
+   //                         HTFlowStore
+   //                      >
+   //                   >
+   //               >();
+    return new FlowCache<
+                  FlowStoreStatsWriter<
+                     FlowStoreHiearchy<
+                        FlowStoreMonitor<
+                              HTFlowStore
+                        >,
+                        FlowStoreMonitor<
+                              HTFlowStore
+                        >,
                         HTFlowStore
                      >
                   >
-               >();
-   });
+            >();
+};
+
+__attribute__((constructor)) static void register_this_plugin()
+{
+   static PluginRecord rec = PluginRecord("cache", cons_func);
    register_plugin(&rec);
 }
 
@@ -250,6 +262,9 @@ int FlowCache<F>::process_flow(Packet &pkt, FInfo &pkt_info, FAccess &flowIt)
    int ret;
    pkt.source_pkt = !pkt_info.isInverse();
    FCRecord *flow = (*flowIt);
+   if(flow == nullptr) {
+      throw std::logic_error("Flow store return invalid accessor");
+   }
 
    /* Processing new flow insertion into the flow cache */
    if (flow->isEmpty()) {
