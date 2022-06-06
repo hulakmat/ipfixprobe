@@ -70,6 +70,7 @@ UR_FIELDS(
 #define RTP_EXPORTER_EXPORT_PACKETS_TOTAL 200
 #define RTP_EXPORTER_EXPORT_PACKETS_START 0
 #define RTP_EXPORTER_DETECTION_THRESHOLD  0.3f
+#define RTP_EXPORTER_DECIMAL_PRECISION_EXPORT 2 //decimal places
 
 /**
  * \brief Flow record extension header for storing parsed RTP_EXPORTER data.

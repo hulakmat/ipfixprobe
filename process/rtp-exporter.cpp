@@ -42,6 +42,7 @@
  */
 
 #include <iostream>
+#include <iomanip>
 #include <sstream>
 #include <thread>
 
@@ -71,7 +72,10 @@ RTP_EXPORTERPlugin::RTP_EXPORTERPlugin() : isInValidState(true)
 
    ofs = std::make_shared<std::ofstream>();
    ofs->open(ss_filename.str(), std::ios::out | std::ios::trunc);
-   if (!ofs->is_open()) {
+   if (ofs->is_open()) {
+      *ofs << std::setprecision(RTP_EXPORTER_DECIMAL_PRECISION_EXPORT);
+   }
+   else{
       isInValidState = false;
       error("Invalid export location for rtp-exporter");
    }
@@ -157,8 +161,8 @@ void RTP_EXPORTERPlugin::export_flow(const Flow &rec)
    uint32_t totalProcessed = rec.src_packets
      + rec.dst_packets;
 
-   bool isRtp = totalProcessed > 0 &&
-     ((float) totalRtp / (totalProcessed - RTP_EXPORTER_EXPORT_PACKETS_START) ) >= RTP_EXPORTER_DETECTION_THRESHOLD;
+   double ratioRtp = totalProcessed > 0 ?
+     ((double) totalRtp / totalProcessed ) : 0;
 
    for (size_t i = 0; i < rtp_exporter_record->counter; i++) {
       const Packet & pkt = rtp_exporter_record->packets[i];
@@ -173,7 +177,7 @@ void RTP_EXPORTERPlugin::export_flow(const Flow &rec)
          (uint32_t) pkt.ip_proto << FIELD_SEPARATOR <<
          (uint32_t) pkt.ip_flags << FIELD_SEPARATOR <<
          (uint32_t) pkt.ip_tos << FIELD_SEPARATOR <<
-         isRtp << NEW_LINE;
+         ratioRtp << NEW_LINE;
    }
 } // RTP_EXPORTERPlugin::export_flow
 }
