@@ -46,6 +46,8 @@
 #include "flowstore.hpp"
 #include "record.hpp"
 
+#include <array>
+
 namespace ipxp {
 #define FLOW_CACHE_STATS
 

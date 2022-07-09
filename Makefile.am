@@ -11,7 +11,7 @@ DISTCHECK_CONFIGURE_FLAGS="--with-systemdsystemunitdir=$$dc_install_base/$(syste
 
 ipfixprobe_LDFLAGS=-lpthread -ldl -latomic $(BOOST_RANGE_LDFLAGS) $(BOOST_RANGE_LIBS)
 ipfixprobe_CFLAGS=-I$(srcdir)/include/
-ipfixprobe_CXXFLAGS=-std=gnu++11 -Wno-write-strings -I$(srcdir)/include/ $(BOOST_CPPFLAGS)
+ipfixprobe_CXXFLAGS=-std=gnu++14 -Wno-write-strings -I$(srcdir)/include/ $(BOOST_CPPFLAGS)
 
 if OS_CYGWIN
 ipfixprobe_CXXFLAGS+=-Wl,--export-all-symbols
@@ -123,8 +123,6 @@ ipfixprobe_process_src=\
 		process/phists.hpp \
 		process/pstats.hpp \
 		process/pstats.cpp \
-		process/last_pkt.cpp \
-		process/last_pkt.hpp \
 		process/ovpn.hpp \
 		process/ovpn.cpp \
 		process/ssdp.hpp \

@@ -49,6 +49,7 @@
 
 #include <stdint.h>
 #include <stdlib.h>
+#include <string.h>
 
 #include <ipfixprobe/ipaddr.hpp>
 #include <ipfixprobe/flowifc.hpp>
