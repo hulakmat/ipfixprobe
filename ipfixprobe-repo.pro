@@ -110,6 +110,7 @@ HEADERS += ./input/benchmark.hpp \
         ./storage/basic/hashtablestore.hpp \
         ./storage/basic/hiearchyflowstore.hpp \
         ./storage/basic/flowstoremonitor.hpp \
+        ./storage/basic/flowstoreportfilter.hpp \
         ./storage/basic/flowstorestatswriter.hpp \
         ./storage/basic/flowstoreproxy.hpp \
         ./storage/basic/flowcacheoutput.hpp \

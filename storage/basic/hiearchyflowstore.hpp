@@ -670,7 +670,7 @@ public:
     template<std::size_t I = 0, typename... Tp>
     inline typename std::enable_if<I == sizeof...(Tp), accessor>::type
     free_for_each(std::tuple<Tp...> &, packet_info &) // Unused arguments are given no names.
-    { 
+    {
         return lookup_end();
     }
 
@@ -683,7 +683,7 @@ public:
         auto pktInfo = fstore.prepare(*pkt.getPacket(), pkt.isInverse());
         auto lRes = fstore.free(pktInfo);
         if(lRes == fstore.lookup_end()) {
-            return loopup_for_each<I + 1, Tp...>(t, pkt);
+            return free_for_each<I + 1, Tp...>(t, pkt);
         }
         pkt = pktInfo;
         pkt.dummy = false;
