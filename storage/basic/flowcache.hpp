@@ -100,18 +100,19 @@ public:
    typedef typename F::accessor FAccess;
    typedef typename F::packet_info FInfo;
 
-   FlowCache();
+   FlowCache(const char *name = "cache");
    void init(const char *params);
    void init(CacheOptParser &parser);
    void set_queue(ipx_ring_t *queue);
-   OptionsParser *get_parser() const { return new CacheOptParser(); }
-   std::string get_name() const { return "cache"; }
+   OptionsParser *get_parser() const { return new CacheOptParser(m_name); }
+   std::string get_name() const { return m_name; }
 
    int put_pkt(Packet &pkt);
    int process_flow(Packet &pkt, FInfo &pkt_info, FAccess &flowIt);
    void export_expired(time_t ts);
 
 private:
+   std::string m_name;
    FlowRingBuffer m_out_queue;
    F m_flow_store;
    
