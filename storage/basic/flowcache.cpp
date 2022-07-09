@@ -52,11 +52,49 @@
 #include "hashtablestore.hpp"
 #include "flowstoremonitor.hpp"
 #include "flowstorestatswriter.hpp"
+#include "flowstoreportfilter.hpp"
 #include "hiearchyflowstore.hpp"
 #include "flowcache.hpp"
 #include "xxhash.h"
 
 namespace ipxp {
+
+
+Plugin *cons_cache_func()
+{
+    return new FlowCache<HTFlowStore>("cache");
+};
+
+__attribute__((constructor)) static void register_cache_plugin()
+{
+   static PluginRecord rec = PluginRecord("cache", cons_cache_func);
+   register_plugin(&rec);
+}
+
+
+Plugin *cons_s_port_cache_func()
+{
+    return new FlowCache<
+            FlowStoreStatsWriter<
+               FlowStoreHiearchy<
+                  FlowStorePortFilter<
+                      FlowStoreMonitor<
+                            HTFlowStore
+                      >
+                  >,
+                  FlowStoreMonitor<
+                        HTFlowStore
+                  >
+               >
+            >
+   >("s_port_cache");
+};
+
+__attribute__((constructor)) static void register_s_port_cache_plugin()
+{
+   static PluginRecord rec = PluginRecord("s_port_cache", cons_s_port_cache_func);
+   register_plugin(&rec);
+}
 
 Plugin *cons_func()
 {
@@ -70,8 +108,10 @@ Plugin *cons_func()
     return new FlowCache<
                   FlowStoreStatsWriter<
                      FlowStoreHiearchy<
-                        FlowStoreMonitor<
-                              HTFlowStore
+                        FlowStorePortFilter<
+                            FlowStoreMonitor<
+                                  HTFlowStore
+                            >
                         >,
                         FlowStoreMonitor<
                               HTFlowStore
@@ -79,17 +119,18 @@ Plugin *cons_func()
                         HTFlowStore
                      >
                   >
-            >();
+            >("hiearcache");
 };
 
 __attribute__((constructor)) static void register_this_plugin()
 {
-   static PluginRecord rec = PluginRecord("cache", cons_func);
+   static PluginRecord rec = PluginRecord("hiearcache", cons_func);
    register_plugin(&rec);
 }
 
 template <class F>
-FlowCache<F>::FlowCache() :
+FlowCache<F>::FlowCache(const char *name) :
+   m_name(name),
    m_active(0), m_inactive(0),
    m_split_biflow(false)
 {
@@ -212,7 +253,7 @@ template <class F>
 int FlowCache<F>::put_pkt(Packet &pkt)
 {
    plugins_pre_create(pkt);
-   auto pkt_info = m_flow_store.prepare(pkt);
+   auto pkt_info = m_flow_store.prepare(pkt, false);
    if (!pkt_info.isValid()) {
       return 0;
    }
@@ -238,6 +279,7 @@ int FlowCache<F>::put_pkt(Packet &pkt)
          auto freeIt = m_flow_store.free(pkt_info);
          if(freeIt == m_flow_store.lookup_end()) {
             //Throw unable to store flow. or return ?
+             std::cout << "Wtf?" << std::endl;
             return 0;
          }
          flowIt = export_acc(freeIt, FLOW_END_NO_RES);
