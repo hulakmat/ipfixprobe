@@ -69,8 +69,10 @@ namespace ipxp {
 
 volatile sig_atomic_t stop = 0;
 
+volatile sig_atomic_t terminate_export = 0;
+volatile sig_atomic_t terminate_input = 0;
+
 const uint32_t DEFAULT_IQUEUE_SIZE = 64;
-const uint32_t DEFAULT_IQUEUE_BLOCK = 32;
 const uint32_t DEFAULT_OQUEUE_SIZE = 16536;
 const uint32_t DEFAULT_FPS = 0; // unlimited
 
@@ -156,29 +158,6 @@ void print_help(ipxp_conf_t &conf, const std::string &arg)
    }
 }
 
-void init_packets(ipxp_conf_t &conf)
-{
-   // Reserve +1 more block as a "working block"
-   conf.blocks_cnt = static_cast<size_t>(conf.iqueue_size + 1U) * conf.worker_cnt;
-   conf.pkts_cnt = conf.blocks_cnt * conf.iqueue_block;
-   conf.pkt_data_cnt = conf.pkts_cnt * conf.pkt_bufsize;
-   conf.blocks = new PacketBlock[conf.blocks_cnt];
-   conf.pkts = new Packet[conf.pkts_cnt];
-   conf.pkt_data = new uint8_t[conf.pkt_data_cnt];
-
-   for (unsigned i = 0; i < conf.blocks_cnt; i++) {
-      size_t pkts_offset = static_cast<size_t>(i) * conf.iqueue_block; // offset in number of packets
-
-      conf.blocks[i].pkts = conf.pkts + pkts_offset;
-      conf.blocks[i].cnt = 0;
-      conf.blocks[i].size = conf.iqueue_block;
-      for (unsigned j = 0; j < conf.iqueue_block; j++) {
-         conf.blocks[i].pkts[j].buffer = static_cast<uint8_t *>(conf.pkt_data + conf.pkt_bufsize * (j + pkts_offset));
-         conf.blocks[i].pkts[j].buffer_size = conf.pkt_bufsize;
-      }
-   }
-}
-
 void process_plugin_argline(const std::string &args, std::string &plugin, std::string &params)
 {
    size_t delim;
@@ -206,10 +185,6 @@ bool process_plugin_args(ipxp_conf_t &conf, IpfixprobeOptParser &parser)
    std::string storage_params = "";
    std::string output_name = "ipfix";
    std::string output_params = "";
-
-   conf.exit_input = conf.exit_input_pr.get_future();
-   conf.exit_storage = conf.exit_storage_pr.get_future();
-   conf.exit_output = conf.exit_output_pr.get_future();
 
    if (parser.m_storage.size()) {
       process_plugin_argline(parser.m_storage[0], storage_name, storage_params);
@@ -286,7 +261,7 @@ bool process_plugin_args(ipxp_conf_t &conf, IpfixprobeOptParser &parser)
       conf.output_stats.push_back(output_stats);
       OutputWorker tmp = {
               output_plugin,
-              new std::thread(output_worker, output_plugin, output_queue, output_res, output_stats, conf.fps, &conf.exit_output),
+              new std::thread(output_worker, output_plugin, output_queue, output_res, output_stats, conf.fps),
               output_res,
               output_stats,
               output_queue
@@ -350,34 +325,24 @@ bool process_plugin_args(ipxp_conf_t &conf, IpfixprobeOptParser &parser)
          storage_process_plugins.push_back(tmp);
       }
 
-      ipx_ring_t *input_queue = ipx_ring_init(conf.iqueue_size, 0);
-      if (input_queue == nullptr) {
-         throw IPXPError("unable to initialize ring buffer");
-      }
-
       std::promise<WorkerResult> *input_res = new std::promise<WorkerResult>();
-      std::promise<WorkerResult> *storage_res = new std::promise<WorkerResult>();
       conf.input_fut.push_back(input_res->get_future());
-      conf.storage_fut.push_back(storage_res->get_future());
 
       auto input_stats = new std::atomic<InputStats>();
       conf.input_stats.push_back(input_stats);
 
       WorkPipeline tmp = {
-              {
-                      input_plugin,
-                      new std::thread(input_worker, input_plugin, &conf.blocks[pipeline_idx * (conf.iqueue_size + 1)],
-                                      conf.iqueue_size + 1, conf.max_pkts, input_queue, input_res, input_stats, &conf.exit_input),
-                      input_res,
-                      input_stats
-              },
-              {
-                      storage_plugin,
-                      new std::thread(storage_worker, storage_plugin, input_queue, storage_res, &conf.exit_storage),
-                      storage_res,
-                      storage_process_plugins
-              },
-              input_queue
+         {
+            input_plugin,
+            new std::thread(input_storage_worker, input_plugin, storage_plugin, conf.iqueue_size, 
+               conf.max_pkts, input_res, input_stats),
+            input_res,
+            input_stats
+         },
+         {
+            storage_plugin,
+            storage_process_plugins
+         }
       };
       conf.pipelines.push_back(tmp);
       pipeline_idx++;
@@ -391,23 +356,21 @@ void finish(ipxp_conf_t &conf)
    bool ok = true;
 
    // Terminate all inputs
-   conf.exit_input_pr.set_value();
+   terminate_input = 1;
    for (auto &it : conf.pipelines) {
       it.input.thread->join();
       it.input.plugin->close();
    }
 
    // Terminate all storages
-   conf.exit_storage_pr.set_value();
    for (auto &it : conf.pipelines) {
-      it.storage.thread->join();
       for (auto &itp : it.storage.plugins) {
          itp->close();
       }
    }
 
    // Terminate all outputs
-   conf.exit_output_pr.set_value();
+   terminate_export = 1;
    for (auto &it : conf.outputs) {
       it.thread->join();
    }
@@ -442,29 +405,6 @@ void finish(ipxp_conf_t &conf)
          std::setw(9) << stats.dropped << " " <<
          std::setw(9) << stats.qtime << " " <<
          std::setw(6) << status << std::endl;
-   }
-
-   std::ostringstream oss;
-   oss << "Storage stats:" << std::endl <<
-      std::setw(3) << "#" <<
-      std::setw(7) << "status" << std::endl;
-
-   idx = 0;
-   bool storage_ok = true;
-   for (auto &it : conf.storage_fut) {
-      WorkerResult res = it.get();
-      std::string status = "ok";
-      if (res.error) {
-         ok = false;
-         storage_ok = false;
-         status = res.msg;
-      }
-      oss <<
-         std::setw(3) << idx++ << " " <<
-         std::setw(6) << status << std::endl;
-   }
-   if (!storage_ok) {
-      std::cout << oss.str();
    }
 
    std::cout << "Output stats:" << std::endl <<
@@ -583,13 +523,6 @@ void main_loop(ipxp_conf_t &conf)
             break;
          }
       }
-      for (auto &it : conf.storage_fut) {
-         std::future_status status = it.wait_for(std::chrono::seconds(0));
-         if (status == std::future_status::ready) {
-            stop = 1;
-            break;
-         }
-      }
       for (auto &it : conf.output_fut) {
          std::future_status status = it.wait_for(std::chrono::seconds(0));
          if (status == std::future_status::ready) {
@@ -689,7 +622,6 @@ int run(int argc, char *argv[])
    }
 
    conf.worker_cnt = parser.m_input.size();
-   conf.iqueue_block = parser.m_iqueue_block;
    conf.iqueue_size = parser.m_iqueue;
    conf.oqueue_size = parser.m_oqueue;
    conf.fps = parser.m_fps;
@@ -697,7 +629,6 @@ int run(int argc, char *argv[])
    conf.max_pkts = parser.m_max_pkts;
 
    try {
-      init_packets(conf);
       if (process_plugin_args(conf, parser)) {
          goto EXIT;
       }

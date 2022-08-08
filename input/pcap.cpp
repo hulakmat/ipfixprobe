@@ -53,6 +53,9 @@
 
 namespace ipxp {
 
+// Read only 1 packet into packet block
+constexpr size_t PCAP_PACKET_BLOCK_SIZE = 1;
+
 __attribute__((constructor)) static void register_this_plugin()
 {
    static PluginRecord rec = PluginRecord("pcap", [](){return new PcapReader();});
@@ -186,6 +189,15 @@ void PcapReader::open_ifc(const std::string &ifc)
 void PcapReader::check_datalink(int datalink)
 {
    if (m_datalink != DLT_EN10MB && m_datalink != DLT_LINUX_SLL && m_datalink != DLT_RAW) {
+#ifdef DLT_LINUX_SLL2
+      if (m_datalink == DLT_LINUX_SLL2) {
+         // DLT_LINUX_SLL2 is also supported
+         return;
+      } else {
+         close();
+         throw PluginError("unsupported link type detected, supported types are: DLT_EN10MB, DLT_LINUX_SLL, DLT_LINUX_SLL2, and DLT_RAW");
+      }
+#endif
       close();
       throw PluginError("unsupported link type detected, supported types are DLT_EN10MB and DLT_LINUX_SLL and DLT_RAW");
    }
@@ -257,7 +269,7 @@ InputPlugin::Result PcapReader::get(PacketBlock &packets)
    }
 
    packets.cnt = 0;
-   ret = pcap_dispatch(m_handle, packets.size, packet_handler, (u_char *) (&opt));
+   ret = pcap_dispatch(m_handle, PCAP_PACKET_BLOCK_SIZE, packet_handler, (u_char *) (&opt));
    if (m_live) {
       if (ret == 0) {
          return Result::TIMEOUT;

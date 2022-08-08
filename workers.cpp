@@ -51,56 +51,82 @@ namespace ipxp {
 
 #define MICRO_SEC 1000000L
 
-void input_worker(InputPlugin *plugin, PacketBlock *pkts, size_t block_cnt, uint64_t pkt_limit, ipx_ring_t *queue,
-                  std::promise<WorkerResult> *out, std::atomic<InputStats> *out_stats, std::shared_future<void> *terminate)
+void input_storage_worker(InputPlugin *plugin, StoragePlugin *cache, size_t queue_size, uint64_t pkt_limit,
+                  std::promise<WorkerResult> *out, std::atomic<InputStats> *out_stats)
 {
-   struct timespec start;
-   struct timespec end;
-   size_t i = 0;
+   struct timespec start_cache;
+   struct timespec end_cache;
+   struct timespec begin = {0, 0};
+   struct timespec end = {0, 0};
+   struct timeval ts = {0, 0};
+   bool timeout = false;
    InputPlugin::Result ret;
    InputStats stats = {0, 0, 0, 0, 0};
    WorkerResult res = {false, ""};
-   while (terminate->wait_for(std::chrono::seconds(0)) != std::future_status::ready) {
-      PacketBlock *block = &pkts[i];
-      block->cnt = 0;
-      block->bytes = 0;
 
-      if (pkt_limit && plugin->m_parsed + block->size >= pkt_limit) {
+   PacketBlock block(queue_size);
+
+#ifdef __linux__
+   const clockid_t clk_id = CLOCK_MONOTONIC_COARSE;
+#else
+   const clockid_t clk_id = CLOCK_MONOTONIC;
+#endif
+
+   while (!terminate_input) {
+      block.cnt = 0;
+      block.bytes = 0;
+
+      if (pkt_limit && plugin->m_parsed + block.size >= pkt_limit) {
          if (plugin->m_parsed >= pkt_limit) {
             break;
          }
-         block->size = pkt_limit - plugin->m_parsed;
+         block.size = pkt_limit - plugin->m_parsed;
       }
       try {
-         ret = plugin->get(*block);
+         ret = plugin->get(block);
       } catch (PluginError &e) {
          res.error = true;
          res.msg = e.what();
          break;
       }
       if (ret == InputPlugin::Result::TIMEOUT) {
+         clock_gettime(clk_id, &end);
+         if (!timeout) {
+            timeout = true;
+            begin = end;
+         }
+         struct timespec diff = {end.tv_sec - begin.tv_sec, end.tv_nsec - begin.tv_nsec};
+         if (diff.tv_nsec < 0) {
+            diff.tv_nsec += 1000000000;
+            diff.tv_sec--;
+         }
+         cache->export_expired(ts.tv_sec + diff.tv_sec);
          usleep(1);
          continue;
       } else if (ret == InputPlugin::Result::PARSED) {
          stats.packets = plugin->m_seen;
          stats.parsed = plugin->m_parsed;
          stats.dropped = plugin->m_dropped;
-         stats.bytes += block->bytes;
-#ifdef __linux__
-         const clockid_t clk_id = CLOCK_MONOTONIC_COARSE;
-#else
-         const clockid_t clk_id = CLOCK_MONOTONIC;
-#endif
-         clock_gettime(clk_id, &start);
-         ipx_ring_push(queue, static_cast<void *>(block));
-         clock_gettime(clk_id, &end);
+         stats.bytes += block.bytes;
+         clock_gettime(clk_id, &start_cache);
+         try {
+            for (unsigned i = 0; i < block.cnt; i++) {
+               cache->put_pkt(block.pkts[i]);
+            }
+            ts = block.pkts[block.cnt - 1].ts;
+         } catch (PluginError &e) {
+            res.error = true;
+            res.msg = e.what();
+            break;
+         }
+         timeout = false;
+         clock_gettime(clk_id, &end_cache);
 
-         int64_t time = end.tv_nsec - start.tv_nsec;
-         if (start.tv_sec != end.tv_sec) {
+         int64_t time = end_cache.tv_nsec - start_cache.tv_nsec;
+         if (start_cache.tv_sec != end_cache.tv_sec) {
             time += 1000000000;
          }
          stats.qtime += time;
-         i = (i + 1) % block_cnt;
 
          out_stats->store(stats);
       } else if (ret == InputPlugin::Result::ERROR) {
@@ -116,53 +142,6 @@ void input_worker(InputPlugin *plugin, PacketBlock *pkts, size_t block_cnt, uint
    stats.parsed = plugin->m_parsed;
    stats.dropped = plugin->m_dropped;
    out_stats->store(stats);
-   out->set_value(res);
-}
-
-void storage_worker(StoragePlugin *cache, ipx_ring_t *queue, std::promise<WorkerResult> *out, std::shared_future<void> *terminate)
-{
-   WorkerResult res = {false, ""};
-   bool timeout = false;
-   struct timeval ts = {0, 0};
-   struct timespec begin = {0, 0};
-   struct timespec end = {0, 0};
-#ifdef __linux__
-   const clockid_t clk_id = CLOCK_MONOTONIC_COARSE;
-#else
-   const clockid_t clk_id = CLOCK_MONOTONIC;
-#endif
-   while (1) {
-      PacketBlock *block = static_cast<PacketBlock *>(ipx_ring_pop(queue));
-      if (block) {
-         try {
-            for (unsigned i = 0; i < block->cnt; i++) {
-               cache->put_pkt(block->pkts[i]);
-            }
-            ts = block->pkts[block->cnt - 1].ts;
-         } catch (PluginError &e) {
-            res.error = true;
-            res.msg = e.what();
-            break;
-         }
-         timeout = false;
-      } else if (terminate->wait_for(std::chrono::seconds(0)) == std::future_status::ready && !ipx_ring_cnt(queue)) {
-         break;
-      } else {
-         clock_gettime(clk_id, &end);
-         if (!timeout) {
-            timeout = true;
-            begin = end;
-         }
-         struct timespec diff = {end.tv_sec - begin.tv_sec, end.tv_nsec - begin.tv_nsec};
-         if (diff.tv_nsec < 0) {
-            diff.tv_nsec += 1000000000;
-            diff.tv_sec--;
-         }
-         cache->export_expired(ts.tv_sec + diff.tv_sec);
-         usleep(1);
-      }
-   }
-
    cache->finish();
    auto outq = cache->get_queue();
    while (ipx_ring_cnt(outq)) {
@@ -178,7 +157,7 @@ static long timeval_diff(const struct timeval *start, const struct timeval *end)
 }
 
 void output_worker(OutputPlugin *exp, ipx_ring_t *queue, std::promise<WorkerResult> *out, std::atomic<OutputStats> *out_stats,
-   uint32_t fps, std::shared_future<void> *terminate)
+   uint32_t fps)
 {
    WorkerResult res = {false, ""};
    OutputStats stats = {0, 0, 0, 0};
@@ -205,7 +184,7 @@ void output_worker(OutputPlugin *exp, ipx_ring_t *queue, std::promise<WorkerResu
             last_flush = end;
             exp->flush();
          }
-         if (terminate->wait_for(std::chrono::seconds(0)) == std::future_status::ready && !ipx_ring_cnt(queue)) {
+         if (terminate_export && !ipx_ring_cnt(queue)) {
             break;
          }
          continue;

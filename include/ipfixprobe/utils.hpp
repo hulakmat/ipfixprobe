@@ -61,6 +61,7 @@ void parse_range(const std::string &arg, std::string &from, std::string &to, con
 bool str2bool(std::string str);
 void trim_str(std::string &str);
 bool ipaddr_compare(ipaddr_t ip_1, ipaddr_t ip_2, uint8_t ip_version);
+uint32_t variable2ipfix_buffer(uint8_t* buffer2write, uint8_t* buffer2read, uint16_t len);
 
 template<typename T> constexpr
 T const& max(const T &a, const T &b) {

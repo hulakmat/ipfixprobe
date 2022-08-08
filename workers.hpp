@@ -74,11 +74,8 @@ struct WorkPipeline {
    } input;
    struct {
       StoragePlugin *plugin;
-      std::thread *thread;
-      std::promise<WorkerResult> *promise;
       std::vector<ProcessPlugin *> plugins;
    } storage;
-   ipx_ring_t *queue;
 };
 
 struct OutputWorker {
@@ -89,11 +86,10 @@ struct OutputWorker {
    ipx_ring_t *queue;
 };
 
-void input_worker(InputPlugin *plugin, PacketBlock *pkts, size_t block_cnt, uint64_t pkt_limit, ipx_ring_t *queue,
-      std::promise<WorkerResult> *out, std::atomic<InputStats> *out_stats, std::shared_future<void> *terminate);
-void storage_worker(StoragePlugin *cache, ipx_ring_t *queue, std::promise<WorkerResult> *out, std::shared_future<void> *terminate);
+void input_storage_worker(InputPlugin *plugin, StoragePlugin *cache, size_t queue_size, uint64_t pkt_limit, 
+      std::promise<WorkerResult> *out, std::atomic<InputStats> *out_stats);
 void output_worker(OutputPlugin *exp, ipx_ring_t *queue, std::promise<WorkerResult> *out, std::atomic<OutputStats> *out_stats,
-      uint32_t fps, std::shared_future<void> *terminate);
+      uint32_t fps);
 
 }
 

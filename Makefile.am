@@ -89,6 +89,8 @@ ipfixprobe_process_src=\
 		process/sip.hpp \
 		process/tls.cpp \
 		process/tls.hpp \
+		process/tls_parser.cpp \
+		process/tls_parser.hpp \
 		process/smtp.cpp \
 		process/smtp.hpp \
 		process/dns-utils.hpp \
@@ -125,12 +127,16 @@ ipfixprobe_process_src=\
 		process/rtp.hpp \
 		process/rtp.cpp \
 		process/rtp-exporter.hpp \
-		process/rtp-exporter.cpp
+		process/rtp-exporter.cpp \
+		process/common.hpp
 
 if WITH_QUIC
 ipfixprobe_process_src+=\
 		process/quic.hpp \
-		process/quic.cpp
+		process/quic.cpp \
+		process/quic_parser.cpp \
+		process/quic_parser.hpp 
+
 endif
 
 if WITH_FLEXPROBE
@@ -226,7 +232,10 @@ EXTRA_DIST=README.md \
 	pcaps/idpcontent.pcap \
 	pcaps/bstats.pcap \
 	pcaps/wg.pcap \
-	pcaps/quic_initial-sample.pcap
+	pcaps/quic_initial-sample.pcap \
+	debian/control debian/changelog debian/watch debian/copyright debian/patches debian/patches/series \
+	debian/source debian/source/format debian/source/local-options debian/source/include-binaries \
+	debian/rules debian/README.Debian debian/compat
 
 bashcompl_DATA=ipfixprobe.bash
 
@@ -287,3 +296,15 @@ else
 fields.h fields.c:
 	touch $@
 endif
+
+if MAKE_DEB
+.PHONY: deb-source
+deb-source:
+	make dist && make distdir && ln -fs ipfixprobe-@VERSION@.tar.gz ipfixprobe_@VERSION@ubuntu@RELEASE@.orig.tar.gz && cd ipfixprobe-@VERSION@ && debuild -S
+
+.PHONY: deb
+deb:
+	make dist && make distdir && ln -fs ipfixprobe-@VERSION@.tar.gz ipfixprobe_@VERSION@ubuntu@RELEASE@.orig.tar.gz && cd ipfixprobe-@VERSION@ && debuild
+else
+endif
+

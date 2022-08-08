@@ -1,11 +1,11 @@
 /**
- * \file parser.hpp
- * \brief Packet parser functions
- * \author Jiri Havranek <havranek@cesnet.cz>
- * \date 2021
+ * \file common.hpp
+ * \brief Common function for processing modules
+ * \author Pavel Siska <siska@cesnet.cz>
+ * \date 2022
  */
 /*
- * Copyright (C) 2021 CESNET
+ * Copyright (C) 2022 CESNET
  *
  * LICENSE TERMS
  *
@@ -41,46 +41,50 @@
  *
  */
 
-#ifndef IPXP_INPUT_PARSER_HPP
-#define IPXP_INPUT_PARSER_HPP
+#ifndef IPXP_PROCESS_COMMON_HPP
+#define IPXP_PROCESS_COMMON_HPP
 
-#include <ipfixprobe/packet.hpp>
-
-#ifdef WITH_PCAP
-#include <pcap/pcap.h>
-#include <pcap/sll.h>
-#endif /* WITH_PCAP */
-
-#ifndef DLT_EN10MB
-#define DLT_EN10MB 1
-#endif
-
-#ifndef DLT_LINUX_SLL
-#define DLT_LINUX_SLL 113
-#endif
-
-#ifndef DLT_RAW
-#define DLT_RAW 12
-#endif
-
-#ifndef ETH_P_8021AD
-#define ETH_P_8021AD	0x88A8          /* 802.1ad Service VLAN*/
-#endif
-
-#ifndef ETH_P_TRILL
-#define ETH_P_TRILL	0x22F3          /* TRILL protocol */
-#endif
+#include <cstring>
 
 namespace ipxp {
 
-typedef struct parser_opt_s {
-   PacketBlock *pblock;
-   bool packet_valid;
-   bool parse_all;
-   int datalink;
-} parser_opt_t;
+static inline bool check_payload_len(size_t payload_len, size_t required_len) noexcept
+{
+   return payload_len < required_len;
+}
 
-void parse_packet(parser_opt_t *opt, struct timeval ts, const uint8_t *data, uint16_t len, uint16_t caplen);
+/**
+ * \brief Returns a pointer to the first occurrence of str2 in str1,
+ *        or a null pointer if str2 is not part of str1.
+ *
+ * \param str1 C string to be scanned.
+ * \param str2 C string containing the sequence of characters to match.
+ * \param len Number of bytes to be analyzed.
+ * 
+ * \return A pointer to the first occurrence of string in str1.
+ *         If the string is not found, the function returns a null pointer.
+ */
+static inline const char *
+strnstr(const char *str1, const char *str2, size_t len) noexcept
+{
+   char c, sc;
+   size_t slen;
+
+   if ((c = *str2++) != '\0') {
+      slen = strlen(str2);
+      do {
+         do {
+            if (len-- < 1 || (sc = *str1++) == '\0')
+               return (NULL);
+         } while (sc != c);
+         if (slen > len)
+            return (NULL);
+      } while (strncmp(str1, str2, slen) != 0);
+      str1--;
+   }
+   return ((char *)str1);
+}
 
 }
-#endif /* IPXP_INPUT_PARSER_HPP */
+
+#endif /* IPXP_PROCESS_COMMON_HPP */

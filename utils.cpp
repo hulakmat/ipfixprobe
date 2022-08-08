@@ -2,6 +2,7 @@
  * \file utils.cpp
  * \brief Utility functions source
  * \author Jiri Havranek <havranek@cesnet.cz>
+ * \author Karel Hynek <Karel.Hynek@cesnet.cz>
  * \date 2021
  */
 /*
@@ -44,6 +45,7 @@
 #include <string>
 #include <utility>
 #include <cstring>
+#include <arpa/inet.h>
 
 #include <ipfixprobe/utils.hpp>
 
@@ -82,8 +84,16 @@ bool str2bool(std::string str)
 
 void trim_str(std::string &str)
 {
-   str.erase(0, str.find_first_not_of(" \t\n\r"));
-   str.erase(str.find_last_not_of(" \t\n\r") + 1);
+  // when std::string::npos returned by find
+  // string.erase() will remove all characters till end
+  // https://cplusplus.com/reference/string/string/erase/
+  if (str.length() > 0) {
+    str.erase(0, str.find_first_not_of(" \t\n\r"));
+    size_t pos = str.find_last_not_of(" \t\n\r");
+    if (pos != std::string::npos) {
+      str.erase(str.find_last_not_of(" \t\n\r") + 1);
+    }
+  }
 }
 
 void phton64(uint8_t *p, uint64_t v)
@@ -106,13 +116,28 @@ uint64_t pntoh64(const void *p)
    return buffer;
 }
 
-bool ipaddr_compare(ipaddr_t ip_1, ipaddr_t ip_2, uint8_t ip_version){
+bool ipaddr_compare(ipaddr_t ip_1, ipaddr_t ip_2, uint8_t ip_version)
+{
    if (ip_version == IP::v4 && !memcmp(&ip_1, &ip_2, 4)) {
       return 1;
    } else if (ip_version == IP::v6 && !memcmp(&ip_1, &ip_2, 16)) {
       return 1;
    }
    return 0;
+}
+
+uint32_t variable2ipfix_buffer(uint8_t* buffer2write, uint8_t* buffer2read, uint16_t len)
+{
+   uint32_t ptr = 0;
+   if (len >= 255) {
+      buffer2write[ptr++] = 255;
+      *(uint16_t *)(buffer2write + ptr) = htons(len);
+      ptr += sizeof(uint16_t);
+   } else {
+      buffer2write[ptr++] = len;
+   }
+   std::memcpy(buffer2write + ptr, buffer2read, len);
+   return ptr + len;
 }
 
 }

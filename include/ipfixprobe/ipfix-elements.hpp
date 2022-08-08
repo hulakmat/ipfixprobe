@@ -246,7 +246,9 @@ namespace ipxp {
 #define S_PHISTS_SIZES(F)             F(0,       291,  -1,   nullptr) // BASIC LIST -- FIELD IS e8057id1060 (uint32*)
 #define S_PHISTS_IPT(F)               F(0,       291,  -1,   nullptr) // BASIC LIST -- FIELD IS e8057id1061 (uint32*)
 
-#define QUIC_SNI(F)                   F(8057,    890,   -1,  nullptr)
+#define QUIC_SNI(F)                   F(8057,    890,  -1,   nullptr)
+#define QUIC_USER_AGENT(F)            F(8057,    891,  -1,   nullptr)
+#define QUIC_VERSION(F)               F(8057,    892,   4,   nullptr)
 
 #define OSQUERY_PROGRAM_NAME(F)       F(8057,    852,  -1,   nullptr)
 #define OSQUERY_USERNAME(F)           F(8057,    853,  -1,   nullptr)
@@ -262,6 +264,7 @@ namespace ipxp {
 
 #ifdef WITH_FLEXPROBE
 #define FX_FRAME_SIGNATURE(F)         F(5715,   1010,  18,   nullptr)
+#define FX_INPUT_INTERFACE(F)         F(5715,   1015,   1,   nullptr)
 #define FX_TCP_TRACKING(F)            F(5715,   1020,   1,   nullptr)
 #endif
 
@@ -478,7 +481,9 @@ namespace ipxp {
   F(WG_DST_PEER)
 
 #define IPFIX_QUIC_TEMPLATE(F) \
-  F(QUIC_SNI)
+  F(QUIC_SNI) \
+  F(QUIC_USER_AGENT) \
+  F(QUIC_VERSION)
 
 #define IPFIX_OSQUERY_TEMPLATE(F) \
    F(OSQUERY_PROGRAM_NAME) \
@@ -494,7 +499,7 @@ namespace ipxp {
    F(OSQUERY_SYSTEM_HOSTNAME)
 
 #ifdef WITH_FLEXPROBE
-#define IPFIX_FLEXPROBE_DATA_TEMPLATE(F) F(FX_FRAME_SIGNATURE)
+#define IPFIX_FLEXPROBE_DATA_TEMPLATE(F) F(FX_FRAME_SIGNATURE) F(FX_INPUT_INTERFACE)
 #define IPFIX_FLEXPROBE_TCP_TEMPLATE(F) F(FX_TCP_TRACKING)
 #define IPFIX_FLEXPROBE_ENCR_TEMPLATE(F)
 #else
