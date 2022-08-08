@@ -55,6 +55,8 @@
 #include <ipfixprobe/packet.hpp>
 #include <ipfixprobe/ipfix-elements.hpp>
 
+#include "rtp.hpp"
+#include <ipfixprobe/utils.hpp>
 
 #include <cstring>
 #include <fstream>
@@ -67,10 +69,32 @@ UR_FIELDS(
    /* TODO: unirec fields definition */
 )
 
-#define RTP_EXPORTER_EXPORT_PACKETS_TOTAL 200
-#define RTP_EXPORTER_EXPORT_PACKETS_START 0
+#define RTP_EXPORTER_EXPORT_CAPTURE_GROUP_SIZE 200
+#define RTP_EXPORTER_EXPORT_CAPTURE_GROUP_START 0
 #define RTP_EXPORTER_DETECTION_THRESHOLD  0.3f
 #define RTP_EXPORTER_DECIMAL_PRECISION_EXPORT 2 //decimal places
+
+#define RTP_EXPORTER_SOURCE_SRC_TO_DST false
+#define RTP_EXPORTER_SOURCE_DST_TO_SRC ! ( RTP_EXPORTER_SOURCE_SRC_TO_DST )
+
+
+struct rtp_exporter_capture_group {
+
+   struct rtp_counter rtp_counter;
+   struct timeval time_last;
+   struct timeval time_last_src;
+   struct timeval time_last_dst;
+
+   uint64_t src_bytes;
+   uint64_t dst_bytes;
+   uint32_t src_packets;
+   uint32_t dst_packets;
+
+   bool direction;
+
+   rtp_exporter_capture_group(): time_last_src{0}, time_last_dst{0} {}
+   
+} rtp_exporter_capture_group;
 
 /**
  * \brief Flow record extension header for storing parsed RTP_EXPORTER data.
@@ -78,7 +102,7 @@ UR_FIELDS(
 struct RecordExtRTP_EXPORTER : public RecordExt {
    static int    REGISTERED_ID;
 
-   struct Packet packets[RTP_EXPORTER_EXPORT_PACKETS_TOTAL];
+   struct rtp_exporter_capture_group capture_group[RTP_EXPORTER_EXPORT_CAPTURE_GROUP_SIZE];
    uint32_t      counter;
 
    RecordExtRTP_EXPORTER() : RecordExt(REGISTERED_ID), counter(0)
@@ -105,10 +129,36 @@ struct RecordExtRTP_EXPORTER : public RecordExt {
       return 0;
    }
 
-   void add_packet(const Packet &pkt)
+   void add_capture_group(const Flow &rec, const Packet &pkt)
    {
-      if (counter < RTP_EXPORTER_EXPORT_PACKETS_TOTAL)
-         packets[counter++] = pkt;
+      if (counter < RTP_EXPORTER_EXPORT_CAPTURE_GROUP_SIZE){
+
+         RecordExtRTP *rtp_record = static_cast<RecordExtRTP *>(rec.get_extension(RecordExtRTP::REGISTERED_ID));
+
+         capture_group[counter].rtp_counter = rtp_record->rtp_counter;
+         capture_group[counter].time_last = rec.time_last;
+         
+         bool isSrc = 
+            ipaddr_compare(rec.src_ip,pkt.src_ip,rec.ip_version)
+            && (rec.src_port == pkt.src_port); 
+
+         if(isSrc){
+            capture_group[counter].time_last_src = pkt.ts;
+            capture_group[counter].direction = RTP_EXPORTER_SOURCE_SRC_TO_DST;
+         }
+         else{
+            capture_group[counter].time_last_dst = pkt.ts;
+            capture_group[counter].direction = RTP_EXPORTER_SOURCE_DST_TO_SRC;
+         }
+
+         capture_group[counter].src_bytes = rec.src_bytes;
+         capture_group[counter].dst_bytes = rec.dst_bytes;
+
+         capture_group[counter].src_packets = rec.src_packets;
+         capture_group[counter].dst_packets = rec.dst_packets;
+      
+         counter++;
+      }
    }
 };
 

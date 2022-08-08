@@ -63,7 +63,7 @@ __attribute__((constructor)) static void register_this_plugin()
    RecordExtRTP_EXPORTER::REGISTERED_ID = register_extension();
 }
 
-RTP_EXPORTERPlugin::RTP_EXPORTERPlugin() : isInValidState(true)
+RTP_EXPORTERPlugin::RTP_EXPORTERPlugin() : isInValidState(false)
 {
    std::ostringstream ss_filename;
 
@@ -74,9 +74,10 @@ RTP_EXPORTERPlugin::RTP_EXPORTERPlugin() : isInValidState(true)
    ofs->open(ss_filename.str(), std::ios::out | std::ios::trunc);
    if (ofs->is_open()) {
       *ofs << std::setprecision(RTP_EXPORTER_DECIMAL_PRECISION_EXPORT);
+      *ofs << std::noboolalpha;
+      isInValidState = true;
    }
    else{
-      isInValidState = false;
       error("Invalid export location for rtp-exporter");
    }
 }
@@ -131,13 +132,13 @@ void RTP_EXPORTERPlugin::manage_packet(const Flow &rec, const Packet &pkt)
 
    uint32_t totalPackets = rec.dst_packets + rec.src_packets;
 
-   if (rtp_exporter_record->counter == RTP_EXPORTER_EXPORT_PACKETS_TOTAL) {
+   if (rtp_exporter_record->counter == RTP_EXPORTER_EXPORT_CAPTURE_GROUP_SIZE) {
       return;
-   } else if (rtp_exporter_record->counter < RTP_EXPORTER_EXPORT_PACKETS_TOTAL 
-      && totalPackets > RTP_EXPORTER_EXPORT_PACKETS_START) {
+   } else if (rtp_exporter_record->counter < RTP_EXPORTER_EXPORT_CAPTURE_GROUP_SIZE 
+      && totalPackets > RTP_EXPORTER_EXPORT_CAPTURE_GROUP_START) {
 
-      rtp_exporter_record->add_packet(pkt);
-      if (rtp_exporter_record->counter == RTP_EXPORTER_EXPORT_PACKETS_TOTAL) {
+      rtp_exporter_record->add_capture_group(rec,pkt);
+      if (rtp_exporter_record->counter == RTP_EXPORTER_EXPORT_CAPTURE_GROUP_SIZE) {
          export_flow(rec);
       }
       
@@ -146,6 +147,7 @@ void RTP_EXPORTERPlugin::manage_packet(const Flow &rec, const Packet &pkt)
 
 void RTP_EXPORTERPlugin::export_flow(const Flow &rec)
 {
+
    RecordExtRTP *rtp_record = static_cast<RecordExtRTP *>(rec.get_extension(RecordExtRTP::REGISTERED_ID));
 
    if (!rtp_record) {
@@ -165,18 +167,31 @@ void RTP_EXPORTERPlugin::export_flow(const Flow &rec)
      ((double) totalRtp / totalProcessed ) : 0;
 
    for (size_t i = 0; i < rtp_exporter_record->counter; i++) {
-      const Packet & pkt = rtp_exporter_record->packets[i];
+
+      const struct rtp_exporter_capture_group & capture_group = rtp_exporter_record->capture_group[i];
+      
       *ofs <<
-         pkt.ts.tv_sec << FIELD_SEPARATOR <<
-         pkt.ts.tv_usec << FIELD_SEPARATOR <<
-         pkt.src_ip.v4 << FIELD_SEPARATOR <<
-         pkt.dst_ip.v4 << FIELD_SEPARATOR <<
-         pkt.src_port << FIELD_SEPARATOR <<
-         pkt.dst_port << FIELD_SEPARATOR <<
-         pkt.payload_len << FIELD_SEPARATOR <<
-         (uint32_t) pkt.ip_proto << FIELD_SEPARATOR <<
-         (uint32_t) pkt.ip_flags << FIELD_SEPARATOR <<
-         (uint32_t) pkt.ip_tos << FIELD_SEPARATOR <<
+         rec.time_first.tv_sec << FIELD_SEPARATOR <<
+         rec.time_first.tv_usec << FIELD_SEPARATOR <<
+         rec.src_ip.v4 << FIELD_SEPARATOR <<
+         rec.dst_ip.v4 << FIELD_SEPARATOR <<
+         rec.src_port << FIELD_SEPARATOR <<
+         rec.dst_port << FIELD_SEPARATOR <<
+         capture_group.direction << FIELD_SEPARATOR <<
+         capture_group.src_packets << FIELD_SEPARATOR <<
+         capture_group.dst_packets << FIELD_SEPARATOR <<
+         capture_group.src_bytes << FIELD_SEPARATOR <<
+         capture_group.dst_bytes << FIELD_SEPARATOR <<
+         capture_group.time_last.tv_sec << FIELD_SEPARATOR <<
+         capture_group.time_last.tv_usec << FIELD_SEPARATOR <<
+         capture_group.time_last_src.tv_sec << FIELD_SEPARATOR <<
+         capture_group.time_last_src.tv_usec << FIELD_SEPARATOR <<
+         capture_group.time_last_dst.tv_sec << FIELD_SEPARATOR <<
+         capture_group.time_last_dst.tv_usec << FIELD_SEPARATOR <<
+         capture_group.rtp_counter.rtp_src << FIELD_SEPARATOR <<
+         capture_group.rtp_counter.rtp_dst << FIELD_SEPARATOR <<
+         capture_group.rtp_counter.total_src_after_recognition << FIELD_SEPARATOR <<
+         capture_group.rtp_counter.total_dst_after_recognition << FIELD_SEPARATOR <<
          ratioRtp << NEW_LINE;
    }
 } // RTP_EXPORTERPlugin::export_flow
