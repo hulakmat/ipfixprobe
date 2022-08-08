@@ -178,6 +178,8 @@ void RTP_EXPORTERPlugin::export_flow(const Flow &rec)
          rec.src_port << FIELD_SEPARATOR <<
          rec.dst_port << FIELD_SEPARATOR <<
          capture_group.direction << FIELD_SEPARATOR <<
+         capture_group.packet_len << FIELD_SEPARATOR <<
+         capture_group.payload_len << FIELD_SEPARATOR <<
          capture_group.src_packets << FIELD_SEPARATOR <<
          capture_group.dst_packets << FIELD_SEPARATOR <<
          capture_group.src_bytes << FIELD_SEPARATOR <<

@@ -90,6 +90,9 @@ struct rtp_exporter_capture_group {
    uint32_t src_packets;
    uint32_t dst_packets;
 
+   uint16_t packet_len;
+   uint16_t payload_len;
+
    bool direction;
 
    rtp_exporter_capture_group(): time_last_src{0}, time_last_dst{0} {}
@@ -156,6 +159,9 @@ struct RecordExtRTP_EXPORTER : public RecordExt {
 
          capture_group[counter].src_packets = rec.src_packets;
          capture_group[counter].dst_packets = rec.dst_packets;
+
+         capture_group[counter].packet_len = pkt.packet_len;
+         capture_group[counter].payload_len = pkt.payload_len;
       
          counter++;
       }
