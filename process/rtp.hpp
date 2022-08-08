@@ -57,8 +57,6 @@
 # include <ipfixprobe/packet.hpp>
 # include <ipfixprobe/ipfix-elements.hpp>
 
-# include <devel/endian_mac.h>
-
 namespace ipxp {
 # define RTP_HEADER_MINIMUM_SIZE            12
 
