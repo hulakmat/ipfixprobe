@@ -50,6 +50,7 @@
 #include "record.hpp"
 #include <memory>
 #include <sstream>
+#include <functional>
 #include "flowstorestats.hpp"
 
 namespace ipxp {
@@ -59,9 +60,13 @@ template <typename PacketInfo, typename Access, typename Iter, typename Parser>
 class FlowStore
 {
 public:
+    /* Extract information from packet for other operations */
     typedef PacketInfo packet_info;
-    typedef Iter iterator; /* Iterator over accessors */
+    /* Iterator over accessors */
+    typedef Iter iterator;
+    /* Accessor gives access to a FCRecord* record by dereferencing */
     typedef Access accessor;
+    /* Argument parser */
     typedef Parser parser;
 
     /* Virtual destructor for overriding */
@@ -75,6 +80,11 @@ public:
     virtual Iter end() = 0;
 
     /* Prepare packet for processing. Calculates shared items for lookup/free operations */
+
+    /* Note that the packet info can have invalidated Paket pointer for other operations.
+     * This is due some late operation as flow moving such as CachedFlowStore implementation.
+     * Operations such as lookup and etc. should not use the pkt pointer or should count for this move operation by checking its validity
+     */
     virtual PacketInfo prepare(Packet &pkt, bool inverse) = 0;
     /* Looksup records for given hash. */
     virtual Access lookup(PacketInfo &pkt ) = 0;
@@ -97,6 +107,13 @@ public:
 
     /* Interface for getting statistic/performance information from the FlowStore */
     virtual FlowStoreStat::Ptr stats_export() { return nullptr; };
+
+    typedef std::function<Access(const Access&)> ForcedFlowExportCallback;
+    void setForcedFlowExportCallback(ForcedFlowExportCallback cb) {
+        this->m_forced_callback = cb;
+    };
+protected:
+    ForcedFlowExportCallback m_forced_callback;
 };
 
 }
