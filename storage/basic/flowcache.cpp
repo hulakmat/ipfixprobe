@@ -260,7 +260,7 @@ int FlowCache<F>::put_pkt(Packet &pkt)
 
    auto flowIt = m_flow_store.lookup(pkt_info);
    /* Find inversed flow. */
-   if (flowIt == m_flow_store.lookup_end() && !m_split_biflow) {
+   if (flowIt == m_flow_store.lookup_end() && !m_split_biflow && !pkt_info.isInversable()) {
       auto pkt_inv_info = m_flow_store.prepare(pkt, true);
       auto flowInvIt = m_flow_store.lookup(pkt_inv_info);
       if(flowInvIt != m_flow_store.lookup_end()) {
