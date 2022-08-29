@@ -54,6 +54,7 @@
 #include "flowstorestatswriter.hpp"
 #include "flowstoreportfilter.hpp"
 #include "hiearchyflowstore.hpp"
+#include "cachedflowstore.hpp"
 #include "flowcache.hpp"
 #include "xxhash.h"
 
@@ -62,12 +63,43 @@ namespace ipxp {
 
 Plugin *cons_cache_func()
 {
-    return new FlowCache<HTFlowStore>("cache");
+    return new FlowCache<
+            FlowStoreStatsWriter<
+                   FlowStoreMonitor<
+                        HTFlowStore
+                   >
+            >
+            >("cache");
 };
 
 __attribute__((constructor)) static void register_cache_plugin()
 {
    static PluginRecord rec = PluginRecord("cache", cons_cache_func);
+   register_plugin(&rec);
+}
+
+
+Plugin *cons_cached_storage_func()
+{
+    return new FlowCache<
+            FlowStoreStatsWriter<
+                FlowStoreCached<
+                    //Cache storage
+                    FlowStoreMonitor<
+                        HTFlowStore
+                    >,
+                    //Base storage
+                    FlowStoreMonitor<
+                         HTFlowStore
+                    >
+                >
+            >
+            >("cachedStorage");
+};
+
+__attribute__((constructor)) static void register_cached_storage_plugin()
+{
+   static PluginRecord rec = PluginRecord("cachedStorage", cons_cached_storage_func);
    register_plugin(&rec);
 }
 
@@ -148,6 +180,7 @@ void FlowCache<F>::init(const char *params)
    init(parser);
 }
 
+#include <functional>
 
 template <class F>
 void FlowCache<F>::init(CacheOptParser &parser)
@@ -161,6 +194,15 @@ void FlowCache<F>::init(CacheOptParser &parser)
    }
 
    m_flow_store.init(static_cast<BaseParser&>(parser));
+   auto forcedFlowExportClb = std::bind(
+                   &FlowCache<F>::export_acc,
+                   this,
+                   std::placeholders::_1,
+                   FLOW_END_FORCED,
+                   true
+               );
+
+   m_flow_store.setForcedFlowExportCallback(forcedFlowExportClb);
    m_timeout_iter = m_flow_store.begin();
    m_split_biflow = parser.m_split_biflow;
 
@@ -279,10 +321,10 @@ int FlowCache<F>::put_pkt(Packet &pkt)
          auto freeIt = m_flow_store.free(pkt_info);
          if(freeIt == m_flow_store.lookup_end()) {
             //Throw unable to store flow. or return ?
-             std::cout << "Wtf?" << std::endl;
+            assertm(false, "Flow store did not freed flow based on accessor");
             return 0;
          }
-         flowIt = export_acc(freeIt, FLOW_END_NO_RES);
+         flowIt = export_acc(freeIt, FLOW_END_FORCED);
          /* Flow index has been freed for the incoming flow */
 #ifdef FLOW_CACHE_STATS
          m_not_empty++;

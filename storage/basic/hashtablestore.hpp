@@ -183,6 +183,9 @@ private:
 
     int foo = 0;
     const FlowIndex fromAccessor(const accessor &access) {
+#ifdef DBG
+        std::cout << "A Ind: " << (uint32_t)(access - begin()) << " Line Ind: " << ((uint32_t)(access - begin()) & this->m_line_mask) << " Fl Index: " << (uint32_t)(access - begin()) << " LineMask: " << std::hex << this->m_line_mask << std::endl;
+#endif
         return {
             true,
             (uint32_t)(access - begin()) & this->m_line_mask,
@@ -221,10 +224,21 @@ private:
         {
             if (m_flow_table[rIndex.flow_index]->isEmpty())
             {
+#ifdef FLOW_CACHE_STATS
+                const size_t search_len = (rIndex.flow_index - rIndex.line_index + 1);
+                m_searches += search_len;
+                m_searches2 += search_len * search_len;
+#endif
                 rIndex.valid = true;
                 return rIndex;
             }
         }
+
+#ifdef FLOW_CACHE_STATS
+        const size_t search_len = this->m_line_size;
+        m_searches += search_len;
+        m_searches2 += search_len * search_len;
+#endif
         rIndex.valid = false;
         return rIndex;
     }
@@ -237,10 +251,21 @@ private:
         {
             if (m_flow_table[rIndex.flow_index]->getHash() == hash)
             {
+#ifdef FLOW_CACHE_STATS
+                const size_t search_len = (rIndex.flow_index - rIndex.line_index + 1);
+                m_searches += search_len;
+                m_searches2 += search_len * search_len;
+#endif
                 rIndex.valid = true;
                 return rIndex;
             }
         }
+
+#ifdef FLOW_CACHE_STATS
+        const size_t search_len = this->m_line_size;
+        m_searches += search_len;
+        m_searches2 += search_len * search_len;
+#endif
         rIndex.valid = false;
         return rIndex;
     }
@@ -254,8 +279,12 @@ private:
     FCRVector m_flow_records;
 
 #ifdef FLOW_CACHE_STATS
+    uint64_t m_searches;
+    uint64_t m_searches2;
+
     uint64_t m_lookups;
     uint64_t m_lookups2;
+    uint32_t m_cacheline_max_index;
 #endif /* FLOW_CACHE_STATS */
 
 public:
@@ -263,6 +292,9 @@ public:
         FlowStoreStat::PtrVector statVec = {
             make_FSStatPrimitive("lookups" , m_lookups),
             make_FSStatPrimitive("lookups2" , m_lookups2),
+            make_FSStatPrimitive("searches" , m_searches),
+            make_FSStatPrimitive("searches2" , m_searches2),
+            make_FSStatPrimitive("cacheline_max_index" , m_cacheline_max_index),
         };
         return std::make_shared<FlowStoreStatVector>("", statVec);
     };
