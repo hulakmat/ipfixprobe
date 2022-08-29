@@ -114,5 +114,6 @@ HEADERS += ./input/benchmark.hpp \
         ./storage/basic/flowstorestatswriter.hpp \
         ./storage/basic/flowstoreproxy.hpp \
         ./storage/basic/flowcacheoutput.hpp \
-        ./storage/basic/hiearchyjoiniterator.hpp
+        ./storage/basic/hiearchyjoiniterator.hpp \
+        storage/basic/cachedflowstore.hpp
 

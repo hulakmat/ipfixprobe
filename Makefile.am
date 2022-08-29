@@ -61,7 +61,7 @@ endif
 
 ipfixprobe_storage_src=\
 		storage/basic/flowringbuffer.hpp \
-        storage/basic/flowstoremonitor.hpp \
+                storage/basic/flowstoremonitor.hpp \
 		storage/basic/flowstoreproxy.hpp \
 		storage/basic/flowstorestatswriter.hpp \
 		storage/basic/flowcache.cpp \
@@ -69,6 +69,7 @@ ipfixprobe_storage_src=\
 		storage/basic/flowcacheoutput.cpp \
 		storage/basic/flowcacheoutput.hpp \
 		storage/basic/hiearchyflowstore.hpp \
+		storage/basic/cachedflowstore.hpp \
 		storage/basic/hiearchyjoiniterator.hpp \
 		storage/basic/flowstore.hpp \
 		storage/basic/flowstorestats.hpp \

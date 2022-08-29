@@ -47,6 +47,9 @@ void HTFlowStore::init(HashTableStoreParser& parser)
 #ifdef FLOW_CACHE_STATS
    m_lookups = 0;
    m_lookups2 = 0;
+   m_searches = 0;
+   m_searches2 = 0;
+   m_cacheline_max_index = 0;
 #endif /* FLOW_CACHE_STATS */
 }
 
@@ -70,6 +73,12 @@ HTFlowStore::accessor HTFlowStore::lookup_empty(packet_info &pkt)
 {
     FlowIndex flowRow_index = makeRowIndex(pkt.getHash());
     FlowIndex flowIndex = searchEmptyLine(flowRow_index);
+
+#ifdef DBG
+    if(flowIndex.valid) {
+        std::cout << "FL Valid: " << flowIndex.valid << " Fl I: " <<  flowIndex.flow_index << " Fl R: " << flowIndex.line_index << " R I: " << flowIndex.flow_index - flowIndex.line_index << std::endl;
+    }
+#endif
     if(flowIndex.valid) {
         auto ind = (m_flow_table.begin() + flowIndex.flow_index);
         return ind;
@@ -86,6 +95,12 @@ HTFlowStore::accessor HTFlowStore::free(packet_info &pkt)
 HTFlowStore::accessor HTFlowStore::put(const accessor &acc)
 {
     FlowIndex flowIndex = fromAccessor(acc);
+#ifdef DBG
+    std::cout << "FL Valid: " << flowIndex.valid << " Fl I: " <<  flowIndex.flow_index << " Fl R: " << flowIndex.line_index << " R I: " << flowIndex.flow_index - flowIndex.line_index << std::endl;
+#endif
+#ifdef FLOW_CACHE_STATS
+    this->m_cacheline_max_index = std::max(this->m_cacheline_max_index, flowIndex.flow_index - flowIndex.line_index);
+#endif
     moveToFront(flowIndex);
     return (m_flow_table.begin() + flowIndex.line_index);
 }

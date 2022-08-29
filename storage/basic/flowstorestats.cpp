@@ -24,7 +24,7 @@ void FlowStoreStatJSON(std::ostream &out, FlowStoreStat::Ptr ptr) {
     } else {
         auto arr = ptr->getArray();
         if(!ptr->getName().empty()) {
-            out << ptr->getName() << " : ";
+            out << "\"" << ptr->getName() << "\" : ";
         }
         if(arr.size() != 1) {
             out << "{" << std::endl;

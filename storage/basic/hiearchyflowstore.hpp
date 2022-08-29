@@ -536,6 +536,7 @@ struct FSHTypes
 template <typename ...Fs>
 class FlowStoreHiearchy : public FSHTypes<Fs...>::Base
 {
+protected:
     typedef FSHTypes<Fs...> Types;
     typedef typename FSHTypes<Fs...>::Base Base;
 public:    
@@ -742,7 +743,7 @@ public:
     template<std::size_t I = 0, typename... Tp>
     inline typename std::enable_if<I == sizeof...(Tp), accessor>::type
     index_export_for_each(std::tuple<Tp...> &, const accessor& index, FlowRingBuffer &rb) // Unused arguments are given no names.
-    { 
+    {
         return lookup_end();
     }
 
@@ -820,7 +821,7 @@ public:
         return iter_export_for_each(m_fstores, index, rb);
     }
 
-private:
+protected:
     template<std::size_t I = 0, typename FuncT, typename... Tp>
     inline typename std::enable_if<I == sizeof...(Tp), void>::type
     for_each(std::tuple<Tp...> &, FuncT) // Unused arguments are given no names.
