@@ -65,9 +65,15 @@ protected:
     FCHash m_hash;
 public:
     FCPacketInfo() : m_pkt(nullptr), m_hash(0) {}
-    FCPacketInfo(Packet &pkt, bool inverse) : m_pkt(&pkt), m_inverse(inverse), m_hash(0) {} 
+    FCPacketInfo(Packet &pkt, bool inverse) : m_pkt(&pkt), m_inverse(inverse), m_hash(0) {}
+
     /* Check if packet is getPacket used in same context as the Packet which it depends on */
-    virtual Packet *getPacket() { return m_pkt; }
+    bool isPacketValid() { return m_pkt != nullptr; }
+    Packet *getPacket() { return m_pkt; }
+    /* Should be called when structure leaves the same context as the Packet */
+    void invalidatePacket() { m_pkt = nullptr; }
+    /* Notates whether the FCPacket info identifies flows in single direction(true) or both(false) */
+    virtual bool isInversable() const { return true; }
     virtual bool isInverse() const { return m_inverse; }
     virtual bool isValid() const = 0;
     virtual FCHash getHash() const { return m_hash; }
