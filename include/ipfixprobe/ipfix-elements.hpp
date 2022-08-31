@@ -231,6 +231,8 @@ namespace ipxp {
 #define STATS_PCKT_TIMESTAMPS(F)      F(0,       291,  -1,   nullptr) // BASIC LIST -- FIELD IS e8057id1014 (time*)
 #define STATS_PCKT_TCPFLGS(F)         F(0,       291,  -1,   nullptr) // BASIC LIST -- FIELD IS e8057id1015 (uint8*)
 #define STATS_PCKT_DIRECTIONS(F)      F(0,       291,  -1,   nullptr) // BASIC LIST -- FIELD IS e8057id1016 (int8*)
+#define PPI_WG_TYPE(F)                F(0,       291,  -1,   nullptr)
+#define PPI_WG_SEQNUM(F)              F(0,       291,  -1,   nullptr)
 
 #define SBI_BRST_PACKETS(F)           F(0,       291,  -1,   nullptr) // BASIC LIST -- FIELD IS e8057id1050 (uint16*)
 #define SBI_BRST_BYTES(F)             F(0,       291,  -1,   nullptr) // BASIC LIST -- FIELD IS e8057id1051 (uint16*)
@@ -418,7 +420,9 @@ namespace ipxp {
    F(STATS_PCKT_SIZES) \
    F(STATS_PCKT_TIMESTAMPS) \
    F(STATS_PCKT_TCPFLGS) \
-   F(STATS_PCKT_DIRECTIONS)
+   F(STATS_PCKT_DIRECTIONS) \
+   F(PPI_WG_TYPE)           \
+   F(PPI_WG_SEQNUM)
 
 #define IPFIX_OVPN_TEMPLATE(F) \
    F(OVPN_CONF_LEVEL)

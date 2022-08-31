@@ -155,6 +155,13 @@ void PSTATSPlugin::update_record(RecordExtPSTATS *pstats_data, const Packet &pkt
             pstats_data->pkt_timestamps[pkt_cnt].tv_usec);
 
       pstats_data->pkt_dirs[pkt_cnt] = dir;
+      if (pkt.payload_len > 16) {
+         pstats_data->wg_seqnum[pkt_cnt] = pkt.payload[0];
+         pstats_data->wg_type[pkt_cnt] = pkt.payload[16];
+      }else{
+         pstats_data->wg_seqnum[pkt_cnt] = 0;
+         pstats_data->wg_type[pkt_cnt] = 0;
+      }
       pstats_data->pkt_count++;
    } else {
       /* Do not count more than PSTATS_MAXELEMCOUNT packets */
@@ -167,6 +174,7 @@ int PSTATSPlugin::post_create(Flow &rec, const Packet &pkt)
    rec.add_extension(pstats_data);
 
    update_record(pstats_data, pkt);
+
    return 0;
 }
 
@@ -185,6 +193,9 @@ int PSTATSPlugin::post_update(Flow &rec, const Packet &pkt)
 {
    RecordExtPSTATS *pstats_data = (RecordExtPSTATS *) rec.get_extension(RecordExtPSTATS::REGISTERED_ID);
    update_record(pstats_data, pkt);
+   if (pstats_data->pkt_count >= PSTATS_MAXELEMCOUNT) {
+      return FLOW_FLUSH_WITH_REINSERT;
+   }
    return 0;
 }
 

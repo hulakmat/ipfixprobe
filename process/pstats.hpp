@@ -78,7 +78,9 @@ UR_FIELDS (
    uint16* PPI_PKT_LENGTHS,
    time* PPI_PKT_TIMES,
    uint8* PPI_PKT_FLAGS,
-   int8* PPI_PKT_DIRECTIONS
+   int8* PPI_PKT_DIRECTIONS,
+   int8* PPI_WG_TYPE,
+   int8* PPI_WG_SEQNUM
 )
 
 class PSTATSOptParser : public OptionsParser
@@ -104,6 +106,8 @@ struct RecordExtPSTATS : public RecordExt {
    uint8_t        pkt_tcp_flgs[PSTATS_MAXELEMCOUNT];
    struct timeval pkt_timestamps[PSTATS_MAXELEMCOUNT];
    int8_t         pkt_dirs[PSTATS_MAXELEMCOUNT];
+   uint8_t        wg_seqnum[PSTATS_MAXELEMCOUNT];
+   uint8_t        wg_type[PSTATS_MAXELEMCOUNT];
    uint16_t       pkt_count;
    uint32_t       tcp_seq[2];
    uint32_t       tcp_ack[2];
@@ -114,7 +118,9 @@ struct RecordExtPSTATS : public RecordExt {
       PktSize  = 1013,
       PktFlags = 1015,
       PktDir   = 1016,
-      PktTmstp = 1014
+      PktTmstp = 1014,
+      WgType   = 1017,
+      WgSeqnum = 1018
    } eHdrSemantic;
 
    static const uint32_t CesnetPem = 8057;
@@ -132,6 +138,8 @@ struct RecordExtPSTATS : public RecordExt {
       ur_array_allocate(tmplt, record, F_PPI_PKT_LENGTHS, pkt_count);
       ur_array_allocate(tmplt, record, F_PPI_PKT_FLAGS, pkt_count);
       ur_array_allocate(tmplt, record, F_PPI_PKT_DIRECTIONS, pkt_count);
+      ur_array_allocate(tmplt, record, F_PPI_WG_TYPE, pkt_count);
+      ur_array_allocate(tmplt, record, F_PPI_WG_SEQNUM, pkt_count);
 
       for (int i = 0; i < pkt_count; i++) {
          ur_time_t ts = ur_time_from_sec_usec(pkt_timestamps[i].tv_sec, pkt_timestamps[i].tv_usec);
@@ -139,6 +147,8 @@ struct RecordExtPSTATS : public RecordExt {
          ur_array_set(tmplt, record, F_PPI_PKT_LENGTHS, i, pkt_sizes[i]);
          ur_array_set(tmplt, record, F_PPI_PKT_FLAGS, i, pkt_tcp_flgs[i]);
          ur_array_set(tmplt, record, F_PPI_PKT_DIRECTIONS, i, pkt_dirs[i]);
+         ur_array_set(tmplt, record, F_PPI_WG_TYPE, i, wg_type[i]);
+         ur_array_set(tmplt, record, F_PPI_WG_SEQNUM, i, wg_seqnum[i]);
       }
    }
 
@@ -154,11 +164,11 @@ struct RecordExtPSTATS : public RecordExt {
       IpfixBasicList basiclist;
       basiclist.hdrEnterpriseNum = IpfixBasicList::CesnetPEM;
       //Check sufficient size of buffer
-      int req_size = 4 * basiclist.HeaderSize() /* sizes, times, flags, dirs */ +
+      int req_size = 6 * basiclist.HeaderSize() /* sizes, times, flags, dirs */ +
                        pkt_count * sizeof(uint16_t) /* sizes */ +
                        2 * pkt_count * sizeof(uint32_t) /* times */ +
                        pkt_count /* flags */ +
-                       pkt_count /* dirs */;
+                       3*pkt_count /* dirs + WgType + WgSeqnum*/;
 
       if (req_size > size) {
          return -1;
@@ -171,6 +181,8 @@ struct RecordExtPSTATS : public RecordExt {
       bufferPtr += basiclist.FillBuffer(buffer + bufferPtr, pkt_tcp_flgs, pkt_count, (uint16_t) PktFlags);
       // Fill directions
       bufferPtr += basiclist.FillBuffer(buffer + bufferPtr, pkt_dirs, pkt_count,(uint16_t) PktDir);
+      bufferPtr += basiclist.FillBuffer(buffer + bufferPtr, wg_type, pkt_count,(uint8_t) WgType);
+      bufferPtr += basiclist.FillBuffer(buffer + bufferPtr, wg_seqnum, pkt_count,(uint16_t) WgSeqnum);
 
       return bufferPtr;
    } // fill_ipfix
