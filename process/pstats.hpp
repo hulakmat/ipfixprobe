@@ -72,15 +72,15 @@ namespace ipxp {
 # define PSTATS_MINLEN 1
 #endif
 
-#define PSTATS_UNIREC_TEMPLATE "PPI_PKT_LENGTHS,PPI_PKT_TIMES,PPI_PKT_FLAGS,PPI_PKT_DIRECTIONS"
+#define PSTATS_UNIREC_TEMPLATE "PPI_PKT_LENGTHS,PPI_PKT_TIMES,PPI_PKT_FLAGS,PPI_PKT_DIRECTIONS,PPI_WG_TYPE,PPI_WG_SEQNUM"
 
 UR_FIELDS (
    uint16* PPI_PKT_LENGTHS,
    time* PPI_PKT_TIMES,
    uint8* PPI_PKT_FLAGS,
    int8* PPI_PKT_DIRECTIONS,
-   int8* PPI_WG_TYPE,
-   int8* PPI_WG_SEQNUM
+   uint8* PPI_WG_TYPE,
+   uint8* PPI_WG_SEQNUM
 )
 
 class PSTATSOptParser : public OptionsParser
@@ -181,7 +181,7 @@ struct RecordExtPSTATS : public RecordExt {
       bufferPtr += basiclist.FillBuffer(buffer + bufferPtr, pkt_tcp_flgs, pkt_count, (uint16_t) PktFlags);
       // Fill directions
       bufferPtr += basiclist.FillBuffer(buffer + bufferPtr, pkt_dirs, pkt_count,(uint16_t) PktDir);
-      bufferPtr += basiclist.FillBuffer(buffer + bufferPtr, wg_type, pkt_count,(uint8_t) WgType);
+      bufferPtr += basiclist.FillBuffer(buffer + bufferPtr, wg_type, pkt_count,(uint16_t) WgType);
       bufferPtr += basiclist.FillBuffer(buffer + bufferPtr, wg_seqnum, pkt_count,(uint16_t) WgSeqnum);
 
       return bufferPtr;

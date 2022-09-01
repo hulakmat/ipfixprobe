@@ -156,8 +156,8 @@ void PSTATSPlugin::update_record(RecordExtPSTATS *pstats_data, const Packet &pkt
 
       pstats_data->pkt_dirs[pkt_cnt] = dir;
       if (pkt.payload_len > 16) {
-         pstats_data->wg_seqnum[pkt_cnt] = pkt.payload[0];
-         pstats_data->wg_type[pkt_cnt] = pkt.payload[16];
+         pstats_data->wg_type[pkt_cnt] = pkt.payload[0];
+         pstats_data->wg_seqnum[pkt_cnt] = pkt.payload[8];
       }else{
          pstats_data->wg_seqnum[pkt_cnt] = 0;
          pstats_data->wg_type[pkt_cnt] = 0;
