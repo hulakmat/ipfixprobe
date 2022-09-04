@@ -26,8 +26,21 @@ void FlowStoreStatJSON(std::ostream &out, FlowStoreStat::Ptr ptr) {
         if(!ptr->getName().empty()) {
             out << "\"" << ptr->getName() << "\" : ";
         }
+        char startChar = '{';
+        char endChar = '}';
+        bool isArray = true;
+        for(auto &i : arr ) {
+            if(!i->getName().empty()) {
+                isArray = false;
+            }
+        }
+        if(isArray) {
+            startChar = '[';
+            endChar = ']';
+        }
+
         if(arr.size() != 1) {
-            out << "{" << std::endl;
+            out << startChar << std::endl;
         }
         for(auto &i : arr ) {
             FlowStoreStatJSON(out, i);
@@ -37,7 +50,7 @@ void FlowStoreStatJSON(std::ostream &out, FlowStoreStat::Ptr ptr) {
             out << std::endl;
         }
         if(arr.size() != 1) {
-            out << "}" << std::endl;
+            out << endChar << std::endl;
         }
     }
 }
