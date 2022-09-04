@@ -120,7 +120,6 @@ namespace pinfo {
         }
     };
 
-#define assertm(exp, msg) assert(((void)msg, exp))
     template <>
     Packet *PacketVisitor::operator()<boost::blank>(boost::blank accessor)
     {
@@ -153,7 +152,7 @@ public:
     FSHierarchyPacketInfo(Packet &packet, bool inverse) : FCPacketInfo(packet, inverse) {}
     template <typename S, typename P>
     FSHierarchyPacketInfo(S *fstore, P packet_info) : 
-        m_fstore(fstore), m_packet_info(packet_info) {}
+        dummy(false), m_fstore(fstore), m_packet_info(packet_info) {}
 
 
     boost::variant<Fs*...> getFStore() const { return m_fstore; };
@@ -246,10 +245,18 @@ public:
 
     // // Comparison operators
     bool operator== (const FSHierarchyAccessor &lhs) const
-    {   
+    {
         return m_accessor == lhs.m_accessor;
     }
     bool operator!= (const FSHierarchyAccessor &lhs) const { return !((*this) == lhs);}
+
+    // user-defined copy assignment (copy-and-swap idiom)
+    FSHierarchyAccessor& operator=(FSHierarchyAccessor other)
+    {
+        m_fstore = other.m_fstore;
+        m_accessor = other.m_accessor;
+        return *this;
+    }
 
 private:
     boost::variant<boost::blank, Fs*...> m_fstore;
@@ -283,6 +290,14 @@ public:
         return this->base() == lhs.base();
     };
     bool operator!= (const FSHierarchyIterator &lhs) const { return !((*this) == lhs); };
+
+    // user-defined copy assignment (copy-and-swap idiom)
+    FSHierarchyIterator& operator=(FSHierarchyIterator other)
+    {
+        FSHierarchyIterator::iterator_adaptor::operator=(other);
+        m_fstore = other.m_fstore;
+        return *this;
+    }
 private:
     boost::variant<Fs*...> m_fstore;
 };
@@ -301,26 +316,28 @@ public:
     iterator begin() { return iterator(m_fstore, m_fstore->begin()); }
     iterator end() { return iterator(m_fstore, m_fstore->end()); }
     packet_info prepare(Packet &pkt, bool inverse) { return packet_info(m_fstore, m_fstore->prepare(pkt, inverse)); }
+
+
     accessor lookup(packet_info &pkt) {
-        return accessor(m_fstore, m_fstore->lookup(boost::get<typename F::packet_info>(pkt.getInfo())));
+        return make_accessor(m_fstore->lookup(boost::get<typename F::packet_info>(pkt.getInfo())));
     }
     accessor lookup_empty(packet_info &pkt) {
-        return accessor(m_fstore, m_fstore->lookup_empty(boost::get<typename F::packet_info>(pkt.getInfo())));
+        return make_accessor(m_fstore->lookup_empty(boost::get<typename F::packet_info>(pkt.getInfo())));
     }
     accessor lookup_end() {
-        return accessor(m_fstore, m_fstore->lookup_end());
+        return accessor();
     }
     accessor free(packet_info &pkt) {
-        return accessor(m_fstore, m_fstore->free(boost::get<typename F::packet_info>(pkt.getInfo())));
+        return make_accessor(m_fstore->free(boost::get<typename F::packet_info>(pkt.getInfo())));
     }
     accessor put(const accessor& acc) {
-        return accessor(m_fstore, m_fstore->put(boost::get<typename F::accessor>(acc.getAccessor())));
+        return make_accessor(m_fstore->put(boost::get<typename F::accessor>(acc.getAccessor())));
     }
     accessor index_export(const accessor &acc, FlowRingBuffer &rb) {
-        return accessor(m_fstore, m_fstore->index_export(boost::get<typename F::accessor>(acc.getAccessor()), rb));
+        return make_accessor(m_fstore->index_export(boost::get<typename F::accessor>(acc.getAccessor()), rb));
     }
     accessor iter_export(const iterator &it, FlowRingBuffer &rb) {
-        return accessor(m_fstore, m_fstore->iter_export(it.getIter(), rb));
+        return make_accessor(m_fstore->iter_export(it.getIter(), rb));
     }
 
     void setFStore(F* store) {
@@ -328,6 +345,13 @@ public:
     }
 
 private:
+    inline accessor make_accessor(typename F::accessor acc) {
+        if(acc == m_fstore->lookup_end()) {
+            return accessor();
+        }
+        auto a = accessor(m_fstore, acc);
+        return a;
+    }
     F* m_fstore;
 };
 
@@ -626,8 +650,8 @@ public:
         if(lRes == fstore.lookup_end()) {
             return loopup_for_each<I + 1, Tp...>(t, pkt);
         }
+        // Pkt needs to be kept uptoday with the accessor
         pkt = pktInfo;
-        pkt.dummy = false;
         return lRes;
     }
 
@@ -654,8 +678,8 @@ public:
         if(lRes == fstore.lookup_end()) {
             return loopup_empty_for_each<I + 1, Tp...>(t, pkt);
         }
+        // Pkt needs to be kept uptoday with the accessor
         pkt = pktInfo;
-        pkt.dummy = false;
         return lRes;
     }
 
@@ -686,8 +710,8 @@ public:
         if(lRes == fstore.lookup_end()) {
             return free_for_each<I + 1, Tp...>(t, pkt);
         }
+        // Pkt needs to be kept uptoday with the accessor
         pkt = pktInfo;
-        pkt.dummy = false;
         return lRes;
     }
 
@@ -725,11 +749,8 @@ public:
         auto &p = std::get<I>(t);
         auto &fhstore = std::get<0>(p);
         auto &fstore = std::get<1>(p);
-        if(index.getFStore().which() != I+1) {
-            return put_for_each<I + 1, Tp...>(t, index);
-        }
         auto indexStore = getIndex<I+1>(index.getFStore());
-        if(&fstore != indexStore) {
+        if(&fstore != indexStore) { //Fstores needs to be lazy checked in case of same types
             return put_for_each<I + 1, Tp...>(t, index);
         }
         return fhstore.put(index);
@@ -754,11 +775,9 @@ public:
         auto &p = std::get<I>(t);
         auto &fhstore = std::get<0>(p);
         auto &fstore = std::get<1>(p);
-        if(index.getFStore().which() != I+1) {
-            return index_export_for_each<I + 1, Tp...>(t, index, rb);
-        }
         auto indexStore = getIndex<I+1>(index.getFStore());
-        if(&fstore != indexStore) {
+
+        if(&fstore != indexStore) { //Fstores needs to be lazy checked in case of same types
             return index_export_for_each<I + 1, Tp...>(t, index, rb);
         }
         return fhstore.index_export(index, rb);
@@ -780,7 +799,6 @@ public:
     stats_export_for_each(std::tuple<Tp...>& t, FlowStoreStat::Ptr agg)
     {
         auto &p = std::get<I>(t);
-        auto &fhstore = std::get<0>(p);
         auto &fstore = std::get<1>(p);
         auto ptr = fstore.stats_export();
         FlowStoreStat::PtrVector ptrVec = { ptr };
@@ -807,9 +825,6 @@ public:
         auto &fhstore = std::get<0>(p);
         auto &fstore = std::get<1>(p);
         auto storeTup = Types().storeFromRange(index);
-        if(storeTup.which() != I) {
-            return iter_export_for_each<I + 1, Tp...>(t, index, rb);
-        }
         auto indexStore = getIndex<I>(storeTup);
         if(&fstore != indexStore) {
             return iter_export_for_each<I + 1, Tp...>(t, index, rb);
@@ -818,6 +833,7 @@ public:
     }
 
     accessor iter_export(const iterator &index, FlowRingBuffer &rb) {
+//        std::cerr << "Iter export" << std::endl;
         return iter_export_for_each(m_fstores, index, rb);
     }
 
