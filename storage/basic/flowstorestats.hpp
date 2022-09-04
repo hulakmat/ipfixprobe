@@ -63,6 +63,7 @@ public:
     FlowStoreStat(std::string name) : m_name(name) {}
     virtual Type getType() { return Type::Leaf; }
     virtual std::string getName() { return m_name; }
+    virtual void setName(std::string name) { m_name = name; }
     virtual std::string getValue() { throw std::logic_error("Not supported"); return 0; }
     virtual PtrVector getArray() { throw std::logic_error("Not supported"); return PtrVector(); };
 };

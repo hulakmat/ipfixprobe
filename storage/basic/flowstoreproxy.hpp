@@ -55,6 +55,7 @@ namespace ipxp {
 template <typename F, typename PacketInfo, typename Access, typename Iter, typename Parser>
 class FlowStoreProxy : public FlowStore<PacketInfo, Access, Iter, Parser>
 {
+    typedef FlowStore<PacketInfo, Access, Iter, Parser> Base;
 public:
     typedef PacketInfo packet_info;
     typedef Iter iterator; /* Iterator over accessors */
@@ -72,6 +73,7 @@ public:
     Access put(const Access &index) { return m_flowstore.put(index); }
     Access index_export(const Access &index, FlowRingBuffer &rb) { return m_flowstore.index_export(index, rb); }
     Access iter_export(const Iter &iter, FlowRingBuffer &rb) { return m_flowstore.iter_export(iter, rb); }
+    void setForcedFlowExportCallback(typename Base::ForcedFlowExportCallback cb) { m_flowstore.setForcedFlowExportCallback(cb); }
 
     virtual FlowStoreStat::Ptr stats_export() { return m_flowstore.stats_export(); };
 protected:
@@ -79,7 +81,7 @@ protected:
 };
 
 template <typename F>
-class FlowStoreProxySimple : public FlowStoreProxy<F, typename F::packet_info, typename F::access, typename F::iterator, typename F::parser>
+class FlowStoreProxySimple : public FlowStoreProxy<F, typename F::packet_info, typename F::accessor, typename F::iterator, typename F::parser>
 {
 public:
     typedef typename F::packet_info packet_info;
