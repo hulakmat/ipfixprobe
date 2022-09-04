@@ -93,12 +93,16 @@ void FCRecord::reuse()
 
 void FCRecord::create(FCPacketInfo &pkt_info)
 {
+//    std::cerr << "Creating flow start" << std::endl;
    const Packet *pkt = pkt_info.getPacket();
+//   std::cerr << "Creating pkt ok start: " << pkt << std::endl;
    m_flow.src_packets = 1;
 
    m_hash = pkt_info.getHash();
    m_flow.time_first = pkt->ts;
    m_flow.time_last = pkt->ts;
+
+//   std::cerr << "Creating flow address: " << this << " hash: " << m_hash << std::endl;
 
    memcpy(m_flow.src_mac, pkt->src_mac, 6);
    memcpy(m_flow.dst_mac, pkt->dst_mac, 6);
