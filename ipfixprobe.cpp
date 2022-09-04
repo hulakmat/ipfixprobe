@@ -38,6 +38,7 @@
 #include <future>
 #include <signal.h>
 #include <poll.h>
+#include <chrono>
 
 #include "ipfixprobe.hpp"
 #ifdef WITH_LIBUNWIND
@@ -189,9 +190,11 @@ bool process_plugin_args(ipxp_conf_t &conf, IpfixprobeOptParser &parser)
    std::string output_name = "ipfix";
    std::string output_params = "";
 
+   std::cout << "storage params: " << parser.m_storage[0] << std::endl;
    if (parser.m_storage.size()) {
       OptionsParser::process_plugin_argline(parser.m_storage[0], storage_name, storage_params);
    }
+   std::cout << "storage params name: " << storage_name << " params: "  << storage_params << std::endl;
    if (parser.m_output.size()) {
       OptionsParser::process_plugin_argline(parser.m_output[0], output_name, output_params);
    }
@@ -514,6 +517,7 @@ void serve_stat_clients(ipxp_conf_t &conf, struct pollfd pfds[2])
    }
 }
 
+
 void main_loop(ipxp_conf_t &conf)
 {
    std::vector<std::shared_future<WorkerResult>*> futs;
@@ -532,6 +536,8 @@ void main_loop(ipxp_conf_t &conf)
       error("Unable to create stats socket " + sock_path);
    }
 
+
+   auto lastStorageStats = std::chrono::system_clock::now();
    while (!stop && futs.size()) {
       serve_stat_clients(conf, pfds);
 
@@ -556,6 +562,16 @@ void main_loop(ipxp_conf_t &conf)
       }
 
       usleep(1000);
+
+      auto n = std::chrono::system_clock::now();
+      auto lastStorageStatsSec = std::chrono::duration_cast<std::chrono::seconds>(n-lastStorageStats).count();
+      if(conf.print_storage_stats_secs != 0 &&
+              lastStorageStatsSec >= conf.print_storage_stats_secs) {
+          for(auto &storage : conf.active.storage) {
+              storage->print_report();
+          }
+          lastStorageStats = std::chrono::system_clock::now();
+      }
    }
 
    if (pfds[0].fd != -1) {
@@ -642,6 +658,7 @@ int run(int argc, char *argv[])
    conf.fps = parser.m_fps;
    conf.pkt_bufsize = parser.m_pkt_bufsize;
    conf.max_pkts = parser.m_max_pkts;
+   conf.print_storage_stats_secs = parser.m_storage_stats_secs;
 
    try {
       if (process_plugin_args(conf, parser)) {

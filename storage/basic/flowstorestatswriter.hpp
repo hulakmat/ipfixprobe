@@ -48,6 +48,7 @@
 
 #include "flowstoreproxy.hpp"
 #include <ipfixprobe/options.hpp>
+#include <thread>
 
 
 namespace ipxp {
@@ -88,7 +89,10 @@ private:
 
     void WriteStats() {
         std::ofstream outFile;
-        outFile.open(m_stats_file);
+        size_t thread_id = std::hash<std::thread::id>{}(std::this_thread::get_id());
+        std::string outFileName(m_stats_file);
+        outFileName = outFileName.replace(outFileName.find("%t"), std::string("%t").size(), std::to_string(thread_id));
+        outFile.open(outFileName);
         if(outFile) {
             FlowStoreStatJSON(outFile, this->m_flowstore.stats_export());
         }
