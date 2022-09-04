@@ -9,9 +9,9 @@ bin_PROGRAMS=ipfixprobe ipfixprobe_stats
 
 DISTCHECK_CONFIGURE_FLAGS="--with-systemdsystemunitdir=$$dc_install_base/$(systemdsystemunitdir)"
 
-ipfixprobe_LDFLAGS=-lpthread -ldl -latomic $(BOOST_RANGE_LDFLAGS) $(BOOST_RANGE_LIBS)
+ipfixprobe_LDFLAGS=-lpthread -ldl -latomic
 ipfixprobe_CFLAGS=-I$(srcdir)/include/
-ipfixprobe_CXXFLAGS=-std=gnu++14 -Wno-write-strings -I$(srcdir)/include/ $(BOOST_CPPFLAGS)
+ipfixprobe_CXXFLAGS=-std=gnu++14 -Wno-write-strings -I$(srcdir)/include/
 
 if OS_CYGWIN
 ipfixprobe_CXXFLAGS+=-Wl,--export-all-symbols
@@ -61,16 +61,13 @@ endif
 
 ipfixprobe_storage_src=\
 		storage/basic/flowringbuffer.hpp \
-                storage/basic/flowstoremonitor.hpp \
+		storage/basic/flowstoremonitor.hpp \
 		storage/basic/flowstoreproxy.hpp \
 		storage/basic/flowstorestatswriter.hpp \
 		storage/basic/flowcache.cpp \
 		storage/basic/flowcache.hpp \
 		storage/basic/flowcacheoutput.cpp \
 		storage/basic/flowcacheoutput.hpp \
-		storage/basic/hiearchyflowstore.hpp \
-		storage/basic/cachedflowstore.hpp \
-		storage/basic/hiearchyjoiniterator.hpp \
 		storage/basic/flowstore.hpp \
 		storage/basic/flowstorestats.hpp \
 		storage/basic/flowstorestats.cpp \
@@ -80,6 +77,18 @@ ipfixprobe_storage_src=\
 		storage/basic/record.hpp \
 		storage/basic/xxhash.c \
 		storage/basic/xxhash.h
+
+if WITH_HIEARCHY_STORE
+ipfixprobe_CXXFLAGS+=$(BOOST_CPPFLAGS)
+ipfixprobe_LDFLAGS+=$(BOOST_RANGE_LDFLAGS) $(BOOST_RANGE_LIBS)
+
+ipfixprobe_storage_src+=\
+		storage/basic/flowcachehiear.cpp \
+		storage/basic/flowstoreportfilter.hpp \
+		storage/basic/hiearchyflowstore.hpp \
+		storage/basic/cachedflowstore.hpp \
+		storage/basic/hiearchyjoiniterator.hpp
+endif
 
 ipfixprobe_output_src=\
 		output/ipfix.cpp \

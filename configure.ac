@@ -82,11 +82,6 @@ AC_SUBST([defaultsocketdir], [$with_defaultsocketdir])
 AC_DEFINE_DIR([DEFAULTSOCKETDIR], [defaultsocketdir], [Default path to socket directory])
 
 AC_CHECK_LIB(atomic, __atomic_store, [libatomic=yes], AC_MSG_ERROR([libatomic not found]))
-### Boost ranges
-
-BOOST_REQUIRE
-BOOST_RANGE
-
 
 ### gtest
 AC_ARG_WITH([gtest],
@@ -193,6 +188,26 @@ if [[ -z "$WITH_RAW_TRUE" ]]; then
    AC_DEFINE([WITH_RAW], [1], [Define to 1 if compile with raw plugin])
 fi
 
+
+
+AC_ARG_WITH([hiearchy-store],
+        AS_HELP_STRING([--with-hiearchy-store],[Compile ipfixprobe with support for hiearchy caches]),
+        [
+      if test "$withval" = "yes"; then
+         withhiearchystore="yes"
+      else
+         withhiearchystore="no"
+      fi
+        ], [withhiearchystore="no"]
+)
+
+AM_CONDITIONAL(WITH_HIEARCHY_STORE,  test x${withhiearchystore} = xyes)
+if [[ -z "$WITH_HIEARCHY_STORE_TRUE" ]]; then
+   BOOST_REQUIRE
+   BOOST_RANGE
+   
+   AC_DEFINE([WITH_HIEARCHY_STORE], [1], [Define to 1 if compile with hiearchy store support])
+fi
 
 AC_ARG_WITH([ndp],
         AC_HELP_STRING([--with-ndp],[Compile ipfixprobe with ndp plugin for capturing using netcope-common library]),

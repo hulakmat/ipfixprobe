@@ -109,6 +109,10 @@ public:
    {
    }
 
+   virtual void print_report()
+   {
+   }
+
    /**
     * \brief Add plugin to internal list of plugins.
     * Plugins are always called in the same order, as they were added.

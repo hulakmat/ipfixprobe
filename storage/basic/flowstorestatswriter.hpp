@@ -79,6 +79,10 @@ public:
     void init(Parser &parser) { m_stats_file = parser.m_stats_file; this->m_flowstore.init(parser); }
     ~FlowStoreStatsWriter() { WriteStats(); }
 
+    FlowStoreStat::Ptr stats_export() {
+        WriteStats();
+        return this->m_flowstore.stats_export();
+    };
 private:
     std::string m_stats_file;
 
