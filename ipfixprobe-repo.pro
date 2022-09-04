@@ -65,6 +65,7 @@ SOURCES += \
         ./ipfixprobe_stats.cpp \
         ./stats.cpp \
         ./workers.cpp \
+    storage/basic/flowcachehiear.cpp
 
 HEADERS += ./input/benchmark.hpp \
         ./input/headers.hpp \
