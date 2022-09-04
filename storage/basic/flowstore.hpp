@@ -108,6 +108,9 @@ public:
     /* Interface for getting statistic/performance information from the FlowStore */
     virtual FlowStoreStat::Ptr stats_export() { return nullptr; };
 
+    /* Force callback for exporting flows inside the operations */
+    //TODO: implement passing callback inside cachedflowstore and hiearchy flowstore
+    //Or reimplement all together
     typedef std::function<Access(const Access&)> ForcedFlowExportCallback;
     void setForcedFlowExportCallback(ForcedFlowExportCallback cb) {
         this->m_forced_callback = cb;

@@ -69,7 +69,7 @@ public:
 
     /* Check if packet is getPacket used in same context as the Packet which it depends on */
     bool isPacketValid() { return m_pkt != nullptr; }
-    Packet *getPacket() { return m_pkt; }
+    virtual Packet *getPacket() { return m_pkt; }
     /* Should be called when structure leaves the same context as the Packet */
     void invalidatePacket() { m_pkt = nullptr; }
     /* Notates whether the FCPacket info identifies flows in single direction(true) or both(false) */
