@@ -12,7 +12,7 @@
 
 #include <iomanip>
 
-#define CACHEDSTORE_DEBUG
+//#define CACHEDSTORE_DEBUG
 
 namespace ipxp {
 
@@ -39,10 +39,10 @@ public:
     void debugArray(const unsigned char* data, size_t len) {
         std::ios_base::fmtflags f( std::cout.flags() );
         for (size_t i = 0; i < len; ++i) {
-            std::cerr << std::uppercase << std::hex << std::setfill('0') << std::setw(2) << (((int)data[i]) & 0xFF) << " ";
+            //std::cerr << std::uppercase << std::hex << std::setfill('0') << std::setw(2) << (((int)data[i]) & 0xFF) << " ";
         }
-        std::cerr << std::endl;
-        std::cerr.flags( f );
+        //std::cerr << std::endl;
+        //std::cerr.flags( f );
     }
 
     void printHash(FCHash hash)
@@ -60,14 +60,14 @@ public:
 
     accessor lookup(packet_info &pkt) {
         //Lookup in cache flow store
-        std::cerr << "Lookup Cached pkt: " << pkt.getPacket() << std::endl;
+        //std::cerr << "Lookup Cached pkt: " << pkt.getPacket() << std::endl;
         auto cachedFS = getCachedFStore();
         auto cachedPktInfo = cachedFS.prepare(*pkt.getPacket(), pkt.isInverse());
         printHash(cachedPktInfo.getHash());
         auto cachedFSLookup = cachedFS.lookup(cachedPktInfo);
         if(cachedFSLookup != this->lookup_end()) {
             m_cached_lookups++;
-            std::cerr << "Returing record of cached store" << std::endl;
+            //std::cerr << "Returing record of cached store" << std::endl;
             // Pkt needs to be kept uptoday with the accessor
             pkt = cachedPktInfo;
             return cachedFSLookup;
@@ -79,14 +79,14 @@ public:
         auto baseFSLookup = baseFS.lookup(basePktInfo);
         if(baseFSLookup == this->lookup_end()) {
             //If not found return end
-            std::cerr << "Entry not found in both stores" << std::endl;
+            //std::cerr << "Entry not found in both stores" << std::endl;
             return this->lookup_end();
         }
-        std::cerr << "Base lookup entry" << std::endl;
+        //std::cerr << "Base lookup entry" << std::endl;
         printHash((*baseFSLookup)->getHash());
 
 
-        std::cerr << "Moving entry to cached store" << std::endl;
+        //std::cerr << "Moving entry to cached store" << std::endl;
         //Move the flow into cachedFS
         auto insertEntry = cachedFS.lookup_empty(cachedPktInfo);
         if(insertEntry == this->lookup_end()) {
@@ -108,7 +108,7 @@ public:
             }
 #endif
             auto basePrevPktInfo = cacheInfoIt->second;
-            std::cerr << "Inserting into base" << std::endl;
+            //std::cerr << "Inserting into base" << std::endl;
             printHash(basePrevPktInfo.getHash());
 
 #ifdef CACHEDSTORE_DEBUG
@@ -121,7 +121,7 @@ public:
 
             auto baseInsertEntry = baseFS.lookup_empty(basePrevPktInfo);
             if(baseInsertEntry == this->lookup_end()) {
-                std::cerr << "Base does not have empty line" << std::endl;
+                //std::cerr << "Base does not have empty line" << std::endl;
                 m_move_exports++;
                 //Did not find empty space in base
                 baseInsertEntry = baseFS.free(basePrevPktInfo);
@@ -137,21 +137,21 @@ public:
             **baseInsertEntry = **insertEntry;
 
             /* Watch out for put due to invalidating nature for existing accessors (baseFSLookup) */
-            //TODO: should be called at the end of function
+            //TODO: should be called at the end of function22
 //            baseFS.put(baseInsertEntry);
 
             //Clear the free entry in cached store
-            std::cerr << "Clearing cached entry: " << *insertEntry << std::endl;
+            //std::cerr << "Clearing cached entry: " << *insertEntry << std::endl;
             printHash((*insertEntry)->getHash());
             cachedPacketInfoMap.erase((*insertEntry)->getHash());
             (*insertEntry)->erase();
             m_item_moves++;
 
-            std::cerr << "Cleared cached entry: " << *insertEntry << std::endl;
+            //std::cerr << "Cleared cached entry: " << *insertEntry << std::endl;
             printHash((*insertEntry)->getHash());
         }
 
-        std::cerr << "Inserting into cached: " << *insertEntry << std::endl;
+        //std::cerr << "Inserting into cached: " << *insertEntry << std::endl;
         printHash(cachedPktInfo.getHash());
         printHash((*baseFSLookup)->getHash());
 
@@ -159,7 +159,7 @@ public:
         **insertEntry = **baseFSLookup;
         //Insert pkt to map for later movement
 
-        std::cerr << "Inserted entry" << std::endl;
+        //std::cerr << "Inserted entry" << std::endl;
         printHash((*insertEntry)->getHash());
 
 #ifdef CACHEDSTORE_DEBUG
@@ -182,7 +182,7 @@ public:
 
     accessor lookup_empty(packet_info &pkt) {
         //Lookup in cached flow store
-        std::cerr << "Lookup empty Cached pkt: " << pkt.getPacket() << std::endl;
+        //std::cerr << "Lookup empty Cached pkt: " << pkt.getPacket() << std::endl;
         auto cachedFS = getCachedFStore();
         auto cachedPktInfo = cachedFS.prepare(*pkt.getPacket(), pkt.isInverse());
         auto cachedFSLookup = cachedFS.lookup_empty(cachedPktInfo);
@@ -199,24 +199,24 @@ public:
 #endif
             //Always store in cached if empty spot is available
             cachedPacketInfoMap.insert(CachedPacketInfoMapPair(cachedPktInfo.getHash(), basePktInfo));
-            std::cerr << "Returing empty of cached store" << std::endl;
+            //std::cerr << "Returing empty of cached store" << std::endl;
             // Pkt needs to be kept uptoday with the accessor
             pkt = cachedPktInfo;
             return cachedFSLookup;
         }
 
-        std::cerr << "Freeing space in cached store" << std::endl;
+        //std::cerr << "Freeing space in cached store" << std::endl;
         auto insertEntry = cachedFS.free(cachedPktInfo);
         if(insertEntry == this->lookup_end()) {
             //Caching Flowstore rejected flow movement
-            std::cerr << "Returing empty of base store - cached rejected free" << std::endl;
+            //std::cerr << "Returing empty of base store - cached rejected free" << std::endl;
             // Pkt needs to be kept uptoday with the accessor
             pkt = basePktInfo;
             return baseFS.lookup_empty(basePktInfo);
         }
 
 
-        std::cerr << "Moving record from cached store to base store" << std::endl;
+        //std::cerr << "Moving record from cached store to base store" << std::endl;
         //Move flow into base to make space for the new record in cacheFS
 
         auto cacheInfoIt = cachedPacketInfoMap.find((*insertEntry)->getHash());
@@ -237,7 +237,7 @@ public:
 #endif
         auto baseInsertEntry = baseFS.lookup_empty(basePrevPktInfo);
         if(baseInsertEntry == this->lookup_end()) {
-            std::cerr << "Freeing space in base store by exporting " << std::endl;
+            //std::cerr << "Freeing space in base store by exporting " << std::endl;
             m_move_exports++;
             //Did not find empty space in base
             baseInsertEntry = baseFS.free(basePrevPktInfo);
@@ -254,7 +254,7 @@ public:
         **baseInsertEntry = **insertEntry;
         baseFS.put(baseInsertEntry);
         m_item_moves++;
-        std::cerr << "Moved record from cached store to base" << std::endl;
+        //std::cerr << "Moved record from cached store to base" << std::endl;
 
         //Clear the cached entry
         cachedPacketInfoMap.erase((*insertEntry)->getHash());
@@ -268,14 +268,14 @@ public:
         }
 #endif
         cachedPacketInfoMap.insert(CachedPacketInfoMapPair(cachedPktInfo.getHash(), basePktInfo));
-        std::cerr << "Returing cleared record of cached store" << std::endl;
+        //std::cerr << "Returing cleared record of cached store" << std::endl;
         // Pkt needs to be kept uptoday with the accessor
         pkt = cachedPktInfo;
         return insertEntry;
     }
 
     accessor free(packet_info &pkt) {
-        std::cerr << "Free Cached pkt: " << pkt.getPacket() << std::endl;
+        //std::cerr << "Free Cached pkt: " << pkt.getPacket() << std::endl;
         auto cachedFS = getCachedFStore();
         auto baseFS = getBaseFStore();
         auto basePktInfo = baseFS.prepare(*pkt.getPacket(), pkt.isInverse());

@@ -83,14 +83,16 @@ Plugin *cons_cached_storage_func()
 {
     return new FlowCache<
             FlowStoreStatsWriter<
-                FlowStoreCached<
-                    //Cache storage
-                    FlowStoreMonitor<
-                        HTFlowStore
-                    >,
-                    //Base storage
-                    FlowStoreMonitor<
-                         HTFlowStore
+                FlowStoreMonitor<
+                    FlowStoreCached<
+                        //Cache storage
+                        FlowStoreMonitor<
+                            HTFlowStore
+                        >,
+                        //Base storage
+                        FlowStoreMonitor<
+                             HTFlowStore
+                        >
                     >
                 >
             >
@@ -451,11 +453,11 @@ using namespace std;
 template <class F>
 void FlowCache<F>::print_report()
 {
-   cout << "Hits: " << m_hits << endl;
-   cout << "Empty: " << m_empty << endl;
-   cout << "Not empty: " << m_not_empty << endl;
-   cout << "Expired: " << m_expired << endl;
-   cout << "Flushed: " << m_flushed << endl;
+    cout << "Hits: " << m_hits << endl;
+    cout << "Empty: " << m_empty << endl;
+    cout << "Not empty: " << m_not_empty << endl;
+    cout << "Expired: " << m_expired << endl;
+    cout << "Flushed: " << m_flushed << endl;
 }
 #endif /* FLOW_CACHE_STATS */
 
