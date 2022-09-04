@@ -86,11 +86,12 @@ public:
    bool m_help;
    std::string m_help_str;
    bool m_version;
+   uint32_t m_storage_stats_secs;
 
    IpfixprobeOptParser() : OptionsParser("ipfixprobe", "flow exporter supporting various custom IPFIX elements"),
                            m_pid(""), m_daemon(false),
                            m_iqueue(DEFAULT_IQUEUE_SIZE), m_oqueue(DEFAULT_OQUEUE_SIZE), m_fps(DEFAULT_FPS),
-                           m_pkt_bufsize(1600), m_max_pkts(0), m_help(false), m_help_str(""), m_version(false)
+                           m_pkt_bufsize(1600), m_max_pkts(0), m_help(false), m_help_str(""), m_version(false), m_storage_stats_secs(0)
    {
       m_delim = ' ';
 
@@ -161,6 +162,11 @@ public:
           m_version = true;
           return true;
       }, OptionFlags::NoArgument);
+      register_option("", "--storage-stats", "SECS", "Print storage stats interval in secs", [this](const char *arg) {
+          try { m_storage_stats_secs = str2num<decltype(m_storage_stats_secs)>(arg); } catch (
+                  std::invalid_argument &e) { return false; }
+          return true;
+      }, OptionFlags::OptionalArgument);
    }
 };
 
@@ -170,6 +176,7 @@ struct ipxp_conf_t {
    uint32_t worker_cnt;
    uint32_t fps;
    uint32_t max_pkts;
+   uint32_t print_storage_stats_secs;
 
    PluginManager mgr;
    struct Plugins {

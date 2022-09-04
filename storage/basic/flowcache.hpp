@@ -427,14 +427,14 @@ using namespace std;
 template <class F>
 void FlowCache<F>::print_report()
 {
-    FlowStoreStatJSON(cout, this->m_flow_store.stats_export());
+    FlowStoreStatJSON(cerr, this->m_flow_store.stats_export());
 
 #ifdef FLOW_CACHE_STATS
-    cout << "Hits: " << m_hits << endl;
-    cout << "Empty: " << m_empty << endl;
-    cout << "Not empty: " << m_not_empty << endl;
-    cout << "Expired: " << m_expired << endl;
-    cout << "Flushed: " << m_flushed << endl;
+    cerr << "Hits: " << m_hits << endl;
+    cerr << "Empty: " << m_empty << endl;
+    cerr << "Not empty: " << m_not_empty << endl;
+    cerr << "Expired: " << m_expired << endl;
+    cerr << "Flushed: " << m_flushed << endl;
 #endif
 }
 
