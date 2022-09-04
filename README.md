@@ -14,6 +14,8 @@ This application creates biflows from packet input and exports them to output in
 
 To compile DPDK interfaces, make sure you have DPDK libraries (and development files) installed and set the `PKG_CONFIG_PATH` environment variable if necessary. You can obtain the latest DPDK at http://core.dpdk.org/download/ Use `--with-dpdk` parameter of the `configure` script to enable it.
 
+To enable compilation of hiearchal flowstores Use `--with-hiearchy-store`. This also adds boost-range dependency to the build. 
+
 ## Build & Installation
 
 ### Source codes
