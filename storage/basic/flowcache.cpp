@@ -321,7 +321,7 @@ int FlowCache<F>::put_pkt(Packet &pkt)
          auto freeIt = m_flow_store.free(pkt_info);
          if(freeIt == m_flow_store.lookup_end()) {
             //Throw unable to store flow. or return ?
-            assertm(false, "Flow store did not freed flow based on accessor");
+            throw std::logic_error("Flow store did not freed flow based on accessor");
             return 0;
          }
          flowIt = export_acc(freeIt, FLOW_END_FORCED);
