@@ -91,7 +91,9 @@ private:
         std::ofstream outFile;
         size_t thread_id = std::hash<std::thread::id>{}(std::this_thread::get_id());
         std::string outFileName(m_stats_file);
-        outFileName = outFileName.replace(outFileName.find("%t"), std::string("%t").size(), std::to_string(thread_id));
+        if(outFileName.find("%t") != std::string::npos) {
+            outFileName = outFileName.replace(outFileName.find("%t"), std::string("%t").size(), std::to_string(thread_id));
+        }
         outFile.open(outFileName);
         if(outFile) {
             FlowStoreStatJSON(outFile, this->m_flowstore.stats_export());
