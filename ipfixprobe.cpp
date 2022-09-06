@@ -153,29 +153,6 @@ void process_plugin_argline(const std::string &args, std::string &plugin, std::s
    trim_str(params);
 }
 
-void init_packets(ipxp_conf_t &conf)
-{
-   // Reserve +1 more block as a "working block"
-   conf.blocks_cnt = static_cast<size_t>(conf.iqueue_size + 1U) * conf.worker_cnt;
-   conf.pkts_cnt = conf.blocks_cnt * conf.iqueue_block;
-   conf.pkt_data_cnt = conf.pkts_cnt * conf.pkt_bufsize;
-   conf.blocks = new PacketBlock[conf.blocks_cnt];
-   conf.pkts = new Packet[conf.pkts_cnt];
-   conf.pkt_data = new uint8_t[conf.pkt_data_cnt];
-
-   for (unsigned i = 0; i < conf.blocks_cnt; i++) {
-      size_t pkts_offset = static_cast<size_t>(i) * conf.iqueue_block; // offset in number of packets
-
-      conf.blocks[i].pkts = conf.pkts + pkts_offset;
-      conf.blocks[i].cnt = 0;
-      conf.blocks[i].size = conf.iqueue_block;
-      for (unsigned j = 0; j < conf.iqueue_block; j++) {
-         conf.blocks[i].pkts[j].buffer = static_cast<uint8_t *>(conf.pkt_data + conf.pkt_bufsize * (j + pkts_offset));
-         conf.blocks[i].pkts[j].buffer_size = conf.pkt_bufsize;
-      }
-   }
-}
-
 bool process_plugin_args(ipxp_conf_t &conf, IpfixprobeOptParser &parser)
 {
    auto deleter = [&](OutputPlugin::Plugins *p) {
