@@ -56,15 +56,15 @@ template <typename F>
 class FlowStoreMonitor : public FlowStoreProxySimple<F>
 {
     struct {
-        uint32_t prepared;
-        uint32_t lookups;
-        uint32_t lookups_failed;
-        uint32_t lookups_empty;
-        uint32_t lookups_empty_failed;
-        uint32_t free;
-        uint32_t free_failed;
-        uint32_t index_export;
-        uint32_t iter_export;
+        uint64_t prepared;
+        uint64_t lookups;
+        uint64_t lookups_failed;
+        uint64_t lookups_empty;
+        uint64_t lookups_empty_failed;
+        uint64_t free;
+        uint64_t free_failed;
+        uint64_t index_export;
+        uint64_t iter_export;
     } monitorStats = {
         0
     };
