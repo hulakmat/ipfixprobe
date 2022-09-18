@@ -51,6 +51,7 @@ SOURCES += \
         ./stacktrace.cpp \
         ./storage/cache.cpp \
         ./storage/basic/flowcache.cpp \
+        ./storage/basic/flowstorestatswriter.cpp \
         ./storage/basic/record.cpp \
         ./storage/basic/hashtablestore.cpp \
         ./storage/basic/flowcacheoutput.cpp \
