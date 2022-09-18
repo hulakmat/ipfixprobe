@@ -60,17 +60,30 @@ namespace ipxp {
 Plugin *cons_cache_func()
 {
     return new FlowCache<
-            FlowStoreStatsWriter<
-                   FlowStoreMonitor<
-                        HTFlowStore
-                   >
-            >
+               HTFlowStore
             >("cache");
 };
 
 __attribute__((constructor)) static void register_cache_plugin()
 {
    static PluginRecord rec = PluginRecord("cache", cons_cache_func);
+   register_plugin(&rec);
+}
+
+Plugin *cons_cache_mon_func()
+{
+    return new FlowCache<
+            FlowStoreStatsWriter<
+                   FlowStoreMonitor<
+                        HTFlowStore
+                   >
+            >
+         >("cacheMonitored");
+};
+
+__attribute__((constructor)) static void register_cache_mon_plugin()
+{
+   static PluginRecord rec = PluginRecord("cacheMonitored", cons_cache_func);
    register_plugin(&rec);
 }
 
