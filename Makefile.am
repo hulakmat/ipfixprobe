@@ -63,6 +63,7 @@ ipfixprobe_storage_src=\
 		storage/basic/flowringbuffer.hpp \
 		storage/basic/flowstoremonitor.hpp \
 		storage/basic/flowstoreproxy.hpp \
+		storage/basic/flowstorestatswriter.cpp \
 		storage/basic/flowstorestatswriter.hpp \
 		storage/basic/flowcache.cpp \
 		storage/basic/flowcache.hpp \
