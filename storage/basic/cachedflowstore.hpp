@@ -34,8 +34,6 @@ private:
     typedef typename CachedPacketInfoMap::value_type CachedPacketInfoMapPair;
 
 public:
-
-
     void debugArray(const unsigned char* data, size_t len) {
         std::ios_base::fmtflags f( std::cout.flags() );
         for (size_t i = 0; i < len; ++i) {
@@ -80,6 +78,13 @@ public:
         if(baseFSLookup == this->lookup_end()) {
             //If not found return end
             //std::cerr << "Entry not found in both stores" << std::endl;
+#ifdef CACHEDSTORE_DEBUG
+            auto cacheInfoIt = cachedPacketInfoMap.find(basePktInfo.getHash());
+            if(cacheInfoIt != cachedPacketInfoMap.end()) {
+                printHash(basePktInfo.getHash());
+                throw std::logic_error("Hash is stored in map but it should not be there");
+            }
+#endif
             return this->lookup_end();
         }
         //std::cerr << "Base lookup entry" << std::endl;
@@ -125,9 +130,17 @@ public:
                 m_move_exports++;
                 //Did not find empty space in base
                 baseInsertEntry = baseFS.free(basePrevPktInfo);
+                if((*baseInsertEntry)->getHash() == (*baseFSLookup)->getHash()) {
+                    //std::cerr << "Detected free on looked up flow aborting move" << std::endl;
+                    return insertEntry;
+                }
+
+                //std::cerr << "Freeing base entry: " << *baseInsertEntry << std::endl;
+                printHash((*baseInsertEntry)->getHash());
                 if(this->m_forced_callback) {
                     //The base Entry should be cleared by the force callback
                     baseInsertEntry = this->m_forced_callback(baseInsertEntry);
+
                 } else {
                     throw std::logic_error("Cached store requires m_force_callback to be set");
                 }
@@ -241,6 +254,13 @@ public:
             m_move_exports++;
             //Did not find empty space in base
             baseInsertEntry = baseFS.free(basePrevPktInfo);
+//            if((*baseInsertEntry)->getHash() == (*baseFSLookup)->getHash()) {
+//                //std::cerr << "Detected free on looked up flow aborting move" << std::endl;
+//                return insertEntry;
+//            }
+
+            //std::cerr << "Freeing base entry: " << *baseInsertEntry << std::endl;
+            printHash((*baseInsertEntry)->getHash());
             if(this->m_forced_callback) {
                 //The base Entry should be cleared by the force callback
                 baseInsertEntry = this->m_forced_callback(baseInsertEntry);
@@ -339,9 +359,11 @@ public:
             return cached_index_export_for_each<I + 1, Tp...>(t, index);
         }
         cachedPacketInfoMap.erase((*index)->getHash());
+        printHash((*index)->getHash());
     }
 
     accessor index_export(const accessor &index, FlowRingBuffer &rb) {
+        //std::cerr << "Index export flow: " << *index << std::endl;
         cached_index_export_for_each(this->m_fstores, index);
         return Base::index_export(index, rb);
     }
@@ -365,9 +387,11 @@ public:
             return cached_iter_export_for_each<I + 1, Tp...>(t, index);
         }
         cachedPacketInfoMap.erase((*index)->getHash());
+        printHash((*index)->getHash());
     }
 
     accessor iter_export(const iterator &index, FlowRingBuffer &rb) {
+        //std::cerr << "Iter export flow: " << *index << std::endl;
         cached_iter_export_for_each(this->m_fstores, index);
         return Base::iter_export(index, rb);
     }
