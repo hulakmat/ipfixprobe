@@ -68,16 +68,33 @@ public:
     }
 };
 
-template <typename F>
-class FlowStoreStatsWriter: public FlowStoreProxy<F, typename F::packet_info, typename F::accessor, typename F::iterator, FlowStoreStatsWriterParser<typename F::parser>>
+class FlowStoreStatsWriterStatic
 {
+protected:
+    uint32_t instanceId;
+    static uint32_t instanceIdGlobal;
+
+    void initInstanceId() {
+        instanceId = instanceIdGlobal;
+        instanceIdGlobal++;
+    }
+};
+
+template <typename F>
+class FlowStoreStatsWriter: public FlowStoreProxy<F, typename F::packet_info, typename F::accessor, typename F::iterator, FlowStoreStatsWriterParser<typename F::parser>>, private FlowStoreStatsWriterStatic
+{
+    typedef FlowStoreProxy<F, typename F::packet_info, typename F::accessor, typename F::iterator, FlowStoreStatsWriterParser<typename F::parser>> Base;
 public:
+
     typedef typename F::packet_info PacketInfo;
     typedef typename F::accessor Access;
     typedef typename F::iterator Iter;
     typedef FlowStoreStatsWriterParser<typename F::parser> Parser;
 
     void init(Parser &parser) { m_stats_file = parser.m_stats_file; this->m_flowstore.init(parser); }
+    FlowStoreStatsWriter() : Base() {
+        initInstanceId();
+    }
     ~FlowStoreStatsWriter() { WriteStats(); }
 
     FlowStoreStat::Ptr stats_export() {
@@ -87,12 +104,12 @@ public:
 private:
     std::string m_stats_file;
 
+
     void WriteStats() {
         std::ofstream outFile;
-        size_t thread_id = std::hash<std::thread::id>{}(std::this_thread::get_id());
         std::string outFileName(m_stats_file);
         if(outFileName.find("%t") != std::string::npos) {
-            outFileName = outFileName.replace(outFileName.find("%t"), std::string("%t").size(), std::to_string(thread_id));
+            outFileName = outFileName.replace(outFileName.find("%t"), std::string("%t").size(), std::to_string(instanceId));
         }
         outFile.open(outFileName);
         if(outFile) {
