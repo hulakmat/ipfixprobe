@@ -81,6 +81,9 @@ AC_ARG_WITH([defaultsocketdir],
 AC_SUBST([defaultsocketdir], [$with_defaultsocketdir])
 AC_DEFINE_DIR([DEFAULTSOCKETDIR], [defaultsocketdir], [Default path to socket directory])
 
+pkglibdir=$libdir/ipfixprobe
+AC_DEFINE_DIR([PLUGINDIR], [pkglibdir], [Path to loadable plugins])
+
 AC_CHECK_LIB(atomic, __atomic_store, [libatomic=yes], AC_MSG_ERROR([libatomic not found]))
 
 ### gtest
@@ -226,14 +229,23 @@ AC_ARG_WITH([pcap],
         ], [withpcap="no"]
 )
 
-if test x${withpcap} = xyes; then
-   AC_CHECK_HEADER(pcap.h,
-              AC_CHECK_LIB(pcap, pcap_open_live, [libpcap=yes],
-                           AC_CHECK_LIB(wpcap, pcap_open_live, [libwpcap=yes], AC_MSG_ERROR([libpcap not found. Try installing libpcap]))),
-                           AC_MSG_ERROR([pcap.h not found. Try installing libpcap-devel or libwpcap-devel]))
+BACKUPLIBS=$LIBS
+AC_CHECK_HEADER(pcap.h,
+           AC_CHECK_LIB(pcap, pcap_open_live, [libpcap=yes
+           have_pcap=yes],
+                        AC_CHECK_LIB(wpcap, pcap_open_live, [libwpcap=yes
+                        have_pcap=yes], [AC_MSG_WARN([libpcap not found. Try installing libpcap])
+                        have_pcap=no])),
+                        [AC_MSG_WARN([pcap.h not found. Try installing libpcap-devel or libwpcap-devel])
+                        have_pcap=no])
+
+if test x${withpcap} = xyes && test x${have_pcap} = xno; then
+   AC_MSG_ERROR([Cannot compile pcap plugin that was enabled by --with-pcap.])
 fi
 
-AM_CONDITIONAL(WITH_PCAP, test x${withpcap} && (test x${libpcap} = xyes || test x${libwpcap} = xyes))
+
+AM_CONDITIONAL(ENABLE_PCAP, test x${have_pcap} = xyes)
+AM_CONDITIONAL(WITH_PCAP, test x${withpcap} && test x${have_pcap} = xno)
 if [[ -z "$WITH_PCAP_TRUE" ]]; then
    AC_DEFINE([WITH_PCAP], [1], [Define to 1 if the libpcap is available])
    if [[ -z "$WITH_PCAP_TRUE" ]]; then
@@ -246,9 +258,11 @@ if [[ -z "$WITH_PCAP_TRUE" ]]; then
          RPM_REQUIRES+=" libwpcap"
          RPM_BUILDREQ+=" libwpcap-devel"
       fi
+   else
+      LIBS=$BACKUPLIBS
    fi
-fi
 
+fi
 
 AC_ARG_WITH([unwind],
         AC_HELP_STRING([--with-unwind],[Compile ipfixprobe with libunwind to print stack on crash]),
@@ -472,6 +486,8 @@ echo "  LIBS...................: $LIBS"
 echo "Enforced NEMEA (for copr): $COPRRPM"
 echo "FlexProbe Data Interface.: $withflexprobe"
 echo "DPDK Interface...........: $withdpdk"
+echo "pcap Interface...........: $withpcap"
+echo "   pcap module...........: $have_pcap"
 echo
 echo "Installation.............: make install (as root if needed, with 'su' or 'sudo')"
 echo "  prefix.................: $prefix"

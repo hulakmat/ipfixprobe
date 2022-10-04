@@ -11,12 +11,6 @@
 %global compile_ndp no
 %endif
 
-%if %{with pcap}
-%global compile_pcap yes
-%else
-%global compile_pcap @COPRRPM@
-%endif
-
 %if %{with raw}
 %global compile_raw yes
 %else
@@ -86,6 +80,19 @@ BuildRequires: openssl-devel
 %description
 This package contains nemea flow exporter.
 
+%package input-pcap
+Group: Liberouter
+License: BSD
+Vendor: CESNET, z.s.p.o.
+Packager: @USERNAME@ <@USERMAIL@>
+Summary: Libpcap input plugin for ipfixprobe IPFIX flow exporter.
+Requires: libpcap
+BuildRequires: libpcap-devel
+Provides: ipfixprobe-input-pcap
+
+%description input-pcap
+Input plugin to monitor network traffic on network interface using libpcap or to process packets stored in PCAP files.
+
 %prep
 %setup
 
@@ -136,5 +143,7 @@ This package contains header file for liburfilter.
 %{_libdir}/libndpRI.so
 %endif
 
-
+%files input-pcap
+%{_libdir}/ipfixprobe/input-pcap.so
+%{_libdir}/ipfixprobe/input-pcap.la
 

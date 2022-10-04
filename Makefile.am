@@ -32,6 +32,12 @@ ipfixprobe_input_src=\
 #example_la_SOURCES=example.cpp example.hpp
 #example_la_LDFLAGS=-module -shared -avoid-version
 
+if ENABLE_PCAP
+pkglib_LTLIBRARIES=input-pcap.la
+input_pcap_la_CXXFLAGS=-I$(srcdir)/include/
+input_pcap_la_SOURCES= input/pcap.cpp input/pcap.hpp
+input_pcap_la_LDFLAGS=-module -shared -avoid-version -lpcap
+endif
 
 if WITH_NDP
 ipfixprobe_LDFLAGS+=-lnuma -lndpRI -L$(srcdir)/input/nfbCInterface/
