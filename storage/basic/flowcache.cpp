@@ -83,7 +83,7 @@ Plugin *cons_cache_mon_func()
 
 __attribute__((constructor)) static void register_cache_mon_plugin()
 {
-   static PluginRecord rec = PluginRecord("cacheMonitored", cons_cache_func);
+   static PluginRecord rec = PluginRecord("cacheMonitored", cons_cache_mon_func);
    register_plugin(&rec);
 }
 
