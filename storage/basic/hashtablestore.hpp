@@ -84,8 +84,8 @@ public:
    {
       register_option("s", "size", "EXPONENT", "Cache size exponent to the power of two",
          [this](const char *arg){try {unsigned exp = str2num<decltype(exp)>(arg);
-               if (exp < 4 || exp > 30) {
-                  throw PluginError("Flow cache size must be between 4 and 30");
+               if (exp < 2 || exp > 30) {
+                  throw PluginError("Flow cache size must be between 2 and 30");
                }
                m_cache_size = static_cast<uint32_t>(1) << exp;
             } catch(std::invalid_argument &e) {return false;} return true;},
