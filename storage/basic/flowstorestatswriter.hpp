@@ -71,12 +71,12 @@ public:
 class FlowStoreStatsWriterStatic
 {
 protected:
-    uint32_t instanceId;
-    static uint32_t instanceIdGlobal;
+    uint32_t m_instanceId;
+    static uint32_t m_instanceIdGlobal;
 
-    void initInstanceId() {
-        instanceId = instanceIdGlobal;
-        instanceIdGlobal++;
+    void initM_instanceId() {
+        m_instanceId = m_instanceIdGlobal;
+        m_instanceIdGlobal++;
     }
 };
 
@@ -93,27 +93,30 @@ public:
 
     void init(Parser &parser) { m_stats_file = parser.m_stats_file; this->m_flowstore.init(parser); }
     FlowStoreStatsWriter() : Base() {
-        initInstanceId();
+        initM_instanceId();
     }
-    ~FlowStoreStatsWriter() { WriteStats(); }
+    ~FlowStoreStatsWriter() {
+        auto ptr = this->m_flowstore.stats_export();
+        WriteStats(ptr);
+    }
 
     FlowStoreStat::Ptr stats_export() {
-        WriteStats();
-        return this->m_flowstore.stats_export();
+        auto ptr = this->m_flowstore.stats_export();
+        WriteStats(ptr);
+        return ptr;
     };
 private:
     std::string m_stats_file;
 
-
-    void WriteStats() {
+    void WriteStats(FlowStoreStat::Ptr ptr) {
         std::ofstream outFile;
         std::string outFileName(m_stats_file);
         if(outFileName.find("%t") != std::string::npos) {
-            outFileName = outFileName.replace(outFileName.find("%t"), std::string("%t").size(), std::to_string(instanceId));
+            outFileName = outFileName.replace(outFileName.find("%t"), std::string("%t").size(), std::to_string(m_instanceId));
         }
         outFile.open(outFileName);
         if(outFile) {
-            FlowStoreStatJSON(outFile, this->m_flowstore.stats_export());
+            FlowStoreStatJSON(outFile, ptr);
         }
         outFile.close();
     }

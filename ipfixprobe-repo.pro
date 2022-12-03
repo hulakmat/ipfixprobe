@@ -3,6 +3,7 @@ CONFIG += console c++14
 CONFIG -= app_bundle
 QMAKE_CXXFLAGS -= -Wunused-parameter
 QMAKE_CFLAGS = -Wno-unused-parameter
+DEFINES += WITH_TRAP
 
 INCLUDEPATH += ./include
 
@@ -114,6 +115,7 @@ HEADERS += ./input/benchmark.hpp \
         ./storage/basic/flowstoremonitor.hpp \
         ./storage/basic/flowstoreportfilter.hpp \
         ./storage/basic/flowstorestatswriter.hpp \
+        ./storage/basic/flowstorestatsunirec.hpp \
         ./storage/basic/flowstoreproxy.hpp \
         ./storage/basic/flowcacheoutput.hpp \
         ./storage/basic/hiearchyjoiniterator.hpp \

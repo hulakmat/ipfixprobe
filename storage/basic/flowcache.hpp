@@ -49,6 +49,7 @@
 
 #include <string>
 #include <functional>
+#include <iostream>
 
 #include <ipfixprobe/storage.hpp>
 #include <ipfixprobe/options.hpp>
@@ -56,6 +57,10 @@
 #include <ipfixprobe/utils.hpp>
 #include "record.hpp"
 #include "flowringbuffer.hpp"
+#include "storage/basic/flowstorestats.hpp"
+#ifdef WITH_TRAP
+#include "storage/basic/flowstorestatsunirec.hpp"
+#endif
 
 #define FLOW_CACHE_STATS
 
@@ -76,6 +81,7 @@ class FlowCache : public StoragePlugin
       uint32_t m_active;
       uint32_t m_inactive;
       bool m_split_biflow;
+      std::string m_ifc_spec;
 
       CacheOptParser(const std::string &name = "cache", const std::string &desc = "Desciption") : BaseParser(name, desc),
          m_timeout_step(DEFAULT_TIMEOUT_STEP), m_active(DEFAULT_ACTIVE_TIMEOUT), m_inactive(DEFAULT_INACTIVE_TIMEOUT), m_split_biflow(false)
@@ -92,6 +98,14 @@ class FlowCache : public StoragePlugin
          this->register_option("S", "split", "", "Split biflows into uniflows",
             [this](const char *arg){ m_split_biflow = true; return true;}, 
             OptionsParser::OptionFlags::NoArgument);
+#ifdef WITH_TRAP
+          this->register_option("", "ifc", "ifc Spec", "Unirec interface to sent the data",
+              [this](const char *arg){
+                  m_ifc_spec = std::string(arg);
+                  return true;
+              },
+              OptionsParser::RequiredArgument);
+#endif
       }
    };
 
@@ -130,8 +144,13 @@ private:
    uint32_t m_active;
    uint32_t m_inactive;
    bool m_split_biflow;
+   std::string m_ifc_spec;
+   struct timeval m_current_ts = { 0, 0 };
+#ifdef WITH_TRAP
+   FlowStoreStatsUnirecWriter m_unirec_writer;
+#endif
 
-   virtual void flow_updated(FInfo &pkt_info, FAccess &flowIt) {};
+   virtual void flow_updated(FInfo &pkt_info, FAccess &flowIt) { };
    void flush(FInfo &pkt_info, FAccess flowIt, int ret, bool source_flow);
    void export_prepare(FCRecord *flow, uint8_t reason = FLOW_END_NO_RES, bool pre_export_hook = true);
    FAccess export_acc(const FAccess &flowAcc, uint8_t reason = FLOW_END_NO_RES, bool pre_export_hook = true);
@@ -165,6 +184,10 @@ void FlowCache<F>::init(CacheOptParser &parser)
    m_active = parser.m_active;
    m_inactive = parser.m_inactive;
    m_timeout_step = parser.m_timeout_step;
+   m_ifc_spec = parser.m_ifc_spec;
+#ifdef WITH_TRAP
+   m_unirec_writer.init(m_ifc_spec);
+#endif
 
    if (m_export_queue == nullptr) {
       throw PluginError("output queue must be set before init");
@@ -271,6 +294,7 @@ void FlowCache<F>::flush(FInfo &pkt_info, FAccess flowIt, int ret, bool source_f
 template <class F>
 int FlowCache<F>::put_pkt(Packet &pkt)
 {
+   m_current_ts = pkt.ts;
    plugins_pre_create(pkt);
    auto pkt_info = m_flow_store.prepare(pkt, false);
    if (!pkt_info.isValid()) {
@@ -422,19 +446,26 @@ void FlowCache<F>::export_expired(time_t ts)
    }
 }
 
-#include <iostream>
-using namespace std;
 template <class F>
 void FlowCache<F>::print_report()
 {
-    FlowStoreStatJSON(cerr, this->m_flow_store.stats_export());
+    auto ptr = this->m_flow_store.stats_export();
 
-#ifdef FLOW_CACHE_STATS
-    cerr << "Hits: " << m_hits << endl;
-    cerr << "Empty: " << m_empty << endl;
-    cerr << "Not empty: " << m_not_empty << endl;
-    cerr << "Expired: " << m_expired << endl;
-    cerr << "Flushed: " << m_flushed << endl;
+    FlowStoreStat::PtrVector statVec = {
+        make_FSStatPrimitive("hits" , m_hits),
+        make_FSStatPrimitive("empty" , m_empty),
+        make_FSStatPrimitive("not_empty" , m_not_empty),
+        make_FSStatPrimitive("expired" , m_expired),
+        make_FSStatPrimitive("flushed" , m_flushed),
+    };
+    FlowStoreStat::PtrVector monitorVec = { std::make_shared<FlowStoreStatVector>("flowcache", statVec) };
+    auto ptrCache = FlowStoreStatExpand(ptr, monitorVec);
+    FlowStoreStatJSON(std::cerr, ptrCache);
+#ifdef WITH_TRAP
+    if(!m_ifc_spec.empty()) {
+        m_unirec_writer.WriteStats(m_current_ts, ptrCache);
+        m_hits = m_empty = m_not_empty = m_expired = m_flushed = 0;
+    }
 #endif
 }
 

@@ -79,6 +79,12 @@ ipfixprobe_storage_src=\
 		storage/basic/xxhash.c \
 		storage/basic/xxhash.h
 
+if WITH_TRAP
+ipfixprobe_storage_src+=\
+		storage/basic/flowstorestatsunirec.hpp \
+		storage/basic/flowstorestatsunirec.cpp
+endif
+
 if WITH_HIEARCHY_STORE
 ipfixprobe_CXXFLAGS+=$(BOOST_CPPFLAGS)
 ipfixprobe_LDFLAGS+=$(BOOST_RANGE_LDFLAGS) $(BOOST_RANGE_LIBS)

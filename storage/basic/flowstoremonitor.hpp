@@ -56,18 +56,16 @@ template <typename F>
 class FlowStoreMonitor : public FlowStoreProxySimple<F>
 {
     struct {
-        uint64_t prepared;
-        uint64_t lookups;
-        uint64_t lookups_failed;
-        uint64_t lookups_empty;
-        uint64_t lookups_empty_failed;
-        uint64_t free;
-        uint64_t free_failed;
-        uint64_t index_export;
-        uint64_t iter_export;
-    } monitorStats = {
-        0
-    };
+        uint64_t prepared = 0;
+        uint64_t lookups = 0;
+        uint64_t lookups_failed = 0;
+        uint64_t lookups_empty = 0;
+        uint64_t lookups_empty_failed = 0;
+        uint64_t free = 0;
+        uint64_t free_failed = 0;
+        uint64_t index_export = 0;
+        uint64_t iter_export = 0;
+    } monitorStats = {};
 public:
     typedef typename F::packet_info PacketInfo;
     typedef typename F::accessor Access;
@@ -119,6 +117,10 @@ public:
         FlowStoreStat::PtrVector monitorVec = { std::make_shared<FlowStoreStatVector>("monitor", statVec) };
         return FlowStoreStatExpand(ptr, monitorVec);
     };
+
+    void stats_reset() {
+        monitorStats = {};
+    }
 };
 
 }

@@ -205,8 +205,8 @@ private:
     {
 #ifdef FLOW_CACHE_STATS
         const size_t lookup_len = (flowIndex.flow_index - flowIndex.line_index + 1);
-        m_lookups += lookup_len;
-        m_lookups2 += lookup_len * lookup_len;
+        stats.m_lookups += lookup_len;
+        stats.m_lookups2 += lookup_len * lookup_len;
 #endif
         /* Moving pointers operate with FCRecord** otherwise would be operating with Values */
         std::rotate(m_flow_table.begin() + flowIndex.line_index,    //Index of the first element
@@ -226,8 +226,8 @@ private:
             {
 #ifdef FLOW_CACHE_STATS
                 const size_t search_len = (rIndex.flow_index - rIndex.line_index + 1);
-                m_searches += search_len;
-                m_searches2 += search_len * search_len;
+                stats.m_searches += search_len;
+                stats.m_searches2 += search_len * search_len;
 #endif
                 rIndex.valid = true;
                 return rIndex;
@@ -236,8 +236,8 @@ private:
 
 #ifdef FLOW_CACHE_STATS
         const size_t search_len = this->m_line_size;
-        m_searches += search_len;
-        m_searches2 += search_len * search_len;
+        stats.m_searches += search_len;
+        stats.m_searches2 += search_len * search_len;
 #endif
         rIndex.valid = false;
         return rIndex;
@@ -253,8 +253,8 @@ private:
             {
 #ifdef FLOW_CACHE_STATS
                 const size_t search_len = (rIndex.flow_index - rIndex.line_index + 1);
-                m_searches += search_len;
-                m_searches2 += search_len * search_len;
+                stats.m_searches += search_len;
+                stats.m_searches2 += search_len * search_len;
 #endif
                 rIndex.valid = true;
                 return rIndex;
@@ -263,8 +263,8 @@ private:
 
 #ifdef FLOW_CACHE_STATS
         const size_t search_len = this->m_line_size;
-        m_searches += search_len;
-        m_searches2 += search_len * search_len;
+        stats.m_searches += search_len;
+        stats.m_searches2 += search_len * search_len;
 #endif
         rIndex.valid = false;
         return rIndex;
@@ -279,22 +279,24 @@ private:
     FCRVector m_flow_records;
 
 #ifdef FLOW_CACHE_STATS
-    uint64_t m_searches;
-    uint64_t m_searches2;
+    struct {
+        uint64_t m_searches = 0;
+        uint64_t m_searches2;
 
-    uint64_t m_lookups;
-    uint64_t m_lookups2;
-    uint32_t m_cacheline_max_index;
+        uint64_t m_lookups = 0;
+        uint64_t m_lookups2 = 0;
+        uint32_t m_cacheline_max_index = 0;
+    } stats = {};
 #endif /* FLOW_CACHE_STATS */
 
 public:
     FlowStoreStat::Ptr stats_export() {
         FlowStoreStat::PtrVector statVec = {
-            make_FSStatPrimitive("lookups" , m_lookups),
-            make_FSStatPrimitive("lookups2" , m_lookups2),
-            make_FSStatPrimitive("searches" , m_searches),
-            make_FSStatPrimitive("searches2" , m_searches2),
-            make_FSStatPrimitive("cacheline_max_index" , m_cacheline_max_index),
+            make_FSStatPrimitive("lookups" , stats.m_lookups),
+            make_FSStatPrimitive("lookups2" , stats.m_lookups2),
+            make_FSStatPrimitive("searches" , stats.m_searches),
+            make_FSStatPrimitive("searches2" , stats.m_searches2),
+            make_FSStatPrimitive("cacheline_max_index" , stats.m_cacheline_max_index),
         };
         return std::make_shared<FlowStoreStatVector>("", statVec);
     };
