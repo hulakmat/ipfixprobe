@@ -201,6 +201,9 @@ void OptionsParser::usage(std::ostream &os, int indentation, std::string mod_nam
    if (!m_options.empty()) {
       os << indent_str << std::string(usage_str.size(), ' ') << name;
       for (const auto &it : m_options) {
+          if(it->m_short.empty()) {
+              continue;
+          }
          std::string arg_str = it->m_flags & OptionFlags::RequiredArgument ? "=" + it->m_hint : "";
          arg_str = it->m_flags & OptionFlags::OptionalArgument ? "[=" + it->m_hint + "]" : arg_str;
          os << m_delim << it->m_short << arg_str;
