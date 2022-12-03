@@ -302,8 +302,6 @@ AC_ARG_WITH([nemea],
         [
       if test "$withval" = "yes"; then
          withnemea="yes"
-         AX_LIBTRAP_CHECK()
-         AX_UNIREC_CHECK()
       else
          withnemea="no"
       fi
@@ -317,9 +315,32 @@ AM_CONDITIONAL(WITH_NEMEA,  test x${withnemea} = xyes)
 
 if [[ -z "$WITH_NEMEA_TRUE" ]]; then
 AC_DEFINE([WITH_NEMEA], [1], [Define to 1 if the NEMEA is available])
+fi
+
+AC_ARG_WITH([trap],
+        AC_HELP_STRING([--with-trap],[Compile with NEMEA framework trap library.]),
+        [
+      if test "$withval" = "yes"; then
+         withtrap="yes"
+      else
+         withtrap="no"
+      fi
+        ], [withtrap="no"]
+)
+
+AM_CONDITIONAL(WITH_TRAP,  test x${withtrap} = xyes || x${withnemea} = xyes)
+
+if [[ -z "$WITH_TRAP_TRUE" ]]; then
+# AX_LIBTRAP_CHECK()
+# AX_UNIREC_CHECK()
+
+AC_DEFINE([WITH_TRAP], [1], [Define to 1 if the TRAP is available])
+
+LIBS="$LIBS -ltrap -lunirec"
 RPM_REQUIRES+=" libtrap"
 RPM_BUILDREQ+=" libtrap-devel unirec"
 fi
+
 
 AC_ARG_WITH([osquery],
         AC_HELP_STRING([--with-osquery],[Compile with osquery framework (osquery.io).]),

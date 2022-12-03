@@ -55,6 +55,10 @@
 #include "flowcache.hpp"
 #include "xxhash.h"
 
+#ifdef WITH_TRAP
+#include "flowstorestatsunirec.hpp"
+#endif
+
 namespace ipxp {
 
 Plugin *cons_cache_func()

@@ -43,10 +43,16 @@
 #ifndef IPXP_FLOW_STORE_STATS_HPP
 #define IPXP_FLOW_STORE_STATS_HPP
 
+#include <config.h>
 #include <string>
 #include <memory>
 #include <sstream>
 #include <vector>
+
+#ifdef WITH_TRAP
+#include <libtrap/trap.h>
+#include <unirec/unirec.h>
+#endif
 
 namespace ipxp {
 
@@ -66,6 +72,10 @@ public:
     virtual void setName(std::string name) { m_name = name; }
     virtual std::string getValue() { throw std::logic_error("Not supported"); return 0; }
     virtual PtrVector getArray() { throw std::logic_error("Not supported"); return PtrVector(); };
+#ifdef WITH_TRAP
+    virtual std::string getUnirecType() { return ""; };
+    virtual void setUnirecPtr(void *ptr) {} ;
+#endif
 };
 
 class FlowStoreStatVector : public FlowStoreStat {
@@ -74,6 +84,13 @@ public:
     FlowStoreStatVector(std::string name, FlowStoreStat::PtrVector vec = FlowStoreStat::PtrVector()) : FlowStoreStat(name), m_vec(vec) {}
     Type getType() { return Type::Array; };
     PtrVector getArray() { return m_vec; };
+    std::string getUnirecType() {
+        throw std::runtime_error("Not implemented");
+    }
+    void setUnirecPtr(void *)
+    {
+        throw std::runtime_error("Not implemented");
+    }
 };
 
 template<typename T>
@@ -88,6 +105,16 @@ public:
         ss << m_prim;
         return ss.str();
     }
+#ifdef WITH_TRAP
+    /* TODO: specialization for other types */
+    std::string getUnirecType() {
+        return "uint64";
+    }
+    void setUnirecPtr(void *ptr)
+    {
+        *((uint64_t*) ptr) = m_prim;
+    }
+#endif
 };
 
 template<typename T>
@@ -98,6 +125,10 @@ FlowStoreStat::Ptr make_FSStatPrimitive(std::string name, T prim) {
 FlowStoreStat::Ptr FlowStoreStatExpand(FlowStoreStat::Ptr ptr, FlowStoreStat::PtrVector expand);
 void FlowStoreStatJSON(std::ostream &out, FlowStoreStat::Ptr ptr);
 
+#ifdef WITH_TRAP
+void FlowStoreStatUnirec(ur_template_t *tmpl, void *record, FlowStoreStat::Ptr ptr, std::string prefix);
+ur_template_t *FlowStoreStatUnirecTemplate(ur_template_t *tmpl, FlowStoreStat::Ptr ptr, std::string prefix);
+#endif
 }
 
 #endif //IPXP_FLOW_STORE_STATS_HPP

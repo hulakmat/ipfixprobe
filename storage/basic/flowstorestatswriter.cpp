@@ -2,6 +2,6 @@
 
 namespace ipxp {
 
-uint32_t FlowStoreStatsWriterStatic::instanceIdGlobal = 0;
+uint32_t FlowStoreStatsWriterStatic::m_instanceIdGlobal = 0;
 
 }

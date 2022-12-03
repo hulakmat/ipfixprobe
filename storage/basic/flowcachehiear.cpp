@@ -1,10 +1,10 @@
 #include "flowcache.hpp"
 #include "hashtablestore.hpp"
 #include "flowstoremonitor.hpp"
-#include "flowstorestatswriter.hpp"
 #include "flowstoreportfilter.hpp"
 #include "hiearchyflowstore.hpp"
 #include "cachedflowstore.hpp"
+#include "flowstorestatswriter.hpp"
 
 namespace ipxp {
 
