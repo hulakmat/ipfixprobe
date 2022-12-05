@@ -106,12 +106,22 @@ int TLSSTATSPlugin::post_update(Flow &rec, const Packet &pkt)
 
 void TLSSTATSPlugin::pre_export(Flow &rec)
 {
-   // RecordExtTLSSTATS *tlsstats_data = (RecordExtTLSSTATS *) rec.get_extension(RecordExtTLSSTATS::REGISTERED_ID);
-   // printf("index: %d\n",index);
-   // for (int x = 0;x < index;x++ )
-   // {
-   //    printf("%d\n",be16toh(tlsstats_data->tls_headers[x].length));
-   // }
+   RecordExtTLSSTATS *tlsstats_data = (RecordExtTLSSTATS *) rec.get_extension(RecordExtTLSSTATS::REGISTERED_ID);
+   printf("index: %d\n",index);
+   for (int x = 0;x < index;x++ )
+   {
+      printf("%d\n",be16toh(tlsstats_data->tls_headers[x].length));
+   }
+
+   TCP_Node * tmp = root;
+   while(tmp!= nullptr)
+   {
+      printf("---\n");
+      printf("SEQ: %d\n",tmp->seq);
+      printf("ACK: %d\n",tmp->ack);
+      printf("---\n");
+      tmp = tmp->next;
+   }
 
 
    uint32_t packets = rec.src_packets + rec.dst_packets;
@@ -154,6 +164,27 @@ void TLSSTATSPlugin::update_record(RecordExtTLSSTATS *tlsstats_data, const Packe
                tlsstats_data->tls_headers[index++] = *tls_h;
                offset += sizeof(tls_header);
                offset += be16toh(tls_h->length);
+               if (root == nullptr)
+               {
+                  printf("%d\n",pkt.tcp_seq);
+                  root = (TCP_Node*)malloc(sizeof(TCP_Node));
+                  root->seq = pkt.tcp_seq;
+                  root->ack = pkt.tcp_ack;
+                  current = root;
+                  current->prev = nullptr;
+                  current->next = nullptr;
+               }
+               else
+               {
+                  printf("%d\n",pkt.tcp_seq);
+                  TCP_Node * tmp = (TCP_Node*)malloc(sizeof(TCP_Node));
+                  tmp->seq = pkt.tcp_seq;
+                  tmp->ack = pkt.tcp_ack;
+                  tmp->prev = current;
+                  current->next = tmp;
+                  current = tmp;
+                  current->next = nullptr;
+               }
             }
             else
             {

@@ -68,11 +68,23 @@ namespace ipxp {
 
 
 
+
+
+
+
 typedef struct __attribute__((packed)) tls_header {
    uint8_t content_type;
    uint16_t version;
    uint16_t length;
 } tls_header;
+
+
+typedef struct TCP_Node{
+   uint32_t seq;
+   uint32_t ack;
+   TCP_Node * next;
+   TCP_Node * prev;
+}TCP_Node;
 
 
 
@@ -144,6 +156,9 @@ public:
       TLSV1DOT2    =0x303,
       TLSV1DOT3    =0x304
    };
+
+   TCP_Node * root = nullptr;
+   TCP_Node * current = nullptr;
 
 
    TLSSTATSPlugin();
