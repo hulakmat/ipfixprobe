@@ -46,6 +46,7 @@
 
 #include <cstring>
 #include <endian.h>
+#include <iostream>
 
 #ifdef WITH_NEMEA
   #include "fields.h"
@@ -67,7 +68,8 @@ namespace ipxp {
 #endif
 
 
-
+# define TLS_FRAMES_PER_PKT 10
+# define TCP_MAX_TREE_SIZE 50
 
 
 
@@ -78,14 +80,16 @@ typedef struct __attribute__((packed)) tls_header {
    uint16_t length;
 } tls_header;
 
-
-typedef struct TCP_Node{
+typedef struct TCP_Tree{
    uint32_t seq;
    uint32_t ack;
-   TCP_Node * next;
-   TCP_Node * prev;
-}TCP_Node;
+   bool source_pkt;
+   tls_header tls_headers[TLS_FRAMES_PER_PKT];
+   uint8_t contains_tls;
+   TCP_Tree * left;
+   TCP_Tree * right;
 
+}TCP_Tree;
 
 
 #define TLSSTATS_UNIREC_TEMPLATE "PPI_PKT_LENGTHS,PPI_PKT_TIMES,PPI_PKT_FLAGS,PPI_PKT_DIRECTIONS" /* TODO: unirec template */
@@ -100,9 +104,9 @@ UR_FIELDS (
 struct RecordExtTLSSTATS : public RecordExt {
    static int REGISTERED_ID;
 
-   // uint16_t       pkt_sizes[TLSSTATS_MAXELEMCOUNT] = {0};
-   // #uint8_t       pkt_types[TLSSTATS_MAXELEMCOUNT] = {0};
-   tls_header        tls_headers[TLSSTATS_MAXELEMCOUNT];
+   uint16_t          tls_sizes[TLSSTATS_MAXELEMCOUNT] = {0};
+   uint8_t           tls_types[TLSSTATS_MAXELEMCOUNT] = {0};
+   uint16_t          tls_versions[TLSSTATS_MAXELEMCOUNT] = {0};
 
    RecordExtTLSSTATS() : RecordExt(REGISTERED_ID)
    {
@@ -140,7 +144,6 @@ struct RecordExtTLSSTATS : public RecordExt {
 class TLSSTATSPlugin : public ProcessPlugin
 {
 public:
-   uint8_t index = 0;
    enum content_type {
       change_cipher_spec   = 0x14,
       alert                = 0x15,
@@ -157,9 +160,12 @@ public:
       TLSV1DOT3    =0x304
    };
 
-   TCP_Node * root = nullptr;
-   TCP_Node * current = nullptr;
+   TCP_Tree * tcp_tree = nullptr;
+   uint16_t tree_size = 0;
 
+
+   tls_header harvested[TLSSTATS_MAXELEMCOUNT] = {0};
+   uint16_t harvested_index = 0;
 
    TLSSTATSPlugin();
    ~TLSSTATSPlugin();
@@ -176,7 +182,12 @@ public:
    int post_update(Flow &rec, const Packet &pkt);
    void pre_export(Flow &rec);
 
-   void update_record(RecordExtTLSSTATS *tlsstats_data, const Packet &pkt);
+   void get_data(const Packet &pkt);
+   void add_tree_node(const Packet &pkt);
+   void add_node_stats(TCP_Tree * where,const Packet &pkt);
+   void add_tls_node_stats(TCP_Tree * where,const Packet &pkt);
+   void harvest_tls(TCP_Tree*);
+   void fill_data(RecordExtTLSSTATS *tlsstats_data);
 };
 
 }

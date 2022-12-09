@@ -41,11 +41,66 @@
  *
  */
 
-#include <iostream>
-
 #include "tlsstats.hpp"
 
+
+//#define DEBUG_TLS 
+
+#ifdef  DEBUG_TLS
+# define DEBUG_MSG(format, ...) fprintf(stderr, format, ## __VA_ARGS__)
+#else
+# define DEBUG_MSG(format, ...)
+#endif
+
+
 namespace ipxp {
+
+void clear_tree(TCP_Tree * node)
+{
+   if (node->left != nullptr)
+   {
+      clear_tree(node->left);
+   }
+   if(node->right != nullptr)
+   {
+      clear_tree(node->right);
+   }
+   free(node);
+   return; 
+}
+void print_node(TCP_Tree * node)
+{
+   if(node != nullptr)
+   {
+      print_node(node->left);
+      DEBUG_MSG("---\n");
+      DEBUG_MSG("SEQ: %d\n",node->seq);
+      DEBUG_MSG("ACK: %d\n",node->ack);
+      DEBUG_MSG("CLIENT: %d\n",node->source_pkt);
+      DEBUG_MSG("TLS:");
+      DEBUG_MSG("LENGTHS:"); 
+      for (uint8_t x = 0; x < node->contains_tls ; x++)
+      {
+         DEBUG_MSG(" %d ",be16toh(node->tls_headers[x].length));
+      }
+      DEBUG_MSG("\nVERSIONS:"); 
+      for (uint8_t x = 0; x < node->contains_tls ; x++)
+      {
+         DEBUG_MSG(" %02x ",node->tls_headers[x].version);
+      }
+      DEBUG_MSG("\nTYPES:"); 
+      for (uint8_t x = 0; x < node->contains_tls ; x++)
+      {
+         DEBUG_MSG(" %02x ",node->tls_headers[x].content_type);
+      }
+      DEBUG_MSG("\n");
+      print_node(node->right);
+   }
+   else
+   {
+      return;
+   }
+}
 
 int RecordExtTLSSTATS::REGISTERED_ID = -1;
 
@@ -62,7 +117,12 @@ TLSSTATSPlugin::TLSSTATSPlugin()
 
 TLSSTATSPlugin::~TLSSTATSPlugin()
 {
+   tree_size = 0;
+   harvested_index = 0;
+   if(tcp_tree != nullptr)
+      clear_tree(tcp_tree);
 }
+
 
 void TLSSTATSPlugin::init(const char *params)
 {
@@ -84,10 +144,7 @@ int TLSSTATSPlugin::pre_create(Packet &pkt)
 
 int TLSSTATSPlugin::post_create(Flow &rec, const Packet &pkt)
 {
-   RecordExtTLSSTATS *tlsstats_data = new RecordExtTLSSTATS();
-   rec.add_extension(tlsstats_data);
-
-   update_record(tlsstats_data, pkt);
+   get_data(pkt);
    return 0;
 }
 
@@ -98,50 +155,76 @@ int TLSSTATSPlugin::pre_update(Flow &rec, Packet &pkt)
 
 int TLSSTATSPlugin::post_update(Flow &rec, const Packet &pkt)
 {
-   RecordExtTLSSTATS *tlsstats_data = (RecordExtTLSSTATS *) rec.get_extension(RecordExtTLSSTATS::REGISTERED_ID);
-   update_record(tlsstats_data, pkt);
-   
+   get_data(pkt);
    return 0;
 }
-
-void TLSSTATSPlugin::pre_export(Flow &rec)
+void TLSSTATSPlugin::harvest_tls(TCP_Tree * node)
 {
-   RecordExtTLSSTATS *tlsstats_data = (RecordExtTLSSTATS *) rec.get_extension(RecordExtTLSSTATS::REGISTERED_ID);
-   printf("index: %d\n",index);
-   for (int x = 0;x < index;x++ )
+   if(node != nullptr)
    {
-      printf("%d\n",be16toh(tlsstats_data->tls_headers[x].length));
+      harvest_tls(node->left);
+      for(uint8_t x = 0 ; x < node->contains_tls ;x++)
+      {
+         if(harvested_index >= TLSSTATS_MAXELEMCOUNT)
+         {
+            return;
+         }
+         harvested[harvested_index++] = node->tls_headers[x];
+      }
+      harvest_tls(node->right);
    }
-
-   TCP_Node * tmp = root;
-   while(tmp!= nullptr)
-   {
-      printf("---\n");
-      printf("SEQ: %d\n",tmp->seq);
-      printf("ACK: %d\n",tmp->ack);
-      printf("---\n");
-      tmp = tmp->next;
-   }
-
-
-   uint32_t packets = rec.src_packets + rec.dst_packets;
-   if (packets <= TLSSTATS_MINLEN) { 
-      rec.remove_extension(RecordExtTLSSTATS::REGISTERED_ID);
-   }
-
-
-}
-
-
-void TLSSTATSPlugin::update_record(RecordExtTLSSTATS *tlsstats_data, const Packet &pkt)
-{
-   if(index >= TLSSTATS_MAXELEMCOUNT)
+   else
    {
       return;
    }
+}
+void TLSSTATSPlugin::fill_data(RecordExtTLSSTATS *tlsstats_data)
+{
+   for(uint8_t x = 0 ; x < harvested_index ;x++)
+   {
+      tlsstats_data->tls_sizes[x] = be16toh(harvested[x].length);
+      tlsstats_data->tls_types[x] = harvested[x].content_type;
+      tlsstats_data->tls_versions[x] = harvested[x].version;
+   }
+}
+
+
+void TLSSTATSPlugin::pre_export(Flow &rec)
+{
+   #ifdef  DEBUG_TLS
+   DEBUG_MSG("PRINTING TCP TREE\n");
+   print_node(tcp_tree);
+   DEBUG_MSG("PRINTING TCP TREE DONE\n");
+   #endif
+   RecordExtTLSSTATS *tlsstats_data = new RecordExtTLSSTATS();
+   rec.add_extension(tlsstats_data);
+   harvest_tls(tcp_tree);
+   fill_data(tlsstats_data);
+   #ifdef  DEBUG_TLS
+   DEBUG_MSG("PRINTING TLS LENGTHS\n");
+   for(uint8_t x = 0 ;  x < TLSSTATS_MAXELEMCOUNT ; x++)
+   {
+      DEBUG_MSG(" %d ",be16toh(harvested[x].length));
+   }
+   DEBUG_MSG("\n");
+   #endif
+}
+
+void TLSSTATSPlugin::add_node_stats(TCP_Tree * where,const Packet &pkt)
+{
+   where->seq = pkt.tcp_seq;
+   where->ack = pkt.tcp_ack;
+   where->source_pkt = pkt.source_pkt;
+   where->contains_tls = 0;
+   where->left = nullptr;
+   where->right = nullptr;
+}
+void TLSSTATSPlugin::add_tls_node_stats(TCP_Tree * where,const Packet &pkt)
+{
    uint64_t offset = 0;
    const uint8_t * payload_start = pkt.payload;
    const uint8_t * payload_end = pkt.payload + pkt.payload_len;
+
 
    tls_header *tls_h;
    while((payload_start + offset) < payload_end)
@@ -159,32 +242,11 @@ void TLSSTATSPlugin::update_record(RecordExtTLSSTATS *tlsstats_data, const Packe
           (be16toh(tls_h->version) == TLSV1DOT2) ||
           (be16toh(tls_h->version) == TLSV1DOT3)))
           {
-            if(index < TLSSTATS_MAXELEMCOUNT)
+            if(where->contains_tls < TLS_FRAMES_PER_PKT)
             {
-               tlsstats_data->tls_headers[index++] = *tls_h;
+               where->tls_headers[where->contains_tls++] = *tls_h;
                offset += sizeof(tls_header);
                offset += be16toh(tls_h->length);
-               if (root == nullptr)
-               {
-                  printf("%d\n",pkt.tcp_seq);
-                  root = (TCP_Node*)malloc(sizeof(TCP_Node));
-                  root->seq = pkt.tcp_seq;
-                  root->ack = pkt.tcp_ack;
-                  current = root;
-                  current->prev = nullptr;
-                  current->next = nullptr;
-               }
-               else
-               {
-                  printf("%d\n",pkt.tcp_seq);
-                  TCP_Node * tmp = (TCP_Node*)malloc(sizeof(TCP_Node));
-                  tmp->seq = pkt.tcp_seq;
-                  tmp->ack = pkt.tcp_ack;
-                  tmp->prev = current;
-                  current->next = tmp;
-                  current = tmp;
-                  current->next = nullptr;
-               }
             }
             else
             {
@@ -197,6 +259,63 @@ void TLSSTATSPlugin::update_record(RecordExtTLSSTATS *tlsstats_data, const Packe
           }
    }
    return;
+}
+
+void TLSSTATSPlugin::add_tree_node(const Packet &pkt)
+{
+   if(tcp_tree == nullptr)
+   {
+      tcp_tree = (TCP_Tree*)malloc(sizeof(TCP_Tree));
+      add_node_stats(tcp_tree,pkt);
+      add_tls_node_stats(tcp_tree,pkt);
+   }
+   else
+   {
+      TCP_Tree * tmp = tcp_tree;
+      while(1)
+      {
+         //porovnava sa pkt seq a node seq
+         //porovnava sa pkt seq a node ack
+         //porovnava sa pkt ack a node seq
+         //porovnava sa pkt ack a node ack
+         if ((pkt.source_pkt && tmp->source_pkt && pkt.tcp_seq < tmp->seq) ||
+             (pkt.source_pkt && !tmp->source_pkt && pkt.tcp_seq < tmp->ack) ||
+             (!pkt.source_pkt && tmp->source_pkt && pkt.tcp_ack < tmp->seq) ||
+             (!pkt.source_pkt && !tmp->source_pkt && pkt.tcp_ack < tmp->ack) )
+         {
+            if (tmp->left != nullptr)
+               tmp = tmp->left;
+            else
+            {
+               tmp->left = (TCP_Tree*)malloc(sizeof(TCP_Tree));
+               add_node_stats(tmp->left,pkt);
+               add_tls_node_stats(tmp->left,pkt);
+               break;
+            }
+         }
+         // else if ((pkt.source_pkt && tmp->source_pkt && pkt.tcp_seq >= tmp->seq) || 
+         //          (pkt.source_pkt && !tmp->source_pkt && pkt.tcp_seq >= tmp->ack) ||
+         //          (!pkt.source_pkt && tmp->source_pkt && pkt.tcp_ack >= tmp->seq) ||
+         //          (!pkt.source_pkt && !tmp->source_pkt && pkt.tcp_ack >= tmp->ack) )
+         else
+         {
+            if (tmp->right != nullptr)
+               tmp = tmp->right;
+            else
+            {
+               tmp->right = (TCP_Tree*)malloc(sizeof(TCP_Tree));
+               add_node_stats(tmp->right,pkt);
+               add_tls_node_stats(tmp->right,pkt);
+               break;
+            }
+         }
+      }
+   }
+}
+void TLSSTATSPlugin::get_data(const Packet &pkt)
+{
+   if(tree_size < TCP_MAX_TREE_SIZE)
+      add_tree_node(pkt);      
 }
 
 
