@@ -81,10 +81,11 @@ class FlowCache : public StoragePlugin
       uint32_t m_active;
       uint32_t m_inactive;
       bool m_split_biflow;
+      bool m_unirec_stats;
       std::string m_ifc_spec;
 
       CacheOptParser(const std::string &name = "cache", const std::string &desc = "Desciption") : BaseParser(name, desc),
-         m_timeout_step(DEFAULT_TIMEOUT_STEP), m_active(DEFAULT_ACTIVE_TIMEOUT), m_inactive(DEFAULT_INACTIVE_TIMEOUT), m_split_biflow(false)
+         m_timeout_step(DEFAULT_TIMEOUT_STEP), m_active(DEFAULT_ACTIVE_TIMEOUT), m_inactive(DEFAULT_INACTIVE_TIMEOUT), m_split_biflow(false), m_unirec_stats(false), m_ifc_spec("")
       {
          this->register_option("a", "active", "TIME", "Active timeout in seconds",
             [this](const char *arg){try {m_active = str2num<decltype(m_active)>(arg);} catch(std::invalid_argument &e) {return false;} return true;},
@@ -99,12 +100,15 @@ class FlowCache : public StoragePlugin
             [this](const char *arg){ m_split_biflow = true; return true;}, 
             OptionsParser::OptionFlags::NoArgument);
 #ifdef WITH_TRAP
-          this->register_option("", "ifc", "ifc Spec", "Unirec interface to sent the data",
-              [this](const char *arg){
-                  m_ifc_spec = std::string(arg);
-                  return true;
-              },
-              OptionsParser::RequiredArgument);
+         this->register_option("u", "unirecstats", "", "Emit unirec statistics",
+            [this](const char *arg){ m_unirec_stats = true; return true;}, 
+            OptionsParser::OptionFlags::NoArgument);
+         this->register_option("", "ifc", "ifc Spec", "Unirec interface to sent the data",
+             [this](const char *arg){
+                 m_ifc_spec = std::string(arg);
+                 return true;
+             },
+             OptionsParser::RequiredArgument);
 #endif
       }
    };
@@ -145,6 +149,7 @@ private:
    uint32_t m_inactive;
    bool m_split_biflow;
    std::string m_ifc_spec;
+   bool m_unirec_stats;
    struct timeval m_current_ts = { 0, 0 };
 #ifdef WITH_TRAP
    FlowStoreStatsUnirecWriter m_unirec_writer;
@@ -185,6 +190,7 @@ void FlowCache<F>::init(CacheOptParser &parser)
    m_inactive = parser.m_inactive;
    m_timeout_step = parser.m_timeout_step;
    m_ifc_spec = parser.m_ifc_spec;
+   m_unirec_stats = parser.m_unirec_stats;
 #ifdef WITH_TRAP
    m_unirec_writer.init(m_ifc_spec);
 #endif
@@ -462,7 +468,7 @@ void FlowCache<F>::print_report()
     auto ptrCache = FlowStoreStatExpand(ptr, monitorVec);
     FlowStoreStatJSON(std::cerr, ptrCache);
 #ifdef WITH_TRAP
-    if(!m_ifc_spec.empty()) {
+    if(m_unirec_stats) {
         m_unirec_writer.WriteStats(m_current_ts, ptrCache);
         m_hits = m_empty = m_not_empty = m_expired = m_flushed = 0;
     }

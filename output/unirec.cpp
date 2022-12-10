@@ -31,6 +31,7 @@
 
 #include <config.h>
 
+int UnirecExporterOutputInterfaces = 0;
 #ifdef WITH_NEMEA
 
 #include <string>
@@ -112,7 +113,7 @@ static int count_trap_interfaces(const char *spec)
    return ifc_cnt;
 }
 
-int UnirecExporter::init_trap(std::string &ifcs, int verbosity)
+int UnirecExporter::init_trap(std::string &ifcs, int max_interfaces, int verbosity)
 {
    trap_ifc_spec_t ifc_spec;
    std::vector<char> spec_str(ifcs.c_str(), ifcs.c_str() + ifcs.size() + 1);
@@ -142,6 +143,11 @@ int UnirecExporter::init_trap(std::string &ifcs, int verbosity)
    if (verbosity > 0) {
       trap_set_verbose_level(verbosity - 1);
    }
+   if(max_interfaces != 0) {
+      ifc_cnt = max_interfaces;
+   }
+   UnirecExporterOutputInterfaces = ifc_cnt;
+
    for (int i = 0; i < ifc_cnt; i++) {
       trap_ifcctl(TRAPIFC_OUTPUT, i, TRAPCTL_SETTIMEOUT, TRAP_HALFWAIT);
    }
@@ -169,7 +175,7 @@ void UnirecExporter::init(const char *params)
    m_link_bit_field = parser.m_id;
    m_dir_bit_field = parser.m_dir;
    m_group_map = parser.m_ifc_map;
-   m_ifc_cnt = init_trap(parser.m_ifc, parser.m_verbose);
+   m_ifc_cnt = init_trap(parser.m_ifc, parser.m_out_count, parser.m_verbose);
    m_ext_cnt = get_extension_cnt();
 
    try {
