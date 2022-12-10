@@ -302,13 +302,15 @@ AC_ARG_WITH([nemea],
         [
       if test "$withval" = "yes"; then
          withnemea="yes"
+         AX_LIBTRAP_CHECK()
+         AX_UNIREC_CHECK()
       else
          withnemea="no"
       fi
         ], [withnemea="no"]
 )
 if test x${withnemea} = xno; then
-AM_CONDITIONAL([HAVE_TRAP2MAN], [false])
+   AM_CONDITIONAL([HAVE_TRAP2MAN], [false])
 fi
 
 AM_CONDITIONAL(WITH_NEMEA,  test x${withnemea} = xyes)
@@ -331,8 +333,6 @@ AC_ARG_WITH([trap],
 AM_CONDITIONAL(WITH_TRAP,  test x${withtrap} = xyes || x${withnemea} = xyes)
 
 if [[ -z "$WITH_TRAP_TRUE" ]]; then
-# AX_LIBTRAP_CHECK()
-# AX_UNIREC_CHECK()
 
 AC_DEFINE([WITH_TRAP], [1], [Define to 1 if the TRAP is available])
 
