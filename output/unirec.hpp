@@ -34,6 +34,8 @@
 
 #include <config.h>
 
+extern int UnirecExporterOutputInterfaces;
+
 #ifdef WITH_NEMEA
 
 #include <string>
@@ -62,10 +64,11 @@ public:
    bool m_help;
    uint64_t m_id;
    uint8_t m_dir;
+   uint32_t m_out_count;
    int m_verbose;
 
    UnirecOptParser() : OptionsParser("unirec", "Output plugin for unirec export"),
-      m_ifc(""), m_odid(false), m_eof(false), m_help(false), m_id(DEFAULT_EXPORTER_ID), m_dir(0), m_verbose(0)
+      m_ifc(""), m_odid(false), m_eof(false), m_help(false), m_id(DEFAULT_EXPORTER_ID), m_dir(0), m_out_count(0), m_verbose(0)
    {
       register_option("i", "ifc", "SPEC", "libtrap interface specifier", [this](const char *arg){m_ifc = arg; return true;}, OptionFlags::RequiredArgument);
       register_option("p", "plugins", "PLUGINS", "Specify plugin-interface mapping. Plugins can be grouped like '(p1,p2,p3),p4,(p5,p6)'",
@@ -77,6 +80,9 @@ public:
          OptionFlags::RequiredArgument);
       register_option("d", "dir", "NUM", "Dir bit field value",
          [this](const char *arg){try {m_dir = str2num<decltype(m_dir)>(arg);} catch(std::invalid_argument &e) {return false;} return true;},
+         OptionFlags::RequiredArgument);
+      register_option("c", "count", "", "Count of output interfaces to use for export 0=all",
+         [this](const char *arg){try {m_out_count = str2num<decltype(m_dir)>(arg);} catch(std::invalid_argument &e) {return false;} return true;},
          OptionFlags::RequiredArgument);
       register_option("h", "help", "", "Print libtrap help", [this](const char *arg){m_help = true; return true;}, OptionFlags::NoArgument);
       register_option("v", "verbose", "", "Increase verbosity", [this](const char *arg){m_verbose++; return true;}, OptionFlags::NoArgument);
@@ -174,7 +180,7 @@ public:
    int export_flow(const Flow &flow);
 
 private:
-   int init_trap(std::string &ifcs, int verbosity);
+   int init_trap(std::string &ifcs, int max_ifcs, int verbosity);
    void create_tmplt(int ifc_idx, const char *tmplt_str);
    void fill_basic_flow(const Flow &flow, ur_template_t *tmplt_ptr, void *record_ptr);
    void free_unirec_resources();
@@ -187,6 +193,7 @@ private:
    ur_template_t **m_tmplts;    /**< Pointer to unirec templates. */
    void          **m_records;   /**< Pointer to unirec records. */
    size_t m_ifc_cnt;            /**< Number of output interfaces. */
+   size_t m_ifc_cnt_max;
    int *m_ext_id_flgs;          /** flags of used extension during export*/
 
    bool m_eof;                  /**< Send eof when module exits. */

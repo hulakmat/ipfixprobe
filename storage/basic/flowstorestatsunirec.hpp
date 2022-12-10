@@ -45,6 +45,7 @@
 
 #include <string>
 #include <fstream>
+#include "output/unirec.hpp"
 #include "flowstoreproxy.hpp"
 #include <ipfixprobe/options.hpp>
 #include <thread>
@@ -97,33 +98,37 @@ public:
     }
 
     void InitializeInterface() {
-        if(m_ifc_spec_str.empty() || m_trap_ctx) {
+        if(m_trap_ctx) {
             return;
         }
+        if(m_ifc_spec_str.empty()) {
+            /* Use Global trap ctx instead of local one. Skip the output interface */
+            m_unirec_ifc = m_instanceId+UnirecExporterOutputInterfaces;
+            m_trap_ctx = trap_get_global_ctx();
+        } else {
+            trap_ifc_spec_t ifc_spec;
+            std::vector<char> spec_str(m_ifc_spec_str.c_str(), m_ifc_spec_str.c_str() + m_ifc_spec_str.size() + 1);
+            char *argv[] = {"-i", spec_str.data(), "-vvv"};
+            int argc = 3;
 
-        trap_ifc_spec_t ifc_spec;
-        std::vector<char> spec_str(m_ifc_spec_str.c_str(), m_ifc_spec_str.c_str() + m_ifc_spec_str.size() + 1);
-        char *argv[] = {"-i", spec_str.data(), "-vvv"};
-        int argc = 3;
+            if (trap_parse_params(&argc, argv, &ifc_spec) != TRAP_E_OK) {
+                trap_free_ifc_spec(ifc_spec);
+                std::string err_msg = "parsing parameters for TRAP failed";
+                if (trap_last_error_msg) {
+                    err_msg += std::string(": ") + trap_last_error_msg;
+                }
+                throw std::runtime_error(err_msg);
+            }
 
-        if (trap_parse_params(&argc, argv, &ifc_spec) != TRAP_E_OK) {
-           trap_free_ifc_spec(ifc_spec);
-           std::string err_msg = "parsing parameters for TRAP failed";
-           if (trap_last_error_msg) {
-              err_msg += std::string(": ") + trap_last_error_msg;
-           }
-           throw std::runtime_error(err_msg);
+            trap_module_info_t module_info = {"FlowStoreStatsUnirec", "Output for ipfixprobe stats", 0, 1};
+            m_trap_ctx = trap_ctx_init(&module_info, ifc_spec);
+            if (m_trap_ctx == NULL) {
+                throw std::runtime_error("Error: trap_ctx_init returned NULL.");
+            }
+            trap_free_ifc_spec(ifc_spec);
+            m_unirec_ifc = 0;
         }
-
-        trap_module_info_t module_info = {"FlowStoreStatsUnirec", "Output for ipfixprobe stats", 0, 1};
-        m_trap_ctx = trap_ctx_init(&module_info, ifc_spec);
-        if (m_trap_ctx == NULL) {
-            throw std::runtime_error("Error: trap_ctx_init returned NULL.");
-        }
-        trap_free_ifc_spec(ifc_spec);
-        m_unirec_ifc = 0;
-
-       trap_ctx_ifcctl(m_trap_ctx, TRAPIFC_OUTPUT, m_unirec_ifc, TRAPCTL_SETTIMEOUT, TRAP_HALFWAIT);
+        trap_ctx_ifcctl(m_trap_ctx, TRAPIFC_OUTPUT, m_unirec_ifc, TRAPCTL_SETTIMEOUT, TRAP_HALFWAIT);
     }
 
     void GenerateTemplate(FlowStoreStat::Ptr ptr) {
