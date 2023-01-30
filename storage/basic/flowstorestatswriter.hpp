@@ -74,7 +74,7 @@ protected:
     uint32_t m_instanceId;
     static uint32_t m_instanceIdGlobal;
 
-    void initM_instanceId() {
+    void initInstanceId() {
         m_instanceId = m_instanceIdGlobal;
         m_instanceIdGlobal++;
     }
@@ -93,7 +93,7 @@ public:
 
     void init(Parser &parser) { m_stats_file = parser.m_stats_file; this->m_flowstore.init(parser); }
     FlowStoreStatsWriter() : Base() {
-        initM_instanceId();
+        initInstanceId();
     }
     ~FlowStoreStatsWriter() {
         auto ptr = this->m_flowstore.stats_export();
