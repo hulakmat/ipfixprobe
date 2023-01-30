@@ -77,7 +77,8 @@ private:
     ur_template_t *m_template = nullptr;
     void *m_record = nullptr;
 public:
-    FlowStoreStatsUnirecWriter()  {
+    FlowStoreStatsUnirecWriter() {
+        initInstanceId();
     }
 
     void init(std::string ifc_ptr) {
