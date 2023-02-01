@@ -469,9 +469,10 @@ void FlowCache<F>::print_report()
 #ifdef WITH_TRAP
     if(m_unirec_stats) {
         m_unirec_writer.WriteStats(m_current_ts, ptrCache);
-        reset_stats();
     }
 #endif
+    reset_stats();
+    this->m_flow_store.stats_reset();
 }
 
 }
