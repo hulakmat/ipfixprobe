@@ -119,7 +119,8 @@ public:
     };
 
     void stats_reset() {
-        monitorStats = {};
+        memset(&monitorStats, 0, sizeof(monitorStats));
+        this->m_flowstore.stats_reset();
     }
 };
 
