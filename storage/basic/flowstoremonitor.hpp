@@ -55,7 +55,7 @@ namespace ipxp {
 template <typename F>
 class FlowStoreMonitor : public FlowStoreProxySimple<F>
 {
-    struct {
+    struct FlowStoreMonitorStats {
         uint64_t prepared = 0;
         uint64_t lookups = 0;
         uint64_t lookups_failed = 0;
@@ -65,7 +65,8 @@ class FlowStoreMonitor : public FlowStoreProxySimple<F>
         uint64_t free_failed = 0;
         uint64_t index_export = 0;
         uint64_t iter_export = 0;
-    } monitorStats = {};
+    };
+    struct FlowStoreMonitorStats monitorStats = {};
 public:
     typedef typename F::packet_info PacketInfo;
     typedef typename F::accessor Access;
