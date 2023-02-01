@@ -74,6 +74,7 @@ public:
     Access index_export(const Access &index, FlowRingBuffer &rb) { return m_flowstore.index_export(index, rb); }
     Access iter_export(const Iter &iter, FlowRingBuffer &rb) { return m_flowstore.iter_export(iter, rb); }
     void setForcedFlowExportCallback(typename Base::ForcedFlowExportCallback cb) { m_flowstore.setForcedFlowExportCallback(cb); }
+    void stats_reset() { m_flowstore.stats_reset(); }
 
     virtual FlowStoreStat::Ptr stats_export() { return m_flowstore.stats_export(); };
 protected:
