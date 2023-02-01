@@ -287,6 +287,8 @@ private:
         uint64_t m_lookups2 = 0;
         uint32_t m_cacheline_max_index = 0;
     } stats = {};
+
+public:
     void stats_reset() {
         memset(&stats, 0, sizeof(stats));
     }
