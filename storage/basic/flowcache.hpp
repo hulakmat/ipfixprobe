@@ -144,6 +144,9 @@ private:
    uint64_t m_hits;
    uint64_t m_expired;
    uint64_t m_flushed;
+   void reset_stats() {
+       m_empty = m_not_empty = m_hits = m_expired = m_flushed = 0;
+   }
 #endif /* FLOW_CACHE_STATS */
    uint32_t m_active;
    uint32_t m_inactive;
@@ -213,11 +216,7 @@ void FlowCache<F>::init(CacheOptParser &parser)
    m_split_biflow = parser.m_split_biflow;
 
 #ifdef FLOW_CACHE_STATS
-   m_empty = 0;
-   m_not_empty = 0;
-   m_hits = 0;
-   m_expired = 0;
-   m_flushed = 0;
+   reset_stats();
 #endif /* FLOW_CACHE_STATS */
 }
 
@@ -470,7 +469,7 @@ void FlowCache<F>::print_report()
 #ifdef WITH_TRAP
     if(m_unirec_stats) {
         m_unirec_writer.WriteStats(m_current_ts, ptrCache);
-        m_hits = m_empty = m_not_empty = m_expired = m_flushed = 0;
+        reset_stats();
     }
 #endif
 }
