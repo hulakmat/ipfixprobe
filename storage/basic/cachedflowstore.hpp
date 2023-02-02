@@ -415,6 +415,11 @@ public:
         return std::make_shared<FlowStoreStatVector>("", statVec);
     }
 
+    void stats_reset() {
+        m_cached_lookups = m_item_moves =m_item_move_rejects = m_move_exports = 0;
+        Base::stats_reset();
+    }
+
 private:
     inline FSHiearchyWrapper<CacheFs, CacheFs, BaseFs>& getCachedFStore() {
         auto &fStorePair = std::get<0>(this->m_fstores);
