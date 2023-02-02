@@ -809,6 +809,25 @@ public:
         return stats_export_for_each(m_fstores, std::make_shared<FlowStoreStatVector>(""));
     };
 
+    template<std::size_t I = 0, typename... Tp>
+    inline typename std::enable_if<I == sizeof...(Tp)>::type
+    stats_reset_for_each(std::tuple<Tp...> &) // Unused arguments are given no names.
+    {
+    }
+
+    template<std::size_t I = 0, typename... Tp>
+    inline typename std::enable_if<I < sizeof...(Tp)>::type
+    stats_reset_for_each(std::tuple<Tp...>& t)
+    {
+        auto &p = std::get<I>(t);
+        auto &fstore = std::get<1>(p);
+        fstore.stats_reset();
+        return stats_reset_for_each<I + 1, Tp...>(t);
+    }
+
+    void stats_reset() {
+        return stats_reset_for_each(m_fstores);
+    };
 
     template<std::size_t I = 0, typename... Tp>
     inline typename std::enable_if<I == sizeof...(Tp), accessor>::type
