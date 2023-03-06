@@ -11,7 +11,13 @@ DISTCHECK_CONFIGURE_FLAGS="--with-systemdsystemunitdir=$$dc_install_base/$(syste
 
 ipfixprobe_LDFLAGS=-lpthread -ldl -latomic
 ipfixprobe_CFLAGS=-I$(srcdir)/include/ -fPIC
-ipfixprobe_CXXFLAGS=-std=gnu++14 -Wno-write-strings -I$(srcdir)/include/ -fPIC
+ipfixprobe_CXXFLAGS=-Wno-write-strings -I$(srcdir)/include/ -fPIC
+
+if WITH_HIEARCHY_STORE
+ipfixprobe_CXXFLAGS+=--std=gnu++14
+else
+ipfixprobe_CXXFLAGS+=--std=gnu++11
+endif
 
 if OS_CYGWIN
 ipfixprobe_CXXFLAGS+=-Wl,--export-all-symbols
