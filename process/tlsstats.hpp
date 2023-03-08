@@ -47,6 +47,7 @@
 #include <cstring>
 #include <endian.h>
 #include <iostream>
+#include <map>
 
 #ifdef WITH_NEMEA
   #include "fields.h"
@@ -71,6 +72,12 @@ namespace ipxp {
 # define TLS_FRAMES_PER_PKT 10
 # define TCP_MAX_TREE_SIZE 50
 
+
+typedef struct __attribute__((packed)) side {
+   uint32_t last_ack;
+   uint32_t last_seq;
+   uint16_t port;
+} side;
 
 
 
@@ -163,10 +170,14 @@ public:
    TCP_Tree * tcp_tree = nullptr;
    uint16_t tree_size = 0;
 
+   std::map<uint16_t, int> global_offsets;
+
 
    tls_header harvested[TLSSTATS_MAXELEMCOUNT] = {0};
    uint16_t harvested_index = 0;
 
+   side * side_1;
+   side * side_2;
    TLSSTATSPlugin();
    ~TLSSTATSPlugin();
    void init(const char *params);

@@ -113,6 +113,8 @@ __attribute__((constructor)) static void register_this_plugin()
 
 TLSSTATSPlugin::TLSSTATSPlugin()
 {
+   side_1 = nullptr;
+   side_2 = nullptr;
 }
 
 TLSSTATSPlugin::~TLSSTATSPlugin()
@@ -121,6 +123,8 @@ TLSSTATSPlugin::~TLSSTATSPlugin()
    harvested_index = 0;
    if(tcp_tree != nullptr)
       clear_tree(tcp_tree);
+   // delete side_1;
+   // delete side_2;
 }
 
 
@@ -221,7 +225,18 @@ void TLSSTATSPlugin::add_node_stats(TCP_Tree * where,const Packet &pkt)
 }
 void TLSSTATSPlugin::add_tls_node_stats(TCP_Tree * where,const Packet &pkt)
 {
-   uint64_t offset = 0;
+   uint64_t offset;
+   if(global_offsets[pkt.src_port] == 0){
+      offset = 0;
+   }else{
+      if (global_offsets[pkt.src_port] - pkt.payload_len >= 0){
+         global_offsets[pkt.src_port] = global_offsets[pkt.src_port] - pkt.payload_len;
+         return;
+      }else{
+         offset = global_offsets[pkt.src_port];
+         global_offsets[pkt.src_port] = 0;
+      }
+   }
    const uint8_t * payload_start = pkt.payload;
    const uint8_t * payload_end = pkt.payload + pkt.payload_len;
 
@@ -246,7 +261,18 @@ void TLSSTATSPlugin::add_tls_node_stats(TCP_Tree * where,const Packet &pkt)
             {
                where->tls_headers[where->contains_tls++] = *tls_h;
                offset += sizeof(tls_header);
+               if ((payload_start + be16toh(tls_h->length)) > payload_end)
+               {
+                  // frame presahuje takze bude niekde v nasledujucich paketoch
+                  global_offsets[pkt.src_port] = be16toh(tls_h->length) - (payload_end - (payload_start + offset));
+               }
+               else if ((payload_start + be16toh(tls_h->length)) == payload_end)
+               {
+                  // frame nepresahuje
+                  global_offsets[pkt.src_port] = 0;
+               }
                offset += be16toh(tls_h->length);
+
             }
             else
             {
@@ -255,6 +281,8 @@ void TLSSTATSPlugin::add_tls_node_stats(TCP_Tree * where,const Packet &pkt)
           }
           else
           {
+            // idealne by tato moznost nastat nemala, ale musime incrementovat
+            // aby cyklus skoncil v pripade ze nastane
             offset++;
           }
    }
@@ -314,8 +342,35 @@ void TLSSTATSPlugin::add_tree_node(const Packet &pkt)
 }
 void TLSSTATSPlugin::get_data(const Packet &pkt)
 {
+   if(global_offsets.find(pkt.src_port) == global_offsets.end())
+      global_offsets[pkt.src_port] = 0;
    if(tree_size < TCP_MAX_TREE_SIZE)
-      add_tree_node(pkt);      
+      add_tree_node(pkt);
+   
+   // if(!side_1){
+   //    side_1 = new side;
+   //    side_1->port = pkt.src_port;
+   //    side_1->last_ack = pkt.tcp_ack;
+   //    side_1->last_seq = pkt.tcp_seq;
+   // }else if (side_1->port == pkt.src_port){
+   //    printf("ack diff ---> %u\n",pkt.tcp_ack-side_1->last_ack);
+   //    //printf("seq diff ---> %u\n",pkt.tcp_seq-side_1->last_seq);
+      
+   //    side_1->last_ack = pkt.tcp_ack;
+   //    side_1->last_seq = pkt.tcp_seq;
+   // }
+   // else if (!side_2){
+   //    side_2 = new side;
+   //    side_2->port = pkt.src_port;
+   //    side_2->last_ack = pkt.tcp_ack;
+   //    side_2->last_seq = pkt.tcp_seq;
+   // }else if (side_2->port == pkt.src_port){
+   //    printf("ack diff <--- %u\n",pkt.tcp_ack-side_2->last_ack); 
+   //    //printf("seq diff <--- %u\n",pkt.tcp_seq-side_2->last_seq);
+      
+   //    side_2->last_ack = pkt.tcp_ack;
+   //    side_2->last_seq = pkt.tcp_seq;
+   // }
 }
 
 
