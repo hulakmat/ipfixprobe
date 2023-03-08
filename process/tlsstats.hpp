@@ -60,8 +60,8 @@
 
 namespace ipxp {
 
-#ifndef TLSSTATS_MAXELEMCOUNT
-# define TLSSTATS_MAXELEMCOUNT 30
+#ifndef MAX_TLS_LENGTHS
+# define MAX_TLS_LENGTHS 30
 #endif
 
 #ifndef TLSSTATS_MINLEN
@@ -69,15 +69,7 @@ namespace ipxp {
 #endif
 
 
-# define TLS_FRAMES_PER_PKT 10
-# define TCP_MAX_TREE_SIZE 50
 
-
-typedef struct __attribute__((packed)) side {
-   uint32_t last_ack;
-   uint32_t last_seq;
-   uint16_t port;
-} side;
 
 
 
@@ -87,16 +79,14 @@ typedef struct __attribute__((packed)) tls_header {
    uint16_t length;
 } tls_header;
 
-typedef struct TCP_Tree{
+typedef struct TLS_Lengths{
    uint32_t seq;
    uint32_t ack;
    bool source_pkt;
-   tls_header tls_headers[TLS_FRAMES_PER_PKT];
-   uint8_t contains_tls;
-   TCP_Tree * left;
-   TCP_Tree * right;
-
-}TCP_Tree;
+   uint16_t tls_size;
+   TLS_Lengths * left;
+   TLS_Lengths * right;
+}TLS_Lengths;
 
 
 #define TLSSTATS_UNIREC_TEMPLATE "PPI_PKT_LENGTHS,PPI_PKT_TIMES,PPI_PKT_FLAGS,PPI_PKT_DIRECTIONS" /* TODO: unirec template */
@@ -111,9 +101,7 @@ UR_FIELDS (
 struct RecordExtTLSSTATS : public RecordExt {
    static int REGISTERED_ID;
 
-   uint16_t          tls_sizes[TLSSTATS_MAXELEMCOUNT] = {0};
-   uint8_t           tls_types[TLSSTATS_MAXELEMCOUNT] = {0};
-   uint16_t          tls_versions[TLSSTATS_MAXELEMCOUNT] = {0};
+   uint16_t          tls_sizes[MAX_TLS_LENGTHS] = {0};
 
    RecordExtTLSSTATS() : RecordExt(REGISTERED_ID)
    {
@@ -167,17 +155,13 @@ public:
       TLSV1DOT3    =0x304
    };
 
-   TCP_Tree * tcp_tree = nullptr;
-   uint16_t tree_size = 0;
+   TLS_Lengths * tls_tree = nullptr;
 
    std::map<uint16_t, int> global_offsets;
 
+   uint8_t harvested_index = 0;
+   uint8_t total_tls_count = 0;
 
-   tls_header harvested[TLSSTATS_MAXELEMCOUNT] = {0};
-   uint16_t harvested_index = 0;
-
-   side * side_1;
-   side * side_2;
    TLSSTATSPlugin();
    ~TLSSTATSPlugin();
    void init(const char *params);
@@ -193,12 +177,14 @@ public:
    int post_update(Flow &rec, const Packet &pkt);
    void pre_export(Flow &rec);
 
-   void get_data(const Packet &pkt);
-   void add_tree_node(const Packet &pkt);
-   void add_node_stats(TCP_Tree * where,const Packet &pkt);
-   void add_tls_node_stats(TCP_Tree * where,const Packet &pkt);
-   void harvest_tls(TCP_Tree*);
-   void fill_data(RecordExtTLSSTATS *tlsstats_data);
+   void get_data(const Packet &);
+   void add_tree_node(const Packet &);
+   void add_node_stats(TLS_Lengths * ,const Packet &,uint16_t );
+   void fill_data(TLS_Lengths*,RecordExtTLSSTATS *);
+   bool check_global_offset(uint16_t &,const Packet &);
+   bool check_if_tls(tls_header*);
+   void check_overlap(const uint8_t *,const uint8_t *,tls_header *,uint16_t,const Packet &);
+
 };
 
 }
