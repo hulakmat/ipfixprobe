@@ -45,18 +45,18 @@
 
 #include "bstats.hpp"
 
-namespace ipxp {
+namespace Ipxp {
 
-int RecordExtBSTATS::REGISTERED_ID = -1;
+int RecordExtBSTATS::s_registeredId = -1;
 
-__attribute__((constructor)) static void register_this_plugin()
+__attribute__((constructor)) static void registerThisPlugin()
 {
 	static PluginRecord rec = PluginRecord("bstats", []() { return new BSTATSPlugin(); });
-	register_plugin(&rec);
-	RecordExtBSTATS::REGISTERED_ID = register_extension();
+	registerPlugin(&rec);
+	RecordExtBSTATS::s_registeredId = registerExtension();
 }
 
-const struct timeval BSTATSPlugin::min_packet_in_burst
+const struct timeval BSTATSPlugin::MIN_PACKET_IN_BURST
 	= {MAXIMAL_INTERPKT_TIME / 1000, (MAXIMAL_INTERPKT_TIME % 1000) * 1000};
 
 BSTATSPlugin::BSTATSPlugin() {}
@@ -75,113 +75,113 @@ ProcessPlugin* BSTATSPlugin::copy()
 	return new BSTATSPlugin(*this);
 }
 
-int BSTATSPlugin::pre_create(Packet& pkt)
+int BSTATSPlugin::preCreate(Packet& pkt)
 {
 	return 0;
 }
 
 #define BCOUNT burst_count[direction]
-void BSTATSPlugin::initialize_new_burst(
-	RecordExtBSTATS* bstats_record,
+void BSTATSPlugin::initializeNewBurst(
+	RecordExtBSTATS* bstatsRecord,
 	uint8_t direction,
 	const Packet& pkt)
 {
-	bstats_record->brst_pkts[direction][bstats_record->BCOUNT] = 1;
-	bstats_record->brst_bytes[direction][bstats_record->BCOUNT] = pkt.payload_len_wire;
-	bstats_record->brst_start[direction][bstats_record->BCOUNT] = pkt.ts;
-	bstats_record->brst_end[direction][bstats_record->BCOUNT] = pkt.ts;
+	bstatsRecord->brstPkts[direction][bstatsRecord->BCOUNT] = 1;
+	bstatsRecord->brstBytes[direction][bstatsRecord->BCOUNT] = pkt.payloadLenWire;
+	bstatsRecord->brstStart[direction][bstatsRecord->BCOUNT] = pkt.ts;
+	bstatsRecord->brstEnd[direction][bstatsRecord->BCOUNT] = pkt.ts;
 }
 
 bool BSTATSPlugin::belogsToLastRecord(
-	RecordExtBSTATS* bstats_record,
+	RecordExtBSTATS* bstatsRecord,
 	uint8_t direction,
 	const Packet& pkt)
 {
 	struct timeval timediff;
 
-	timersub(&pkt.ts, &bstats_record->brst_end[direction][bstats_record->BCOUNT], &timediff);
-	if (timercmp(&timediff, &min_packet_in_burst, <)) {
+	timersub(&pkt.ts, &bstatsRecord->brstEnd[direction][bstatsRecord->BCOUNT], &timediff);
+	if (timercmp(&timediff, &MIN_PACKET_IN_BURST, <)) {
 		return true;
 	}
 	return false;
 }
 
-bool BSTATSPlugin::isLastRecordBurst(RecordExtBSTATS* bstats_record, uint8_t direction)
+bool BSTATSPlugin::isLastRecordBurst(RecordExtBSTATS* bstatsRecord, uint8_t direction)
 {
-	if (bstats_record->brst_pkts[direction][bstats_record->BCOUNT] < MINIMAL_PACKETS_IN_BURST) {
+	if (bstatsRecord->brstPkts[direction][bstatsRecord->BCOUNT] < MINIMAL_PACKETS_IN_BURST) {
 		return false;
 	}
 	return true;
 }
 
-void BSTATSPlugin::process_bursts(
-	RecordExtBSTATS* bstats_record,
+void BSTATSPlugin::processBursts(
+	RecordExtBSTATS* bstatsRecord,
 	uint8_t direction,
 	const Packet& pkt)
 {
-	if (belogsToLastRecord(bstats_record, direction, pkt)) { // does it belong to previous burst?
-		bstats_record->brst_pkts[direction][bstats_record->BCOUNT]++;
-		bstats_record->brst_bytes[direction][bstats_record->BCOUNT] += pkt.payload_len_wire;
-		bstats_record->brst_end[direction][bstats_record->BCOUNT] = pkt.ts;
+	if (belogsToLastRecord(bstatsRecord, direction, pkt)) { // does it belong to previous burst?
+		bstatsRecord->brstPkts[direction][bstatsRecord->BCOUNT]++;
+		bstatsRecord->brstBytes[direction][bstatsRecord->BCOUNT] += pkt.payloadLenWire;
+		bstatsRecord->brstEnd[direction][bstatsRecord->BCOUNT] = pkt.ts;
 		return;
 	}
 	// the packet does not belong to previous burst
-	if (isLastRecordBurst(bstats_record, direction)) {
-		bstats_record->BCOUNT++;
+	if (isLastRecordBurst(bstatsRecord, direction)) {
+		bstatsRecord->BCOUNT++;
 	}
-	if (bstats_record->BCOUNT < BSTATS_MAXELENCOUNT) {
-		initialize_new_burst(bstats_record, direction, pkt);
+	if (bstatsRecord->BCOUNT < BSTATS_MAXELENCOUNT) {
+		initializeNewBurst(bstatsRecord, direction, pkt);
 	}
 }
 
-void BSTATSPlugin::update_record(RecordExtBSTATS* bstats_record, const Packet& pkt)
+void BSTATSPlugin::updateRecord(RecordExtBSTATS* bstatsRecord, const Packet& pkt)
 {
-	uint8_t direction = (uint8_t) !pkt.source_pkt;
+	uint8_t direction = (uint8_t) !pkt.sourcePkt;
 
-	if (pkt.payload_len_wire == 0 || bstats_record->BCOUNT >= BSTATS_MAXELENCOUNT) {
+	if (pkt.payloadLenWire == 0 || bstatsRecord->BCOUNT >= BSTATS_MAXELENCOUNT) {
 		// zero-payload or burst array is full
 		return;
 	}
-	if (bstats_record->burst_empty[direction] == 0) {
-		bstats_record->burst_empty[direction] = 1;
-		initialize_new_burst(bstats_record, direction, pkt);
+	if (bstatsRecord->burstEmpty[direction] == 0) {
+		bstatsRecord->burstEmpty[direction] = 1;
+		initializeNewBurst(bstatsRecord, direction, pkt);
 	} else {
-		process_bursts(bstats_record, direction, pkt);
+		processBursts(bstatsRecord, direction, pkt);
 	}
 }
 
-int BSTATSPlugin::post_create(Flow& rec, const Packet& pkt)
+int BSTATSPlugin::postCreate(Flow& rec, const Packet& pkt)
 {
-	RecordExtBSTATS* bstats_record = new RecordExtBSTATS();
+	RecordExtBSTATS* bstatsRecord = new RecordExtBSTATS();
 
-	rec.add_extension(bstats_record);
-	update_record(bstats_record, pkt);
+	rec.addExtension(bstatsRecord);
+	updateRecord(bstatsRecord, pkt);
 	return 0;
 }
 
-int BSTATSPlugin::pre_update(Flow& rec, Packet& pkt)
+int BSTATSPlugin::preUpdate(Flow& rec, Packet& pkt)
 {
-	RecordExtBSTATS* bstats_record
-		= static_cast<RecordExtBSTATS*>(rec.get_extension(RecordExtBSTATS::REGISTERED_ID));
+	RecordExtBSTATS* bstatsRecord
+		= static_cast<RecordExtBSTATS*>(rec.getExtension(RecordExtBSTATS::s_registeredId));
 
-	update_record(bstats_record, pkt);
+	updateRecord(bstatsRecord, pkt);
 	return 0;
 }
 
-int BSTATSPlugin::post_update(Flow& rec, const Packet& pkt)
+int BSTATSPlugin::postUpdate(Flow& rec, const Packet& pkt)
 {
 	return 0;
 }
 
-void BSTATSPlugin::pre_export(Flow& rec)
+void BSTATSPlugin::preExport(Flow& rec)
 {
-	RecordExtBSTATS* bstats_record
-		= static_cast<RecordExtBSTATS*>(rec.get_extension(RecordExtBSTATS::REGISTERED_ID));
+	RecordExtBSTATS* bstatsRecord
+		= static_cast<RecordExtBSTATS*>(rec.getExtension(RecordExtBSTATS::s_registeredId));
 
 	for (int direction = 0; direction < 2; direction++) {
-		if (bstats_record->BCOUNT < BSTATS_MAXELENCOUNT
-			&& isLastRecordBurst(bstats_record, direction)) {
-			bstats_record->BCOUNT++;
+		if (bstatsRecord->BCOUNT < BSTATS_MAXELENCOUNT
+			&& isLastRecordBurst(bstatsRecord, direction)) {
+			bstatsRecord->BCOUNT++;
 		}
 	}
 }

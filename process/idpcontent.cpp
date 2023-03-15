@@ -45,15 +45,15 @@
 
 #include "idpcontent.hpp"
 
-namespace ipxp {
+namespace Ipxp {
 
-int RecordExtIDPCONTENT::REGISTERED_ID = -1;
+int RecordExtIDPCONTENT::s_registeredId = -1;
 
-__attribute__((constructor)) static void register_this_plugin()
+__attribute__((constructor)) static void registerThisPlugin()
 {
 	static PluginRecord rec = PluginRecord("idpcontent", []() { return new IDPCONTENTPlugin(); });
-	register_plugin(&rec);
-	RecordExtIDPCONTENT::REGISTERED_ID = register_extension();
+	registerPlugin(&rec);
+	RecordExtIDPCONTENT::s_registeredId = registerExtension();
 }
 
 #define MIN(a, b) (((a) < (b)) ? (a) : (b))
@@ -74,37 +74,37 @@ ProcessPlugin* IDPCONTENTPlugin::copy()
 	return new IDPCONTENTPlugin(*this);
 }
 
-void IDPCONTENTPlugin::update_record(RecordExtIDPCONTENT* idpcontent_data, const Packet& pkt)
+void IDPCONTENTPlugin::updateRecord(RecordExtIDPCONTENT* idpcontentData, const Packet& pkt)
 {
 	// create ptr into buffers from packet directions
-	uint8_t paket_direction = (uint8_t) (!pkt.source_pkt);
+	uint8_t paketDirection = (uint8_t) (!pkt.sourcePkt);
 
 	// Check zero-packets and be sure, that the exported content is from both directions
-	if (idpcontent_data->pkt_export_flg[paket_direction] != 1 && pkt.payload_len > 0) {
-		idpcontent_data->idps[paket_direction].size = MIN(IDPCONTENT_SIZE, pkt.payload_len);
+	if (idpcontentData->pktExportFlg[paketDirection] != 1 && pkt.payloadLen > 0) {
+		idpcontentData->idps[paketDirection].size = MIN(IDPCONTENT_SIZE, pkt.payloadLen);
 		memcpy(
-			idpcontent_data->idps[paket_direction].data,
+			idpcontentData->idps[paketDirection].data,
 			pkt.payload,
-			idpcontent_data->idps[paket_direction].size);
-		idpcontent_data->pkt_export_flg[paket_direction] = 1;
+			idpcontentData->idps[paketDirection].size);
+		idpcontentData->pktExportFlg[paketDirection] = 1;
 	}
 }
 
-int IDPCONTENTPlugin::post_create(Flow& rec, const Packet& pkt)
+int IDPCONTENTPlugin::postCreate(Flow& rec, const Packet& pkt)
 {
-	RecordExtIDPCONTENT* idpcontent_data = new RecordExtIDPCONTENT();
-	memset(idpcontent_data->pkt_export_flg, 0, 2 * sizeof(uint8_t));
-	rec.add_extension(idpcontent_data);
+	RecordExtIDPCONTENT* idpcontentData = new RecordExtIDPCONTENT();
+	memset(idpcontentData->pktExportFlg, 0, 2 * sizeof(uint8_t));
+	rec.addExtension(idpcontentData);
 
-	update_record(idpcontent_data, pkt);
+	updateRecord(idpcontentData, pkt);
 	return 0;
 }
 
-int IDPCONTENTPlugin::post_update(Flow& rec, const Packet& pkt)
+int IDPCONTENTPlugin::postUpdate(Flow& rec, const Packet& pkt)
 {
-	RecordExtIDPCONTENT* idpcontent_data
-		= static_cast<RecordExtIDPCONTENT*>(rec.get_extension(RecordExtIDPCONTENT::REGISTERED_ID));
-	update_record(idpcontent_data, pkt);
+	RecordExtIDPCONTENT* idpcontentData
+		= static_cast<RecordExtIDPCONTENT*>(rec.getExtension(RecordExtIDPCONTENT::s_registeredId));
+	updateRecord(idpcontentData, pkt);
 	return 0;
 }
 

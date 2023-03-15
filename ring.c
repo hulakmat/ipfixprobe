@@ -39,7 +39,7 @@
  *
  */
 
-#define _ISOC11_SOURCE
+#define ISO_C11_SOURCE
 #include <stdlib.h> // aligned_malloc
 //#include <unistd.h>
 #include <pthread.h>
@@ -68,11 +68,11 @@
 /** User specific cache-line alignment  */
 #define __ipx_aligned(x) __attribute__((__aligned__(x)))
 /** Cache-line alignment                */
-#define __ipx_cache_aligned __ipx_aligned(IPX_CLINE_SIZE)
+#define IPX_CACHE_ALIGNED __ipx_aligned(IPX_CLINE_SIZE)
 // END
 
 /** Internal identification of the ring buffer */
-static const char* module = "Ring buffer";
+static const char* g_module = "Ring buffer";
 
 /** \brief Data structure for a reader only */
 struct ring_reader {
@@ -80,31 +80,31 @@ struct ring_reader {
 	 * \brief Reader head in the buffer (start of the next read operation)
 	 * \note Value range [0..size - 1]. Must NOT point behind the end of the buffer.
 	 */
-	uint32_t data_idx;
+	uint32_t dataIdx;
 	/**
 	 * \brief Reader head (start of the next read operation)
 	 * \warning Not limited by the buffer's boundary. Overflow is expected behavior.
 	 * \note Value range [0..UINT32_MAX].
 	 */
-	uint32_t read_idx;
+	uint32_t readIdx;
 	/**
 	 * \brief Last known index of writer head (start of the data that still belongs to a writer)
 	 * \note In other words, a reader can read up to here (exclusive!).
 	 * \note Value range [0..UINT32_MAX].
 	 */
-	uint32_t exchange_idx;
+	uint32_t exchangeIdx;
 	/**
 	 * \brief Reader index of the last sync with a writer (update of the sync structure)
 	 * \note Value range [0..UINT32_MAX]. Based on #read_idx.
 	 */
-	uint32_t read_commit_idx;
+	uint32_t readCommitIdx;
 	/** \brief Total size of the ring buffer (number of pointers)                    */
 	uint32_t size;
 	/**
 	 * \brief Size of a synchronization block
 	 * \note After writing at least this amount of data, update synchronization structure.
 	 */
-	uint32_t div_block;
+	uint32_t divBlock;
 
 	/** Previously read messages - only 0 or 1 */
 	uint32_t last;
@@ -116,32 +116,32 @@ struct ring_writer {
 	 * \brief Writer head in the buffer (start of the next write operation)
 	 * \note Value range [0..size - 1]. Must NOT point behind the end of the buffer.
 	 */
-	uint32_t data_idx;
+	uint32_t dataIdx;
 	/**
 	 * \brief Writer head (start of the next write operation)
 	 * \warning This value can be read by a reader! Therefore, modification MUST be always atomic.
 	 * \warning Not limited by the buffer's boundary. Overflow is expected behavior.
 	 * \note Value range [0..UINT32_MAX].
 	 */
-	uint32_t write_idx;
+	uint32_t writeIdx;
 	/**
 	 * \brief Last known index of reader head (start of the data that still belongs to a reader)
 	 * \note In other words, a writer can write up to here (exclusive!).
 	 * \note Value range [0..UINT32_MAX].
 	 */
-	uint32_t exchange_idx;
+	uint32_t exchangeIdx;
 	/**
 	 * \brief Writer index of the last sync with a reader (update of the sync structure)
 	 * \note Value range [0..UINT32_MAX]. Based on #write_idx.
 	 */
-	uint32_t write_commit_idx;
+	uint32_t writeCommitIdx;
 	/** \brief Total size of the ring buffer (number of pointers)                    */
 	uint32_t size;
 	/**
 	 * \brief Size of a synchronization block
 	 * \note After writing at least this amount of data, update synchronization structure.
 	 */
-	uint32_t div_block;
+	uint32_t divBlock;
 };
 
 /** \brief Exchange data structure for reader and writers */
@@ -151,39 +151,39 @@ struct ring_sync {
 	 * \note End of data read by a reader, i.e. a writer can write up to here (exclusive!).
 	 * \note Value range [0..UINT32_MAX].
 	 */
-	uint32_t write_idx;
+	uint32_t writeIdx;
 	/**
 	 * \brief Writer head
 	 * \note End of data written by a writer, i.e. a reader can read up to here (exclusive!).
 	 * \note Value range [0..UINT32_MAX].
 	 */
-	uint32_t read_idx;
+	uint32_t readIdx;
 	/** \brief Synchronization mutex (MUST be always used to access data structures here)    */
 	pthread_mutex_t mutex;
 
 	/** \brief Reader condition variable (empty buffer) */
-	pthread_cond_t cond_reader;
+	pthread_cond_t condReader;
 	/** \brief Writer condition variable (full buffer)  */
-	pthread_cond_t cond_writer;
+	pthread_cond_t condWriter;
 };
 
 /** \brief Ring buffer */
 struct ipx_ring {
 	/** A Reader only structure (cache aligned)         */
-	struct ring_reader reader __ipx_cache_aligned;
+	struct ring_reader reader IPX_CACHE_ALIGNED;
 	/** Writers only structure (cache aligned)          */
-	struct ring_writer writer __ipx_cache_aligned;
+	struct ring_writer writer IPX_CACHE_ALIGNED;
 	/** Writer lock                                     */
-	pthread_spinlock_t writer_lock __ipx_cache_aligned;
+	pthread_spinlock_t writerLock IPX_CACHE_ALIGNED;
 	/** Synchronization structure (cache-aligned)       */
-	struct ring_sync sync __ipx_cache_aligned;
+	struct ring_sync sync IPX_CACHE_ALIGNED;
 	/** Multiple writers mode                           */
-	bool mw_mode;
+	bool mwMode;
 	/** Ring data (array of pointers)                   */
 	ipx_msg_t** data;
 };
 
-ipx_ring_t* ipx_ring_init(uint32_t size, bool mw_mode)
+ipx_ring_t* ipxRingInit(uint32_t size, bool mwMode)
 {
 	ipx_ring_t* ring;
 
@@ -202,7 +202,7 @@ ipx_ring_t* ipx_ring_init(uint32_t size, bool mw_mode)
 
 	// Initialize writers' spin lock
 	int rc;
-	if ((rc = pthread_spin_init(&ring->writer_lock, PTHREAD_PROCESS_PRIVATE)) != 0) {
+	if ((rc = pthread_spin_init(&ring->writerLock, PTHREAD_PROCESS_PRIVATE)) != 0) {
 		IPX_ERROR(module, "pthread_spin_init() failed! (%s:%d, err: %d)", __FILE__, __LINE__, rc);
 		goto exit_B;
 	}
@@ -213,8 +213,8 @@ ipx_ring_t* ipx_ring_init(uint32_t size, bool mw_mode)
 		goto exit_C;
 	}
 
-	pthread_condattr_t cond_attr;
-	if ((rc = pthread_condattr_init(&cond_attr)) != 0) {
+	pthread_condattr_t condAttr;
+	if ((rc = pthread_condattr_init(&condAttr)) != 0) {
 		IPX_ERROR(
 			module,
 			"pthread_condattr_init() failed! (%s:%d, err: %d)",
@@ -224,7 +224,7 @@ ipx_ring_t* ipx_ring_init(uint32_t size, bool mw_mode)
 		goto exit_D;
 	}
 
-	if ((rc = pthread_condattr_setclock(&cond_attr, CLOCK_MONOTONIC)) != 0) {
+	if ((rc = pthread_condattr_setclock(&condAttr, CLOCK_MONOTONIC)) != 0) {
 		IPX_ERROR(
 			module,
 			"pthread_condattr_setclock() failed! (%s:%d, err: %d)",
@@ -234,48 +234,48 @@ ipx_ring_t* ipx_ring_init(uint32_t size, bool mw_mode)
 		goto exit_E;
 	}
 
-	if ((rc = pthread_cond_init(&ring->sync.cond_reader, &cond_attr)) != 0) {
+	if ((rc = pthread_cond_init(&ring->sync.condReader, &condAttr)) != 0) {
 		IPX_ERROR(module, "pthread_cond_init() failed! (%s:%d, err: %d)", __FILE__, __LINE__, rc);
 		goto exit_E;
 	}
 
-	if ((rc = pthread_cond_init(&ring->sync.cond_writer, &cond_attr)) != 0) {
+	if ((rc = pthread_cond_init(&ring->sync.condWriter, &condAttr)) != 0) {
 		IPX_ERROR(module, "pthread_cond_init() failed! (%s:%d, err: %d)", __FILE__, __LINE__, rc);
 		goto exit_F;
 	}
-	pthread_condattr_destroy(&cond_attr);
+	pthread_condattr_destroy(&condAttr);
 
 	// Initialize ring variables
 	ring->reader.size = size;
-	ring->reader.div_block = size / 8;
-	ring->reader.data_idx = 0;
-	ring->reader.read_idx = 0;
-	ring->reader.exchange_idx = 0;
-	ring->reader.read_commit_idx = 0;
+	ring->reader.divBlock = size / 8;
+	ring->reader.dataIdx = 0;
+	ring->reader.readIdx = 0;
+	ring->reader.exchangeIdx = 0;
+	ring->reader.readCommitIdx = 0;
 	ring->reader.last = 0;
 
 	ring->writer.size = size;
-	ring->writer.div_block = size / 8;
-	ring->writer.data_idx = 0;
-	ring->writer.exchange_idx = size; // Amount of empty memory
-	ring->writer.write_idx = 0;
-	ring->writer.write_commit_idx = 0;
+	ring->writer.divBlock = size / 8;
+	ring->writer.dataIdx = 0;
+	ring->writer.exchangeIdx = size; // Amount of empty memory
+	ring->writer.writeIdx = 0;
+	ring->writer.writeCommitIdx = 0;
 
-	ring->sync.read_idx = 0;
-	ring->sync.write_idx = size;
+	ring->sync.readIdx = 0;
+	ring->sync.writeIdx = size;
 
-	ring->mw_mode = mw_mode;
+	ring->mwMode = mwMode;
 	return ring;
 
 	// In case failure
 exit_F:
-	pthread_cond_destroy(&ring->sync.cond_reader);
+	pthread_cond_destroy(&ring->sync.condReader);
 exit_E:
-	pthread_condattr_destroy(&cond_attr);
+	pthread_condattr_destroy(&condAttr);
 exit_D:
 	pthread_mutex_destroy(&ring->sync.mutex);
 exit_C:
-	pthread_spin_destroy(&ring->writer_lock);
+	pthread_spin_destroy(&ring->writerLock);
 exit_B:
 	free(ring->data);
 exit_A:
@@ -283,21 +283,21 @@ exit_A:
 	return NULL;
 }
 
-void ipx_ring_destroy(ipx_ring_t* ring)
+void ipxRingDestroy(ipx_ring_t* ring)
 {
 	// The last read message is not confirmed by the reader, it is 1 index behind -> "+ 1"
-	if (ring->reader.read_idx != ring->writer.write_idx) {
-		uint32_t cnt = ring->writer.write_idx - ring->reader.read_idx;
+	if (ring->reader.readIdx != ring->writer.writeIdx) {
+		uint32_t cnt = ring->writer.writeIdx - ring->reader.readIdx;
 		IPX_WARNING(
 			module,
 			"Destroying of a ring buffer that still contains %" PRIu32 " unprocessed message(s)!",
 			cnt);
 	}
 
-	pthread_cond_destroy(&ring->sync.cond_writer);
-	pthread_cond_destroy(&ring->sync.cond_reader);
+	pthread_cond_destroy(&ring->sync.condWriter);
+	pthread_cond_destroy(&ring->sync.condReader);
 	pthread_mutex_destroy(&ring->sync.mutex);
-	pthread_spin_destroy(&ring->writer_lock);
+	pthread_spin_destroy(&ring->writerLock);
 	free(ring->data);
 	free(ring);
 }
@@ -309,7 +309,7 @@ void ipx_ring_destroy(ipx_ring_t* ring)
  * \param[in] msec  Number of milliseconds to wait
  * \return Same as the function pthread_cond_timedwait
  */
-static inline int ring_cond_timedwait(
+static inline int ringCondTimedwait(
 	pthread_cond_t* __restrict__ cond,
 	pthread_mutex_t* __restrict__ mutex,
 	long msec)
@@ -334,26 +334,26 @@ static inline int ring_cond_timedwait(
  * \param[in] ring Ring buffer
  * \return Pointer to a unused place in the buffer
  */
-static inline ipx_msg_t** ipx_ring_begin(ipx_ring_t* ring)
+static inline ipx_msg_t** ipxRingBegin(ipx_ring_t* ring)
 {
 	// Prepare the next pointer to write
-	ipx_msg_t** msg = &ring->data[ring->writer.data_idx];
+	ipx_msg_t** msg = &ring->data[ring->writer.dataIdx];
 
 	// Is there enough space?
-	if (ring->writer.exchange_idx - ring->writer.write_idx > 0) {
+	if (ring->writer.exchangeIdx - ring->writer.writeIdx > 0) {
 		return msg;
 	}
 
 	// Get an empty space -> reader-writer synchronization
 	pthread_mutex_lock(&ring->sync.mutex);
-	ring->writer.exchange_idx = ring->sync.write_idx;
-	while (ring->writer.exchange_idx - ring->writer.write_idx == 0) {
+	ring->writer.exchangeIdx = ring->sync.writeIdx;
+	while (ring->writer.exchangeIdx - ring->writer.writeIdx == 0) {
 		// After sync the buffer is still full, try again later
-		pthread_cond_signal(&ring->sync.cond_reader);
-		ring_cond_timedwait(&ring->sync.cond_writer, &ring->sync.mutex, 10);
-		ring->writer.exchange_idx = ring->sync.write_idx;
+		pthread_cond_signal(&ring->sync.condReader);
+		ringCondTimedwait(&ring->sync.condWriter, &ring->sync.mutex, 10);
+		ring->writer.exchangeIdx = ring->sync.writeIdx;
 	}
-	pthread_cond_signal(&ring->sync.cond_reader);
+	pthread_cond_signal(&ring->sync.condReader);
 	pthread_mutex_unlock(&ring->sync.mutex);
 
 	assert(ring->writer.exchange_idx - ring->writer.write_idx > 0);
@@ -364,73 +364,73 @@ static inline ipx_msg_t** ipx_ring_begin(ipx_ring_t* ring)
  * \brief Commit modifications of memory
  * \param[in] ring Ring buffer
  */
-static inline void ipx_ring_commit(ipx_ring_t* ring)
+static inline void ipxRingCommit(ipx_ring_t* ring)
 {
-	register uint32_t new_idx = 1;
-	ring->writer.data_idx++;
+	register uint32_t newIdx = 1;
+	ring->writer.dataIdx++;
 
-	if (ring->writer.size == ring->writer.data_idx) {
+	if (ring->writer.size == ring->writer.dataIdx) {
 		// End of the ring buffer has been reached -> skip to the beginning
-		ring->writer.data_idx = 0;
+		ring->writer.dataIdx = 0;
 	}
 
 	// Atomic update of writer index (Note: new_idx will be the same as writer.write_idx)
-	new_idx += __sync_fetch_and_add(&ring->writer.write_idx, new_idx);
+	newIdx += __sync_fetch_and_add(&ring->writer.writeIdx, newIdx);
 
 	// Sync positions with a reader, if necessary
-	if (new_idx - ring->writer.write_commit_idx >= ring->writer.div_block) {
+	if (newIdx - ring->writer.writeCommitIdx >= ring->writer.divBlock) {
 		pthread_mutex_lock(&ring->sync.mutex);
-		ring->sync.read_idx = new_idx;
-		ring->writer.exchange_idx = ring->sync.write_idx;
-		ring->writer.write_commit_idx = new_idx;
-		pthread_cond_signal(&ring->sync.cond_reader);
+		ring->sync.readIdx = newIdx;
+		ring->writer.exchangeIdx = ring->sync.writeIdx;
+		ring->writer.writeCommitIdx = newIdx;
+		pthread_cond_signal(&ring->sync.condReader);
 		pthread_mutex_unlock(&ring->sync.mutex);
 	}
 }
 
-void ipx_ring_push(ipx_ring_t* ring, ipx_msg_t* msg)
+void ipxRingPush(ipx_ring_t* ring, ipx_msg_t* msg)
 {
-	ipx_msg_t** msg_space;
+	ipx_msg_t** msgSpace;
 
-	if (ring->mw_mode) {
-		pthread_spin_lock(&ring->writer_lock);
+	if (ring->mwMode) {
+		pthread_spin_lock(&ring->writerLock);
 	}
 
-	msg_space = ipx_ring_begin(ring);
-	*msg_space = msg;
-	ipx_ring_commit(ring);
+	msgSpace = ipxRingBegin(ring);
+	*msgSpace = msg;
+	ipxRingCommit(ring);
 
-	if (ring->mw_mode) {
-		pthread_spin_unlock(&ring->writer_lock);
+	if (ring->mwMode) {
+		pthread_spin_unlock(&ring->writerLock);
 	}
 }
 
-ipx_msg_t* ipx_ring_pop(ipx_ring_t* ring)
+ipx_msg_t* ipxRingPop(ipx_ring_t* ring)
 {
 	// Consider previous memory block as processed
-	ring->reader.data_idx += ring->reader.last;
-	ring->reader.read_idx += ring->reader.last;
+	ring->reader.dataIdx += ring->reader.last;
+	ring->reader.readIdx += ring->reader.last;
 	ring->reader.last = 0;
 
-	if (ring->reader.size == ring->reader.data_idx) {
+	if (ring->reader.size == ring->reader.dataIdx) {
 		// The end of the ring buffer has been reached -> skip to the beginning
-		ring->reader.data_idx = 0;
+		ring->reader.dataIdx = 0;
 	}
 
 	// Prepare the next pointer to read
-	ipx_msg_t** msg = &ring->data[ring->reader.data_idx];
+	ipx_msg_t** msg = &ring->data[ring->reader.dataIdx];
 
 	// Sync positions with writers, if necessary
-	if (ring->reader.read_idx - ring->reader.read_commit_idx >= ring->reader.div_block) {
+	if (ring->reader.readIdx - ring->reader.readCommitIdx >= ring->reader.divBlock) {
 		pthread_mutex_lock(&ring->sync.mutex);
-		ring->sync.write_idx += ring->reader.read_idx - ring->reader.read_commit_idx;
-		ring->reader.exchange_idx = ring->sync.read_idx;
-		ring->reader.read_commit_idx = ring->reader.read_idx;
-		pthread_cond_signal(&ring->sync.cond_writer);
+		ring->sync.writeIdx += ring->reader.readIdx - ring->reader.readCommitIdx;
+		ring->reader.exchangeIdx = ring->sync.readIdx;
+		ring->reader.readCommitIdx = ring->reader.readIdx;
+		pthread_cond_signal(&ring->sync.condWriter);
 		pthread_mutex_unlock(&ring->sync.mutex);
 	}
 
-	if (ring->reader.exchange_idx - ring->reader.read_idx > 0) {
+	if (ring->reader.exchangeIdx - ring->reader.readIdx > 0) {
 		// Ok, the reader owns this part of the buffer
 		// TODO: prefetch
 		ring->reader.last = 1;
@@ -440,13 +440,13 @@ ipx_msg_t* ipx_ring_pop(ipx_ring_t* ring)
 	while (1) {
 		// The reader has reached the end of the filled memory -> try to sync
 		pthread_mutex_lock(&ring->sync.mutex);
-		pthread_cond_signal(&ring->sync.cond_writer);
+		pthread_cond_signal(&ring->sync.condWriter);
 		// Wait until a writer sends a signal or a timeout expires
-		ring_cond_timedwait(&ring->sync.cond_reader, &ring->sync.mutex, 10);
-		ring->reader.exchange_idx = ring->sync.read_idx;
+		ringCondTimedwait(&ring->sync.condReader, &ring->sync.mutex, 10);
+		ring->reader.exchangeIdx = ring->sync.readIdx;
 		pthread_mutex_unlock(&ring->sync.mutex);
 
-		if (ring->reader.exchange_idx - ring->reader.read_idx > 0) {
+		if (ring->reader.exchangeIdx - ring->reader.readIdx > 0) {
 			// TODO: prefetch
 			ring->reader.last = 1;
 			return *msg; // Now, we can dereference the pointer
@@ -454,11 +454,11 @@ ipx_msg_t* ipx_ring_pop(ipx_ring_t* ring)
 
 		// Writer still didn't perform sync -> try to steal all committed messages from writer
 		pthread_mutex_lock(&ring->sync.mutex);
-		ring->sync.read_idx = ring->reader.exchange_idx
-			= __sync_fetch_and_add(&ring->writer.write_idx, 0);
+		ring->sync.readIdx = ring->reader.exchangeIdx
+			= __sync_fetch_and_add(&ring->writer.writeIdx, 0);
 		pthread_mutex_unlock(&ring->sync.mutex);
 
-		if (ring->reader.exchange_idx - ring->reader.read_idx > 0) {
+		if (ring->reader.exchangeIdx - ring->reader.readIdx > 0) {
 			// TODO: prefetch
 			ring->reader.last = 1;
 			return *msg; // Now, we can dereference the pointer
@@ -468,17 +468,17 @@ ipx_msg_t* ipx_ring_pop(ipx_ring_t* ring)
 	return NULL;
 }
 
-void ipx_ring_mw_mode(ipx_ring_t* ring, bool mode)
+void ipxRingMwMode(ipx_ring_t* ring, bool mode)
 {
-	ring->mw_mode = mode;
+	ring->mwMode = mode;
 }
 
-IPX_API uint32_t ipx_ring_cnt(const ipx_ring_t* ring)
+IPX_API uint32_t ipxRingCnt(const ipx_ring_t* ring)
 {
-	return ring->writer.write_idx - ring->reader.read_idx;
+	return ring->writer.writeIdx - ring->reader.readIdx;
 }
 
-IPX_API uint32_t ipx_ring_size(const ipx_ring_t* ring)
+IPX_API uint32_t ipxRingSize(const ipx_ring_t* ring)
 {
 	return ring->reader.size;
 }

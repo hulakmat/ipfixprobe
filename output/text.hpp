@@ -54,41 +54,41 @@
 #include <ipfixprobe/process.hpp>
 #include <ipfixprobe/utils.hpp>
 
-namespace ipxp {
+namespace Ipxp {
 
 class TextOptParser : public OptionsParser {
 public:
-	std::string m_file;
-	bool m_to_file;
-	bool m_hide_mac;
+	std::string mFile;
+	bool mToFile;
+	bool mHideMac;
 
 	TextOptParser()
 		: OptionsParser("text", "Output plugin for text export")
-		, m_file("")
-		, m_to_file(false)
-		, m_hide_mac(false)
+		, mFile("")
+		, mToFile(false)
+		, mHideMac(false)
 	{
-		register_option(
+		registerOption(
 			"f",
 			"file",
 			"PATH",
 			"Print output to file",
 			[this](const char* arg) {
-				m_file = arg;
-				m_to_file = true;
+				mFile = arg;
+				mToFile = true;
 				return true;
 			},
-			OptionFlags::RequiredArgument);
-		register_option(
+			OptionFlags::REQUIRED_ARGUMENT);
+		registerOption(
 			"m",
 			"mac",
 			"",
 			"Hide mac addresses",
 			[this](const char* arg) {
-				m_hide_mac = true;
+				mHideMac = true;
 				return true;
 			},
-			OptionFlags::NoArgument);
+			OptionFlags::NO_ARGUMENT);
 	}
 };
 
@@ -99,15 +99,15 @@ public:
 	void init(const char* params);
 	void init(const char* params, Plugins& plugins);
 	void close();
-	OptionsParser* get_parser() const { return new TextOptParser(); }
-	std::string get_name() const { return "text"; }
-	int export_flow(const Flow& flow);
+	OptionsParser* getParser() const { return new TextOptParser(); }
+	std::string getName() const { return "text"; }
+	int exportFlow(const Flow& flow);
 
 private:
 	std::ostream* m_out;
 	bool m_hide_mac;
 
-	void print_basic_flow(const Flow& flow);
+	void printBasicFlow(const Flow& flow);
 };
 
 } // namespace ipxp

@@ -57,7 +57,7 @@
 #include <ipfixprobe/packet.hpp>
 #include <ipfixprobe/process.hpp>
 
-namespace ipxp {
+namespace Ipxp {
 
 #define SSDP_URN_LEN 511
 #define SSDP_SERVER_LEN 255
@@ -76,103 +76,103 @@ UR_FIELDS(
  * \brief Flow record extension header for storing parsed SSDP packets.
  */
 struct RecordExtSSDP : public RecordExt {
-	static int REGISTERED_ID;
+	static int s_registeredId;
 
 	uint16_t port;
 	char nt[SSDP_URN_LEN];
 	char st[SSDP_URN_LEN];
 	char server[SSDP_SERVER_LEN];
-	char user_agent[SSDP_USER_AGENT_LEN];
+	char userAgent[SSDP_USER_AGENT_LEN];
 
 	/**
 	 * \brief Constructor.
 	 */
 	RecordExtSSDP()
-		: RecordExt(REGISTERED_ID)
+		: RecordExt(s_registeredId)
 	{
 		port = 0;
 		nt[0] = 0;
 		st[0] = 0;
 		server[0] = 0;
-		user_agent[0] = 0;
+		userAgent[0] = 0;
 	}
 
 #ifdef WITH_NEMEA
-	virtual void fill_unirec(ur_template_t* tmplt, void* record)
+	virtual void fillUnirec(ur_template_t* tmplt, void* record)
 	{
 		ur_set(tmplt, record, F_SSDP_LOCATION_PORT, port);
 		ur_set_string(tmplt, record, F_SSDP_NT, nt);
 		ur_set_string(tmplt, record, F_SSDP_SERVER, server);
 		ur_set_string(tmplt, record, F_SSDP_ST, st);
-		ur_set_string(tmplt, record, F_SSDP_USER_AGENT, user_agent);
+		ur_set_string(tmplt, record, F_SSDP_USER_AGENT, userAgent);
 	}
 
-	const char* get_unirec_tmplt() const
+	const char* getUnirecTmplt() const
 	{
 		return SSDP_UNIREC_TEMPLATE;
 	}
 #endif
 
-	virtual int fill_ipfix(uint8_t* buffer, int size)
+	virtual int fillIpfix(uint8_t* buffer, int size)
 	{
 		int length = 2;
 
-		int nt_len = strlen(nt);
-		int server_len = strlen(server);
-		int st_len = strlen(st);
-		int user_agent_len = strlen(user_agent);
+		int ntLen = strlen(nt);
+		int serverLen = strlen(server);
+		int stLen = strlen(st);
+		int userAgentLen = strlen(userAgent);
 
-		if (length + nt_len + server_len + st_len + user_agent_len + 8 > size) {
+		if (length + ntLen + serverLen + stLen + userAgentLen + 8 > size) {
 			return -1;
 		}
 
 		*(uint16_t*) (buffer) = ntohs(port);
 
-		if (nt_len >= 255) {
+		if (ntLen >= 255) {
 			buffer[length++] = 255;
-			*(uint16_t*) (buffer + length) = ntohs(nt_len);
+			*(uint16_t*) (buffer + length) = ntohs(ntLen);
 			length += sizeof(uint16_t);
 		} else {
-			buffer[length++] = nt_len;
+			buffer[length++] = ntLen;
 		}
-		memcpy(buffer + length, nt, nt_len);
-		length += nt_len;
+		memcpy(buffer + length, nt, ntLen);
+		length += ntLen;
 
-		buffer[length++] = server_len;
-		memcpy(buffer + length, server, server_len);
-		length += server_len;
+		buffer[length++] = serverLen;
+		memcpy(buffer + length, server, serverLen);
+		length += serverLen;
 
-		if (st_len >= 255) {
+		if (stLen >= 255) {
 			buffer[length++] = 255;
-			*(uint16_t*) (buffer + length) = ntohs(st_len);
+			*(uint16_t*) (buffer + length) = ntohs(stLen);
 			length += sizeof(uint16_t);
 		} else {
-			buffer[length++] = st_len;
+			buffer[length++] = stLen;
 		}
-		memcpy(buffer + length, st, st_len);
-		length += st_len;
+		memcpy(buffer + length, st, stLen);
+		length += stLen;
 
-		buffer[length++] = user_agent_len;
-		memcpy(buffer + length, user_agent, user_agent_len);
-		length += user_agent_len;
+		buffer[length++] = userAgentLen;
+		memcpy(buffer + length, userAgent, userAgentLen);
+		length += userAgentLen;
 
 		return length;
 	}
 
-	const char** get_ipfix_tmplt() const
+	const char** getIpfixTmplt() const
 	{
-		static const char* ipfix_tmplt[] = {IPFIX_SSDP_TEMPLATE(IPFIX_FIELD_NAMES) nullptr};
+		static const char* ipfixTmplt[] = {IPFIX_SSDP_TEMPLATE(IPFIX_FIELD_NAMES) nullptr};
 
-		return ipfix_tmplt;
+		return ipfixTmplt;
 	}
 
-	std::string get_text() const
+	std::string getText() const
 	{
 		std::ostringstream out;
 		out << "ssdpport=" << port << ",nt=\"" << nt << "\""
 			<< ",server=\"" << server << "\""
 			<< ",st=\"" << st << "\""
-			<< ",useragent=\"" << user_agent << "\"";
+			<< ",useragent=\"" << userAgent << "\"";
 		return out.str();
 	}
 };
@@ -186,37 +186,37 @@ public:
 	~SSDPPlugin();
 	void init(const char* params);
 	void close();
-	OptionsParser* get_parser() const { return new OptionsParser("ssdp", "Parse SSDP traffic"); }
-	std::string get_name() const { return "ssdp"; }
-	RecordExt* get_ext() const { return new RecordExtSSDP(); }
+	OptionsParser* getParser() const { return new OptionsParser("ssdp", "Parse SSDP traffic"); }
+	std::string getName() const { return "ssdp"; }
+	RecordExt* getExt() const { return new RecordExtSSDP(); }
 	ProcessPlugin* copy();
 
-	int post_create(Flow& rec, const Packet& pkt);
-	int pre_update(Flow& rec, Packet& pkt);
-	void finish(bool print_stats);
+	int postCreate(Flow& rec, const Packet& pkt);
+	int preUpdate(Flow& rec, Packet& pkt);
+	void finish(bool printStats);
 
 	/**
 	 * \brief Struct passed to parse_headers function.
 	 */
-	struct header_parser_conf {
+	struct HeaderParserConf {
 		const char** headers; /**< Pointer to array of header strings. */
-		uint8_t ip_version; /**< IP version of source IP address. */
+		uint8_t ipVersion; /**< IP version of source IP address. */
 		RecordExtSSDP* ext; /**< Pointer to allocated record exitension. */
-		unsigned select_cnt; /**< Number of selected headers. */
+		unsigned selectCnt; /**< Number of selected headers. */
 		int* select; /**< Array of selected header indices. */
 	};
 
 private:
-	RecordExtSSDP* record; /**< Pointer to allocated record extension */
-	uint32_t notifies; /**< Total number of parsed SSDP notifies. */
-	uint32_t searches; /**< Total number of parsed SSDP m-searches. */
-	uint32_t total; /**< Total number of parsed SSDP packets. */
+	RecordExtSSDP* m_record; /**< Pointer to allocated record extension */
+	uint32_t m_notifies; /**< Total number of parsed SSDP notifies. */
+	uint32_t m_searches; /**< Total number of parsed SSDP m-searches. */
+	uint32_t m_total; /**< Total number of parsed SSDP packets. */
 
-	uint16_t parse_loc_port(const char* data, unsigned data_len, uint8_t ip_version);
-	bool get_header_val(const char** data, const char* header, const int len);
-	void parse_headers(const uint8_t* data, size_t payload_len, header_parser_conf conf);
-	void parse_ssdp_message(Flow& rec, const Packet& pkt);
-	void append_value(char* curr_entry, unsigned entry_max, const char* value, unsigned value_len);
+	uint16_t parseLocPort(const char* data, unsigned dataLen, uint8_t ipVersion);
+	bool getHeaderVal(const char** data, const char* header, const int len);
+	void parseHeaders(const uint8_t* data, size_t payloadLen, HeaderParserConf conf);
+	void parseSsdpMessage(Flow& rec, const Packet& pkt);
+	void appendValue(char* currEntry, unsigned entryMax, const char* value, unsigned valueLen);
 };
 
 } // namespace ipxp

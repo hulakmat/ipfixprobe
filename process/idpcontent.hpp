@@ -58,7 +58,7 @@
 #include <ipfixprobe/packet.hpp>
 #include <ipfixprobe/process.hpp>
 
-namespace ipxp {
+namespace Ipxp {
 
 #define IDPCONTENT_SIZE 100
 #define EXPORTED_PACKETS 2
@@ -73,26 +73,26 @@ UR_FIELDS(bytes IDP_CONTENT, bytes IDP_CONTENT_REV)
  * \brief Flow record extension header for storing parsed IDPCONTENT packets.
  */
 
-struct idpcontentArray {
-	idpcontentArray()
+struct IdpcontentArray {
+	IdpcontentArray()
 		: size(0) {};
 	uint8_t size;
 	uint8_t data[IDPCONTENT_SIZE];
 };
 
 struct RecordExtIDPCONTENT : public RecordExt {
-	static int REGISTERED_ID;
+	static int s_registeredId;
 
-	uint8_t pkt_export_flg[EXPORTED_PACKETS];
-	idpcontentArray idps[EXPORTED_PACKETS];
+	uint8_t pktExportFlg[EXPORTED_PACKETS];
+	IdpcontentArray idps[EXPORTED_PACKETS];
 
 	RecordExtIDPCONTENT()
-		: RecordExt(REGISTERED_ID)
+		: RecordExt(s_registeredId)
 	{
 	}
 
 #ifdef WITH_NEMEA
-	virtual void fill_unirec(ur_template_t* tmplt, void* record)
+	virtual void fillUnirec(ur_template_t* tmplt, void* record)
 	{
 		ur_set_var(
 			tmplt,
@@ -108,13 +108,13 @@ struct RecordExtIDPCONTENT : public RecordExt {
 			idps[IDP_CONTENT_REV_INDEX].size);
 	}
 
-	const char* get_unirec_tmplt() const
+	const char* getUnirecTmplt() const
 	{
 		return IDPCONTENT_UNIREC_TEMPLATE;
 	}
 #endif
 
-	virtual int fill_ipfix(uint8_t* buffer, int size)
+	virtual int fillIpfix(uint8_t* buffer, int size)
 	{
 		uint32_t pos = 0;
 
@@ -130,14 +130,14 @@ struct RecordExtIDPCONTENT : public RecordExt {
 		return pos;
 	}
 
-	const char** get_ipfix_tmplt() const
+	const char** getIpfixTmplt() const
 	{
-		static const char* ipfix_tmplt[] = {IPFIX_IDPCONTENT_TEMPLATE(IPFIX_FIELD_NAMES) nullptr};
+		static const char* ipfixTmplt[] = {IPFIX_IDPCONTENT_TEMPLATE(IPFIX_FIELD_NAMES) nullptr};
 
-		return ipfix_tmplt;
+		return ipfixTmplt;
 	}
 
-	std::string get_text() const
+	std::string getText() const
 	{
 		std::ostringstream out;
 		out << "idpsrc=";
@@ -162,17 +162,17 @@ public:
 	~IDPCONTENTPlugin();
 	void init(const char* params);
 	void close();
-	OptionsParser* get_parser() const
+	OptionsParser* getParser() const
 	{
 		return new OptionsParser("idpcontent", "Parse first bytes of flow payload");
 	}
-	std::string get_name() const { return "idpcontent"; }
-	RecordExt* get_ext() const { return new RecordExtIDPCONTENT(); }
+	std::string getName() const { return "idpcontent"; }
+	RecordExt* getExt() const { return new RecordExtIDPCONTENT(); }
 	ProcessPlugin* copy();
 
-	int post_create(Flow& rec, const Packet& pkt);
-	int post_update(Flow& rec, const Packet& pkt);
-	void update_record(RecordExtIDPCONTENT* pstats_data, const Packet& pkt);
+	int postCreate(Flow& rec, const Packet& pkt);
+	int postUpdate(Flow& rec, const Packet& pkt);
+	void updateRecord(RecordExtIDPCONTENT* pstatsData, const Packet& pkt);
 };
 
 } // namespace ipxp

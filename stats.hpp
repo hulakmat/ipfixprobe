@@ -51,7 +51,7 @@
 
 #define MSG_MAGIC 0xBEEFFEEB
 
-namespace ipxp {
+namespace Ipxp {
 
 struct InputStats {
 	uint64_t packets;
@@ -68,7 +68,7 @@ struct OutputStats {
 	uint64_t dropped;
 };
 
-typedef struct msg_header_s {
+typedef struct MsgHeaderS {
 	uint32_t magic;
 	uint16_t size;
 	uint16_t inputs;
@@ -77,11 +77,11 @@ typedef struct msg_header_s {
 	// followed by arrays of plugin stats
 } msg_header_t;
 
-int connect_to_exporter(const char* path);
-int create_stats_sock(const char* path);
-int recv_data(int sd, uint32_t size, void* data);
-int send_data(int sd, uint32_t size, void* data);
-std::string create_sockpath(const char* id);
+int connectToExporter(const char* path);
+int createStatsSock(const char* path);
+int recvData(int sd, uint32_t size, void* data);
+int sendData(int sd, uint32_t size, void* data);
+std::string createSockpath(const char* id);
 
 } // namespace ipxp
 #endif /* IPXP_STATS_HPP */

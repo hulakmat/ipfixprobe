@@ -47,20 +47,20 @@
 #include "ipfixprobe.hpp"
 #include "workers.hpp"
 
-namespace ipxp {
+namespace Ipxp {
 
 #define MICRO_SEC 1000000L
 
-void input_storage_worker(
+void inputStorageWorker(
 	InputPlugin* plugin,
 	StoragePlugin* cache,
-	size_t queue_size,
-	uint64_t pkt_limit,
+	size_t queueSize,
+	uint64_t pktLimit,
 	std::promise<WorkerResult>* out,
-	std::atomic<InputStats>* out_stats)
+	std::atomic<InputStats>* outStats)
 {
-	struct timespec start_cache;
-	struct timespec end_cache;
+	struct timespec startCache;
+	struct timespec endCache;
 	struct timespec begin = {0, 0};
 	struct timespec end = {0, 0};
 	struct timeval ts = {0, 0};
@@ -69,23 +69,23 @@ void input_storage_worker(
 	InputStats stats = {0, 0, 0, 0, 0};
 	WorkerResult res = {false, ""};
 
-	PacketBlock block(queue_size);
+	PacketBlock block(queueSize);
 
 #ifdef __linux__
-	const clockid_t clk_id = CLOCK_MONOTONIC_COARSE;
+	const clockid_t clkId = CLOCK_MONOTONIC_COARSE;
 #else
 	const clockid_t clk_id = CLOCK_MONOTONIC;
 #endif
 
-	while (!terminate_input) {
+	while (!g_terminate_input) {
 		block.cnt = 0;
 		block.bytes = 0;
 
-		if (pkt_limit && plugin->m_parsed + block.size >= pkt_limit) {
-			if (plugin->m_parsed >= pkt_limit) {
+		if (pktLimit && plugin->mParsed + block.size >= pktLimit) {
+			if (plugin->mParsed >= pktLimit) {
 				break;
 			}
-			block.size = pkt_limit - plugin->m_parsed;
+			block.size = pktLimit - plugin->mParsed;
 		}
 		try {
 			ret = plugin->get(block);
@@ -95,7 +95,7 @@ void input_storage_worker(
 			break;
 		}
 		if (ret == InputPlugin::Result::TIMEOUT) {
-			clock_gettime(clk_id, &end);
+			clock_gettime(clkId, &end);
 			if (!timeout) {
 				timeout = true;
 				begin = end;
@@ -105,18 +105,18 @@ void input_storage_worker(
 				diff.tv_nsec += 1000000000;
 				diff.tv_sec--;
 			}
-			cache->export_expired(ts.tv_sec + diff.tv_sec);
+			cache->exportExpired(ts.tv_sec + diff.tv_sec);
 			usleep(1);
 			continue;
 		} else if (ret == InputPlugin::Result::PARSED) {
-			stats.packets = plugin->m_seen;
-			stats.parsed = plugin->m_parsed;
-			stats.dropped = plugin->m_dropped;
+			stats.packets = plugin->mSeen;
+			stats.parsed = plugin->mParsed;
+			stats.dropped = plugin->mDropped;
 			stats.bytes += block.bytes;
-			clock_gettime(clk_id, &start_cache);
+			clock_gettime(clkId, &startCache);
 			try {
 				for (unsigned i = 0; i < block.cnt; i++) {
-					cache->put_pkt(block.pkts[i]);
+					cache->putPkt(block.pkts[i]);
 				}
 				ts = block.pkts[block.cnt - 1].ts;
 			} catch (PluginError& e) {
@@ -125,15 +125,15 @@ void input_storage_worker(
 				break;
 			}
 			timeout = false;
-			clock_gettime(clk_id, &end_cache);
+			clock_gettime(clkId, &endCache);
 
-			int64_t time = end_cache.tv_nsec - start_cache.tv_nsec;
-			if (start_cache.tv_sec != end_cache.tv_sec) {
+			int64_t time = endCache.tv_nsec - startCache.tv_nsec;
+			if (startCache.tv_sec != endCache.tv_sec) {
 				time += 1000000000;
 			}
 			stats.qtime += time;
 
-			out_stats->store(stats);
+			outStats->store(stats);
 		} else if (ret == InputPlugin::Result::ERROR) {
 			res.error = true;
 			res.msg = "error occured during reading";
@@ -143,90 +143,90 @@ void input_storage_worker(
 		}
 	}
 
-	stats.packets = plugin->m_seen;
-	stats.parsed = plugin->m_parsed;
-	stats.dropped = plugin->m_dropped;
-	out_stats->store(stats);
+	stats.packets = plugin->mSeen;
+	stats.parsed = plugin->mParsed;
+	stats.dropped = plugin->mDropped;
+	outStats->store(stats);
 	cache->finish();
-	auto outq = cache->get_queue();
-	while (ipx_ring_cnt(outq)) {
+	auto outq = cache->getQueue();
+	while (ipxRingCnt(outq)) {
 		usleep(1);
 	}
 	out->set_value(res);
 }
 
-static long timeval_diff(const struct timeval* start, const struct timeval* end)
+static long timevalDiff(const struct timeval* start, const struct timeval* end)
 {
 	return (end->tv_sec - start->tv_sec) * MICRO_SEC + (end->tv_usec - start->tv_usec);
 }
 
-void output_worker(
+void outputWorker(
 	OutputPlugin* exp,
 	ipx_ring_t* queue,
 	std::promise<WorkerResult>* out,
-	std::atomic<OutputStats>* out_stats,
+	std::atomic<OutputStats>* outStats,
 	uint32_t fps)
 {
 	WorkerResult res = {false, ""};
 	OutputStats stats = {0, 0, 0, 0};
-	struct timespec sleep_time = {0};
+	struct timespec sleepTime = {0};
 	struct timeval begin;
 	struct timeval end;
-	struct timeval last_flush;
-	uint32_t pkts_from_begin = 0;
-	double time_per_pkt = 0;
+	struct timeval lastFlush;
+	uint32_t pktsFromBegin = 0;
+	double timePerPkt = 0;
 
 	if (fps != 0) {
-		time_per_pkt = 1000000.0 / fps; // [micro seconds]
+		timePerPkt = 1000000.0 / fps; // [micro seconds]
 	}
 
 	// Rate limiting algorithm from
 	// https://github.com/CESNET/ipfixcol2/blob/master/src/tools/ipfixsend/sender.c#L98
 	gettimeofday(&begin, nullptr);
-	last_flush = begin;
+	lastFlush = begin;
 	while (1) {
 		gettimeofday(&end, nullptr);
 
-		Flow* flow = static_cast<Flow*>(ipx_ring_pop(queue));
+		Flow* flow = static_cast<Flow*>(ipxRingPop(queue));
 		if (!flow) {
-			if (end.tv_sec - last_flush.tv_sec > 1) {
-				last_flush = end;
+			if (end.tv_sec - lastFlush.tv_sec > 1) {
+				lastFlush = end;
 				exp->flush();
 			}
-			if (terminate_export && !ipx_ring_cnt(queue)) {
+			if (g_terminate_export && !ipxRingCnt(queue)) {
 				break;
 			}
 			continue;
 		}
 
 		stats.biflows++;
-		stats.bytes += flow->src_bytes + flow->dst_bytes;
-		stats.packets += flow->src_packets + flow->dst_packets;
-		stats.dropped = exp->m_flows_dropped;
-		out_stats->store(stats);
+		stats.bytes += flow->srcBytes + flow->dstBytes;
+		stats.packets += flow->srcPackets + flow->dstPackets;
+		stats.dropped = exp->mFlowsDropped;
+		outStats->store(stats);
 		try {
-			exp->export_flow(*flow);
+			exp->exportFlow(*flow);
 		} catch (PluginError& e) {
 			res.error = true;
 			res.msg = e.what();
 			break;
 		}
 
-		pkts_from_begin++;
+		pktsFromBegin++;
 		if (fps == 0) {
 			// Limit for packets/s is not enabled
 			continue;
 		}
 
 		// Calculate expected time of sending next packet
-		long elapsed = timeval_diff(&begin, &end);
+		long elapsed = timevalDiff(&begin, &end);
 		if (elapsed < 0) {
 			// Should be never negative. Just for sure...
-			elapsed = pkts_from_begin * time_per_pkt;
+			elapsed = pktsFromBegin * timePerPkt;
 		}
 
-		long next_start = pkts_from_begin * time_per_pkt;
-		long diff = next_start - elapsed;
+		long nextStart = pktsFromBegin * timePerPkt;
+		long diff = nextStart - elapsed;
 
 		if (diff >= MICRO_SEC) {
 			diff = MICRO_SEC - 1;
@@ -234,20 +234,20 @@ void output_worker(
 
 		// Sleep
 		if (diff > 0) {
-			sleep_time.tv_nsec = diff * 1000L;
-			nanosleep(&sleep_time, nullptr);
+			sleepTime.tv_nsec = diff * 1000L;
+			nanosleep(&sleepTime, nullptr);
 		}
 
-		if (pkts_from_begin >= fps) {
+		if (pktsFromBegin >= fps) {
 			// Restart counter
 			gettimeofday(&begin, nullptr);
-			pkts_from_begin = 0;
+			pktsFromBegin = 0;
 		}
 	}
 
 	exp->flush();
-	stats.dropped = exp->m_flows_dropped;
-	out_stats->store(stats);
+	stats.dropped = exp->mFlowsDropped;
+	outStats->store(stats);
 	out->set_value(res);
 }
 

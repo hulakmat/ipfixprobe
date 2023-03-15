@@ -64,114 +64,114 @@
 #define TEMPLATE_REFRESH_TIME 600
 #define TEMPLATE_REFRESH_PACKETS 0
 
-namespace ipxp {
+namespace Ipxp {
 
 class IpfixOptParser : public OptionsParser {
 public:
-	std::string m_host;
-	uint16_t m_port;
-	uint16_t m_mtu;
-	bool m_udp;
-	uint64_t m_id;
-	uint32_t m_dir;
-	bool m_verbose;
+	std::string mHost;
+	uint16_t mPort;
+	uint16_t mMtu;
+	bool mUdp;
+	uint64_t mId;
+	uint32_t mDir;
+	bool mVerbose;
 
 	IpfixOptParser()
 		: OptionsParser("ipfix", "Output plugin for ipfix export")
-		, m_host("127.0.0.1")
-		, m_port(4739)
-		, m_mtu(DEFAULT_MTU)
-		, m_udp(false)
-		, m_id(DEFAULT_EXPORTER_ID)
-		, m_dir(0)
-		, m_verbose(false)
+		, mHost("127.0.0.1")
+		, mPort(4739)
+		, mMtu(DEFAULT_MTU)
+		, mUdp(false)
+		, mId(DEFAULT_EXPORTER_ID)
+		, mDir(0)
+		, mVerbose(false)
 	{
-		register_option(
+		registerOption(
 			"h",
 			"host",
 			"ADDR",
 			"Remote collector address",
 			[this](const char* arg) {
-				m_host = arg;
+				mHost = arg;
 				return true;
 			},
-			OptionFlags::RequiredArgument);
-		register_option(
+			OptionFlags::REQUIRED_ARGUMENT);
+		registerOption(
 			"p",
 			"port",
 			"PORT",
 			"Remote collector port",
 			[this](const char* arg) {
 				try {
-					m_port = str2num<decltype(m_port)>(arg);
+					mPort = str2num<decltype(mPort)>(arg);
 				} catch (std::invalid_argument& e) {
 					return false;
 				}
 				return true;
 			},
-			OptionFlags::RequiredArgument);
-		register_option(
+			OptionFlags::REQUIRED_ARGUMENT);
+		registerOption(
 			"m",
 			"mtu",
 			"SIZE",
 			"Maximum size of ipfix packet payload sent",
 			[this](const char* arg) {
 				try {
-					m_mtu = str2num<decltype(m_mtu)>(arg);
+					mMtu = str2num<decltype(mMtu)>(arg);
 				} catch (std::invalid_argument& e) {
 					return false;
 				}
 				return true;
 			},
-			OptionFlags::RequiredArgument);
-		register_option(
+			OptionFlags::REQUIRED_ARGUMENT);
+		registerOption(
 			"u",
 			"udp",
 			"",
 			"Use UDP protocol",
 			[this](const char* arg) {
-				m_udp = true;
+				mUdp = true;
 				return true;
 			},
-			OptionFlags::NoArgument);
-		register_option(
+			OptionFlags::NO_ARGUMENT);
+		registerOption(
 			"I",
 			"id",
 			"NUM",
 			"Exporter identification",
 			[this](const char* arg) {
 				try {
-					m_id = str2num<decltype(m_id)>(arg);
+					mId = str2num<decltype(mId)>(arg);
 				} catch (std::invalid_argument& e) {
 					return false;
 				}
 				return true;
 			},
-			OptionFlags::RequiredArgument);
-		register_option(
+			OptionFlags::REQUIRED_ARGUMENT);
+		registerOption(
 			"d",
 			"dir",
 			"NUM",
 			"Dir bit field value",
 			[this](const char* arg) {
 				try {
-					m_dir = str2num<decltype(m_dir)>(arg);
+					mDir = str2num<decltype(mDir)>(arg);
 				} catch (std::invalid_argument& e) {
 					return false;
 				}
 				return true;
 			},
-			OptionFlags::RequiredArgument);
-		register_option(
+			OptionFlags::REQUIRED_ARGUMENT);
+		registerOption(
 			"v",
 			"verbose",
 			"",
 			"Enable verbose mode",
 			[this](const char* arg) {
-				m_verbose = true;
+				mVerbose = true;
 				return true;
 			},
-			OptionFlags::NoArgument);
+			OptionFlags::NO_ARGUMENT);
 	}
 };
 
@@ -185,7 +185,7 @@ typedef struct {
 /**
  * \brief Structure to hold template record
  */
-typedef struct template_t {
+typedef struct TemplateT {
 	uint16_t id; /**< Template ID */
 	uint8_t templateRecord[TEMPLATE_RECORD_SIZE]; /**< Buffer for template record */
 	uint16_t templateSize; /**< Size of template record buffer */
@@ -196,7 +196,7 @@ typedef struct template_t {
 	uint8_t exported; /**< 1 indicates that the template was exported to collector*/
 	time_t exportTime; /**< Time when the template was last exported */
 	uint64_t exportPacket; /**< Number of packet when the template was last exported */
-	struct template_t* next;
+	struct TemplateT* next;
 } template_t;
 
 /**
@@ -224,7 +224,7 @@ typedef struct {
  *  +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
  *
  */
-typedef struct ipfix_header {
+typedef struct IpfixHeader {
 	/**
 	 * Version of Flow Record format exported in this message. The value of this
 	 * field is 0x000a for the current version, incrementing by one the version
@@ -281,7 +281,7 @@ typedef struct ipfix_header {
  *  +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
  *
  */
-typedef struct ipfix_template_set_header {
+typedef struct IpfixTemplateSetHeader {
 	/**
 	 * Set ID value identifies the Set.  A value of 2 is reserved for the
 	 * Template Set. A value of 3 is reserved for the Option Template Set. All
@@ -308,64 +308,64 @@ public:
 	void init(const char* params);
 	void init(const char* params, Plugins& plugins);
 	void close();
-	OptionsParser* get_parser() const { return new IpfixOptParser(); }
-	std::string get_name() const { return "ipfix"; }
-	int export_flow(const Flow& flow);
+	OptionsParser* getParser() const { return new IpfixOptParser(); }
+	std::string getName() const { return "ipfix"; }
+	int exportFlow(const Flow& flow);
 
 private:
 	/* Templates */
 	enum TmpltMapIdx { TMPLT_IDX_V4 = 0, TMPLT_IDX_V6 = 1, TMPLT_MAP_IDX_CNT };
-	RecordExt** extensions;
-	int extension_cnt;
-	std::map<uint64_t, template_t*> tmpltMap[TMPLT_MAP_IDX_CNT];
-	template_t* templates; /**< Templates in use by plugin */
-	uint16_t templatesDataSize; /**< Total data size stored in templates */
-	int basic_ifc_num;
-	bool verbose;
+	RecordExt** m_extensions;
+	int m_extension_cnt;
+	std::map<uint64_t, template_t*> m_tmpltMap[TMPLT_MAP_IDX_CNT];
+	template_t* m_templates; /**< Templates in use by plugin */
+	uint16_t m_templatesDataSize; /**< Total data size stored in templates */
+	int m_basic_ifc_num;
+	bool m_verbose;
 
-	uint32_t sequenceNum; /**< Number of exported flows */
-	uint64_t exportedPackets; /**< Number of exported packets */
-	int fd; /**< Socket used to send data */
-	struct addrinfo* addrinfo; /**< Info about the connection used by sendto */
+	uint32_t m_sequenceNum; /**< Number of exported flows */
+	uint64_t m_exportedPackets; /**< Number of exported packets */
+	int m_fd; /**< Socket used to send data */
+	struct addrinfo* m_addrinfo; /**< Info about the connection used by sendto */
 
 	/* Parameters */
-	std::string host; /**< Collector address */
-	uint16_t port; /**< Collector port */
-	int protocol; /**< Collector connection protocol */
-	int ip; /**< IP protocol version (AF_INET, ...) */
-	int flags; /**< getaddrinfo flags */
+	std::string m_host; /**< Collector address */
+	uint16_t m_port; /**< Collector port */
+	int m_protocol; /**< Collector connection protocol */
+	int m_ip; /**< IP protocol version (AF_INET, ...) */
+	int m_flags; /**< getaddrinfo flags */
 
-	uint32_t reconnectTimeout; /**< Timeout between connection retries */
-	time_t lastReconnect; /**< Time in seconds of last connection retry */
-	uint32_t odid; /**< Observation Domain ID */
-	uint32_t templateRefreshTime; /**< UDP template refresh time interval */
-	uint32_t templateRefreshPackets; /**< UDP template refresh packet interval */
-	uint32_t dir_bit_field; /**< Direction bit field value. */
+	uint32_t m_reconnectTimeout; /**< Timeout between connection retries */
+	time_t m_lastReconnect; /**< Time in seconds of last connection retry */
+	uint32_t m_odid; /**< Observation Domain ID */
+	uint32_t m_templateRefreshTime; /**< UDP template refresh time interval */
+	uint32_t m_templateRefreshPackets; /**< UDP template refresh packet interval */
+	uint32_t m_dir_bit_field; /**< Direction bit field value. */
 
-	uint16_t mtu; /**< Max size of packet payload sent */
-	uint8_t* packetDataBuffer; /**< Data buffer to store packet */
-	uint16_t tmpltMaxBufferSize; /**< Size of template buffer, tmpltBufferSize < packetDataBuffer */
+	uint16_t m_mtu; /**< Max size of packet payload sent */
+	uint8_t* m_packetDataBuffer; /**< Data buffer to store packet */
+	uint16_t m_tmpltMaxBufferSize; /**< Size of template buffer, tmpltBufferSize < packetDataBuffer */
 
-	void init_template_buffer(template_t* tmpl);
-	int fill_template_set_header(uint8_t* ptr, uint16_t size);
-	void check_template_lifetime(template_t* tmpl);
-	int fill_ipfix_header(uint8_t* ptr, uint16_t size);
-	template_file_record_t* get_template_record_by_name(const char* name);
-	void expire_templates();
-	template_t* create_template(const char** tmplt, const char** ext);
-	uint16_t create_template_packet(ipfix_packet_t* packet);
-	uint16_t create_data_packet(ipfix_packet_t* packet);
-	void send_templates();
-	void send_data();
-	int send_packet(ipfix_packet_t* packet);
-	int connect_to_collector();
+	void initTemplateBuffer(template_t* tmpl);
+	int fillTemplateSetHeader(uint8_t* ptr, uint16_t size);
+	void checkTemplateLifetime(template_t* tmpl);
+	int fillIpfixHeader(uint8_t* ptr, uint16_t size);
+	template_file_record_t* getTemplateRecordByName(const char* name);
+	void expireTemplates();
+	template_t* createTemplate(const char** tmplt, const char** ext);
+	uint16_t createTemplatePacket(ipfix_packet_t* packet);
+	uint16_t createDataPacket(ipfix_packet_t* packet);
+	void sendTemplates();
+	void sendData();
+	int sendPacket(ipfix_packet_t* packet);
+	int connectToCollector();
 	int reconnect();
-	int fill_basic_flow(const Flow& flow, template_t* tmplt);
-	int fill_extensions(RecordExt* ext, uint8_t* buffer, int size);
+	int fillBasicFlow(const Flow& flow, template_t* tmplt);
+	int fillExtensions(RecordExt* ext, uint8_t* buffer, int size);
 
-	uint64_t get_template_id(const Record& flow);
-	template_t* get_template(const Flow& flow);
-	bool fill_template(const Flow& flow, template_t* tmplt);
+	uint64_t getTemplateId(const Record& flow);
+	template_t* getTemplate(const Flow& flow);
+	bool fillTemplate(const Flow& flow, template_t* tmplt);
 	void flush();
 	void shutdown();
 };

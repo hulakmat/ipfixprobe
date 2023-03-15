@@ -49,7 +49,7 @@
 #include "plugin.hpp"
 #include "process.hpp"
 
-namespace ipxp {
+namespace Ipxp {
 
 #define DEFAULT_EXPORTER_ID 1
 
@@ -59,12 +59,12 @@ namespace ipxp {
 class OutputPlugin : public Plugin {
 public:
 	typedef std::vector<std::pair<std::string, ProcessPlugin*>> Plugins;
-	uint64_t m_flows_seen; /**< Number of flows received to export. */
-	uint64_t m_flows_dropped; /**< Number of flows that could not be exported. */
+	uint64_t mFlowsSeen; /**< Number of flows received to export. */
+	uint64_t mFlowsDropped; /**< Number of flows that could not be exported. */
 
 	OutputPlugin()
-		: m_flows_seen(0)
-		, m_flows_dropped(0)
+		: mFlowsSeen(0)
+		, mFlowsDropped(0)
 	{
 	}
 	virtual ~OutputPlugin() {}
@@ -77,7 +77,7 @@ public:
 	 * \param [in] flow Flow to send.
 	 * \return 0 on success
 	 */
-	virtual int export_flow(const Flow& flow) = 0;
+	virtual int exportFlow(const Flow& flow) = 0;
 
 	/**
 	 * \brief Force exporter to flush flows to collector.

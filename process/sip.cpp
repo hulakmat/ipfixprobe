@@ -51,22 +51,22 @@
 
 #include "sip.hpp"
 
-namespace ipxp {
+namespace Ipxp {
 
-int RecordExtSIP::REGISTERED_ID = -1;
+int RecordExtSIP::s_registeredId = -1;
 
-__attribute__((constructor)) static void register_this_plugin()
+__attribute__((constructor)) static void registerThisPlugin()
 {
 	static PluginRecord rec = PluginRecord("sip", []() { return new SIPPlugin(); });
-	register_plugin(&rec);
-	RecordExtSIP::REGISTERED_ID = register_extension();
+	registerPlugin(&rec);
+	RecordExtSIP::s_registeredId = registerExtension();
 }
 
 SIPPlugin::SIPPlugin()
-	: requests(0)
-	, responses(0)
-	, total(0)
-	, flow_flush(false)
+	: m_requests(0)
+	, m_responses(0)
+	, m_total(0)
+	, m_flow_flush(false)
 {
 }
 
@@ -84,64 +84,64 @@ ProcessPlugin* SIPPlugin::copy()
 	return new SIPPlugin(*this);
 }
 
-int SIPPlugin::post_create(Flow& rec, const Packet& pkt)
+int SIPPlugin::postCreate(Flow& rec, const Packet& pkt)
 {
-	uint16_t msg_type;
+	uint16_t msgType;
 
-	msg_type = parse_msg_type(pkt);
-	if (msg_type == SIP_MSG_TYPE_INVALID) {
+	msgType = parseMsgType(pkt);
+	if (msgType == SIP_MSG_TYPE_INVALID) {
 		return 0;
 	}
 
-	RecordExtSIP* sip_data = new RecordExtSIP();
-	sip_data->msg_type = msg_type;
-	rec.add_extension(sip_data);
-	parser_process_sip(pkt, sip_data);
+	RecordExtSIP* sipData = new RecordExtSIP();
+	sipData->msgType = msgType;
+	rec.addExtension(sipData);
+	parserProcessSip(pkt, sipData);
 
 	return 0;
 }
 
-int SIPPlugin::pre_update(Flow& rec, Packet& pkt)
+int SIPPlugin::preUpdate(Flow& rec, Packet& pkt)
 {
-	uint16_t msg_type;
+	uint16_t msgType;
 
-	msg_type = parse_msg_type(pkt);
-	if (msg_type != SIP_MSG_TYPE_INVALID) {
+	msgType = parseMsgType(pkt);
+	if (msgType != SIP_MSG_TYPE_INVALID) {
 		return FLOW_FLUSH_WITH_REINSERT;
 	}
 
 	return 0;
 }
 
-void SIPPlugin::finish(bool print_stats)
+void SIPPlugin::finish(bool printStats)
 {
-	if (print_stats) {
+	if (printStats) {
 		std::cout << "SIP plugin stats:" << std::endl;
-		std::cout << "   Parsed sip requests: " << requests << std::endl;
-		std::cout << "   Parsed sip responses: " << responses << std::endl;
-		std::cout << "   Total sip packets processed: " << total << std::endl;
+		std::cout << "   Parsed sip requests: " << m_requests << std::endl;
+		std::cout << "   Parsed sip responses: " << m_responses << std::endl;
+		std::cout << "   Total sip packets processed: " << m_total << std::endl;
 	}
 }
 
-uint16_t SIPPlugin::parse_msg_type(const Packet& pkt)
+uint16_t SIPPlugin::parseMsgType(const Packet& pkt)
 {
-	if (pkt.payload_len == 0) {
+	if (pkt.payloadLen == 0) {
 		return SIP_MSG_TYPE_INVALID;
 	}
 
-	uint32_t* first_bytes;
+	uint32_t* firstBytes;
 	uint32_t check;
 
 	/* Is there any payload to process? */
-	if (pkt.payload_len < SIP_MIN_MSG_LEN) {
+	if (pkt.payloadLen < SIP_MIN_MSG_LEN) {
 		return SIP_MSG_TYPE_INVALID;
 	}
 
 	/* Get first four bytes of the packet and compare them against the patterns: */
-	first_bytes = (uint32_t*) pkt.payload;
+	firstBytes = (uint32_t*) pkt.payload;
 
 	/* Apply the pattern on the packet: */
-	check = *first_bytes ^ SIP_TEST_1;
+	check = *firstBytes ^ SIP_TEST_1;
 
 	/*
 	 * Here we will check if at least one of bytes in the SIP pattern is present in the packet.
@@ -153,14 +153,14 @@ uint16_t SIPPlugin::parse_msg_type(const Packet& pkt)
 	if ((((check + MAGIC_BITS) ^ ~check) & MAGIC_BITS_NEG) != 0) {
 		/* At least one byte of the test pattern was found -> the packet *may* contain one of the
 		 * searched SIP messages: */
-		switch (*first_bytes) {
+		switch (*firstBytes) {
 		case SIP_REGISTER:
 			return SIP_MSG_TYPE_REGISTER;
 		case SIP_INVITE:
 			return SIP_MSG_TYPE_INVITE;
 		case SIP_OPTIONS:
 			/* OPTIONS message is also a request in HTTP - we must identify false positives here: */
-			if (first_bytes[1] == SIP_NOT_OPTIONS1 && first_bytes[2] == SIP_NOT_OPTIONS2) {
+			if (firstBytes[1] == SIP_NOT_OPTIONS1 && firstBytes[2] == SIP_NOT_OPTIONS2) {
 				return SIP_MSG_TYPE_OPTIONS;
 			}
 
@@ -168,7 +168,7 @@ uint16_t SIPPlugin::parse_msg_type(const Packet& pkt)
 		case SIP_NOTIFY: /* Notify message is a bit tricky because also Microsoft's SSDP protocol
 						  * uses HTTP-like structure and NOTIFY message - we must identify false
 						  * positives here: */
-			if (first_bytes[1] == SIP_NOT_NOTIFY1 && first_bytes[2] == SIP_NOT_NOTIFY2) {
+			if (firstBytes[1] == SIP_NOT_NOTIFY1 && firstBytes[2] == SIP_NOT_NOTIFY2) {
 				return SIP_MSG_TYPE_INVALID;
 			}
 
@@ -183,9 +183,9 @@ uint16_t SIPPlugin::parse_msg_type(const Packet& pkt)
 	}
 
 	/* Do the same thing for the second pattern: */
-	check = *first_bytes ^ SIP_TEST_2;
+	check = *firstBytes ^ SIP_TEST_2;
 	if ((((check + MAGIC_BITS) ^ ~check) & MAGIC_BITS_NEG) != 0) {
-		switch (*first_bytes) {
+		switch (*firstBytes) {
 		case SIP_REPLY:
 			return SIP_MSG_TYPE_STATUS;
 		case SIP_ACK:
@@ -205,18 +205,18 @@ uint16_t SIPPlugin::parse_msg_type(const Packet& pkt)
 	return SIP_MSG_TYPE_INVALID;
 }
 
-const unsigned char* SIPPlugin::parser_strtok(
+const unsigned char* SIPPlugin::parserStrtok(
 	const unsigned char* str,
 	unsigned int instrlen,
 	char separator,
 	unsigned int* strlen,
-	parser_strtok_t* nst)
+	ParserStrtokT* nst)
 {
-	const unsigned char* char_ptr; /* Currently processed characters */
+	const unsigned char* charPtr; /* Currently processed characters */
 	const unsigned char* beginning; /* Beginning of the original string */
-	MAGIC_INT* longword_ptr; /* Currently processed word */
+	MAGIC_INT* longwordPtr; /* Currently processed word */
 	MAGIC_INT longword; /* Dereferenced longword_ptr useful for the next work */
-	MAGIC_INT longword_mask; /* Dereferenced longword_ptr with applied separator mask */
+	MAGIC_INT longwordMask; /* Dereferenced longword_ptr with applied separator mask */
 	const unsigned char* cp; /* A byte which is supposed to be the next separator */
 	int len; /* Length of the string */
 	MAGIC_INT i;
@@ -228,20 +228,20 @@ const unsigned char* SIPPlugin::parser_strtok(
 
 	/* First or next run? */
 	if (str != nullptr) {
-		char_ptr = str;
+		charPtr = str;
 		nst->saveptr = nullptr;
 		nst->separator = separator;
 		nst->instrlen = instrlen;
 
 		/* Create a separator mask - put the separator to each byte of the integer: */
-		nst->separator_mask = 0;
+		nst->separatorMask = 0;
 		for (i = 0; i < sizeof(longword) * 8; i += 8) {
-			nst->separator_mask |= (((MAGIC_INT) separator) << i);
+			nst->separatorMask |= (((MAGIC_INT) separator) << i);
 		}
 
 	} else if (nst->saveptr != nullptr && nst->instrlen > 0) {
 		/* Next run: */
-		char_ptr = nst->saveptr;
+		charPtr = nst->saveptr;
 	} else {
 		/* Last run: */
 		return nullptr;
@@ -252,12 +252,12 @@ const unsigned char* SIPPlugin::parser_strtok(
 	 * Do this until CHAR_PTR is aligned on a longword boundary:
 	 */
 	len = 0;
-	beginning = char_ptr;
-	for (; ((unsigned long int) char_ptr & (sizeof(longword) - 1)) != 0; ++char_ptr) {
+	beginning = charPtr;
+	for (; ((unsigned long int) charPtr & (sizeof(longword) - 1)) != 0; ++charPtr) {
 		/* We found the separator - return the string immediately: */
-		if (*char_ptr == nst->separator) {
+		if (*charPtr == nst->separator) {
 			*strlen = len;
-			nst->saveptr = char_ptr + 1;
+			nst->saveptr = charPtr + 1;
 			if (nst->instrlen > 0) {
 				nst->instrlen--;
 			}
@@ -283,20 +283,20 @@ const unsigned char* SIPPlugin::parser_strtok(
 	}
 
 	/* Go across the string word by word: */
-	longword_ptr = (MAGIC_INT*) char_ptr;
+	longwordPtr = (MAGIC_INT*) charPtr;
 	for (;;) {
 		/*
 		 * Get the current item and move to the next one. The XOR operator does the following thing:
 		 * If the byte is separator, sets it to zero. Otherwise it is nonzero.
 		 */
-		longword = *longword_ptr++;
-		longword_mask = longword ^ nst->separator_mask;
+		longword = *longwordPtr++;
+		longwordMask = longword ^ nst->separatorMask;
 
 		/* Check the end of string. If we don't have enough bytes for the next longword, return what
 		 * we have: */
 		if (nst->instrlen < sizeof(longword)) {
 			/* The separator could be just before the end of the buffer: */
-			cp = (const unsigned char*) (longword_ptr - 1);
+			cp = (const unsigned char*) (longwordPtr - 1);
 			for (i = 0; i < nst->instrlen; i++) {
 				if (cp[i] == nst->separator) {
 					/* Correct string length: */
@@ -325,9 +325,9 @@ const unsigned char* SIPPlugin::parser_strtok(
 		 *             |             |        Look at the hole bits. If some of them is unchanged,
 		 *             |             |            |    most likely there is zero byte, ie. our
 		 * separator. v             v            v */
-		if ((((longword_mask + MAGIC_BITS) ^ ~longword_mask) & MAGIC_BITS_NEG) != 0) {
+		if ((((longwordMask + MAGIC_BITS) ^ ~longwordMask) & MAGIC_BITS_NEG) != 0) {
 			/* Convert the integer back to the string: */
-			cp = (const unsigned char*) (longword_ptr - 1);
+			cp = (const unsigned char*) (longwordPtr - 1);
 
 			/* Find out which byte is the separator: */
 			if (cp[0] == nst->separator)
@@ -356,14 +356,14 @@ const unsigned char* SIPPlugin::parser_strtok(
 	}
 }
 
-void SIPPlugin::parser_field_value(
+void SIPPlugin::parserFieldValue(
 	const unsigned char* line,
 	int linelen,
 	int skip,
 	char* dst,
 	unsigned int dstlen)
 {
-	parser_strtok_t pst;
+	ParserStrtokT pst;
 	unsigned int newlen;
 
 	/* Skip the leading characters: */
@@ -382,7 +382,7 @@ void SIPPlugin::parser_field_value(
 	}
 
 	/* Find the first field value: */
-	line = parser_strtok(line, linelen, ';', &newlen, &pst);
+	line = parserStrtok(line, linelen, ';', &newlen, &pst);
 
 	/* Trim to the length of the destination buffer: */
 	if (newlen > dstlen - 1) {
@@ -394,16 +394,16 @@ void SIPPlugin::parser_field_value(
 	dst[newlen] = 0;
 }
 
-void SIPPlugin::parser_field_uri(
+void SIPPlugin::parserFieldUri(
 	const unsigned char* line,
 	int linelen,
 	int skip,
 	char* dst,
 	unsigned int dstlen)
 {
-	parser_strtok_t pst;
+	ParserStrtokT pst;
 	unsigned int newlen;
-	unsigned int final_len;
+	unsigned int finalLen;
 	uint32_t uri;
 	const unsigned char* start;
 
@@ -413,8 +413,8 @@ void SIPPlugin::parser_field_uri(
 
 	/* Find the first colon, this could be probably a part of the SIP uri: */
 	start = nullptr;
-	final_len = 0;
-	line = parser_strtok(line, linelen, ':', &newlen, &pst);
+	finalLen = 0;
+	line = parserStrtok(line, linelen, ':', &newlen, &pst);
 	while (line != nullptr && newlen > 0) {
 		/* Add the linelen to get the position of the first colon: */
 		line += newlen;
@@ -423,16 +423,16 @@ void SIPPlugin::parser_field_uri(
 		uri = SIP_UCFOUR(*((uint32_t*) (line - SIP_URI_LEN)));
 		if (uri == SIP_URI) {
 			start = line - SIP_URI_LEN;
-			final_len = newlen + SIP_URI_LEN;
+			finalLen = newlen + SIP_URI_LEN;
 			break;
 		} else if (uri == SIP_URIS) {
 			start = line - SIP_URIS_LEN;
-			final_len = newlen + SIP_URIS_LEN;
+			finalLen = newlen + SIP_URIS_LEN;
 			break;
 		}
 
 		/* Not a sip uri - find the next colon: */
-		line = parser_strtok(nullptr, 0, ' ', &newlen, &pst);
+		line = parserStrtok(nullptr, 0, ' ', &newlen, &pst);
 	}
 
 	/* No URI found? Exit: */
@@ -441,195 +441,195 @@ void SIPPlugin::parser_field_uri(
 	}
 
 	/* Now we have the beginning of the SIP uri. Find the end - >, ; or EOL: */
-	line = parser_strtok(start, final_len, '>', &newlen, &pst);
-	if (newlen < final_len) {
-		final_len = newlen;
+	line = parserStrtok(start, finalLen, '>', &newlen, &pst);
+	if (newlen < finalLen) {
+		finalLen = newlen;
 	} else {
 		/* No bracket found, try to find at least a semicolon: */
-		line = parser_strtok(start, final_len, ';', &newlen, &pst);
-		if (newlen < final_len) {
-			final_len = newlen;
+		line = parserStrtok(start, finalLen, ';', &newlen, &pst);
+		if (newlen < finalLen) {
+			finalLen = newlen;
 		} else {
 			/* Nor semicolon found. Strip the whitespaces from the end of line and use the whole
 			 * line: */
-			while (isalpha(start[final_len - 1]) == 0 && final_len > 0) {
-				final_len--;
+			while (isalpha(start[finalLen - 1]) == 0 && finalLen > 0) {
+				finalLen--;
 			}
 		}
 	}
 
 	/* Trim to the length of the destination buffer: */
-	if (final_len > dstlen - 1) {
-		final_len = dstlen - 1;
+	if (finalLen > dstlen - 1) {
+		finalLen = dstlen - 1;
 	}
 
 	/* Copy the buffer: */
-	memcpy(dst, start, final_len);
-	dst[final_len] = 0;
+	memcpy(dst, start, finalLen);
+	dst[finalLen] = 0;
 }
 
-int SIPPlugin::parser_process_sip(const Packet& pkt, RecordExtSIP* sip_data)
+int SIPPlugin::parserProcessSip(const Packet& pkt, RecordExtSIP* sipData)
 {
 	const unsigned char* payload;
 	const unsigned char* line;
 	int caplen;
-	unsigned int line_len = 0;
-	int field_len;
-	parser_strtok_t line_parser;
-	uint32_t first_bytes4;
-	uint32_t first_bytes3;
-	uint32_t first_bytes2;
+	unsigned int lineLen = 0;
+	int fieldLen;
+	ParserStrtokT lineParser;
+	uint32_t firstBytes4;
+	uint32_t firstBytes3;
+	uint32_t firstBytes2;
 
 	/* Skip the packet headers: */
 	payload = (unsigned char*) pkt.payload;
-	caplen = pkt.payload_len;
+	caplen = pkt.payloadLen;
 
 	/* Grab the first line of the payload: */
-	line = parser_strtok(payload, caplen, '\n', &line_len, &line_parser);
+	line = parserStrtok(payload, caplen, '\n', &lineLen, &lineParser);
 
 	/* Get Request-URI for SIP requests from first line of the payload: */
-	if (sip_data->msg_type <= 10) {
-		requests++;
+	if (sipData->msgType <= 10) {
+		m_requests++;
 		/* Note: First SIP request line has syntax: "Method SP Request-URI SP SIP-Version CRLF"
 		 * (SP=single space) */
-		parser_strtok_t first_line_parser;
-		const unsigned char* line_token;
-		unsigned int line_token_len;
+		ParserStrtokT firstLineParser;
+		const unsigned char* lineToken;
+		unsigned int lineTokenLen;
 
 		/* Get Method part of request: */
-		line_token = parser_strtok(line, line_len, ' ', &line_token_len, &first_line_parser);
+		lineToken = parserStrtok(line, lineLen, ' ', &lineTokenLen, &firstLineParser);
 		/* Get Request-URI part of request: */
-		line_token = parser_strtok(nullptr, 0, ' ', &line_token_len, &first_line_parser);
+		lineToken = parserStrtok(nullptr, 0, ' ', &lineTokenLen, &firstLineParser);
 
-		if (line_token != nullptr) {
+		if (lineToken != nullptr) {
 			/* Request-URI: */
-			parser_field_value(
-				line_token,
-				line_token_len,
+			parserFieldValue(
+				lineToken,
+				lineTokenLen,
 				0,
-				sip_data->request_uri,
-				sizeof(sip_data->request_uri));
+				sipData->requestUri,
+				sizeof(sipData->requestUri));
 		} else {
 			/* Not found */
-			sip_data->request_uri[0] = 0;
+			sipData->requestUri[0] = 0;
 		}
 	} else {
-		responses++;
-		if (sip_data->msg_type == 99) {
-			parser_strtok_t first_line_parser;
-			const unsigned char* line_token;
-			unsigned int line_token_len;
-			line_token = parser_strtok(line, line_len, ' ', &line_token_len, &first_line_parser);
-			line_token = parser_strtok(nullptr, 0, ' ', &line_token_len, &first_line_parser);
-			sip_data->status_code = SIP_MSG_TYPE_UNDEFINED;
-			if (line_token) {
-				sip_data->status_code = atoi((const char*) line_token);
+		m_responses++;
+		if (sipData->msgType == 99) {
+			ParserStrtokT firstLineParser;
+			const unsigned char* lineToken;
+			unsigned int lineTokenLen;
+			lineToken = parserStrtok(line, lineLen, ' ', &lineTokenLen, &firstLineParser);
+			lineToken = parserStrtok(nullptr, 0, ' ', &lineTokenLen, &firstLineParser);
+			sipData->statusCode = SIP_MSG_TYPE_UNDEFINED;
+			if (lineToken) {
+				sipData->statusCode = atoi((const char*) lineToken);
 			}
 		}
 	}
 
-	total++;
+	m_total++;
 	/* Go to the next line. Divide the packet payload by line breaks and process them one by one: */
-	line = parser_strtok(nullptr, 0, ' ', &line_len, &line_parser);
+	line = parserStrtok(nullptr, 0, ' ', &lineLen, &lineParser);
 
 	/*
 	 * Process all the remaining attributes:
 	 */
-	while (line != nullptr && line_len > 1) {
+	while (line != nullptr && lineLen > 1) {
 		/* Get first 4, 3 and 2 bytes and compare them with searched SIP fields: */
-		first_bytes4 = SIP_UCFOUR(*((uint32_t*) line));
-		first_bytes3 = SIP_UCTHREE(*((uint32_t*) line));
-		first_bytes2 = SIP_UCTWO(*((uint32_t*) line));
+		firstBytes4 = SIP_UCFOUR(*((uint32_t*) line));
+		firstBytes3 = SIP_UCTHREE(*((uint32_t*) line));
+		firstBytes2 = SIP_UCTWO(*((uint32_t*) line));
 
 		/* From: */
-		if (first_bytes4 == SIP_FROM4) {
-			parser_field_uri(
+		if (firstBytes4 == SIP_FROM4) {
+			parserFieldUri(
 				line,
-				line_len,
+				lineLen,
 				5,
-				sip_data->calling_party,
-				sizeof(sip_data->calling_party));
-		} else if (first_bytes2 == SIP_FROM2) {
-			parser_field_uri(
+				sipData->callingParty,
+				sizeof(sipData->callingParty));
+		} else if (firstBytes2 == SIP_FROM2) {
+			parserFieldUri(
 				line,
-				line_len,
+				lineLen,
 				2,
-				sip_data->calling_party,
-				sizeof(sip_data->calling_party));
+				sipData->callingParty,
+				sizeof(sipData->callingParty));
 		}
 
 		/* To: */
-		else if (first_bytes3 == SIP_TO3) {
-			parser_field_uri(
+		else if (firstBytes3 == SIP_TO3) {
+			parserFieldUri(
 				line,
-				line_len,
+				lineLen,
 				3,
-				sip_data->called_party,
-				sizeof(sip_data->called_party));
-		} else if (first_bytes2 == SIP_TO2) {
-			parser_field_uri(
+				sipData->calledParty,
+				sizeof(sipData->calledParty));
+		} else if (firstBytes2 == SIP_TO2) {
+			parserFieldUri(
 				line,
-				line_len,
+				lineLen,
 				2,
-				sip_data->called_party,
-				sizeof(sip_data->called_party));
+				sipData->calledParty,
+				sizeof(sipData->calledParty));
 		}
 
 		/* Via: */
-		else if (first_bytes4 == SIP_VIA4) {
+		else if (firstBytes4 == SIP_VIA4) {
 			/* Via fields can be present more times. Include all and separate them by semicolons: */
-			if (sip_data->via[0] == 0) {
-				parser_field_value(line, line_len, 4, sip_data->via, sizeof(sip_data->via));
+			if (sipData->via[0] == 0) {
+				parserFieldValue(line, lineLen, 4, sipData->via, sizeof(sipData->via));
 			} else {
-				field_len = strlen(sip_data->via);
-				sip_data->via[field_len++] = ';';
-				parser_field_value(
+				fieldLen = strlen(sipData->via);
+				sipData->via[fieldLen++] = ';';
+				parserFieldValue(
 					line,
-					line_len,
+					lineLen,
 					4,
-					sip_data->via + field_len,
-					sizeof(sip_data->via) - field_len);
+					sipData->via + fieldLen,
+					sizeof(sipData->via) - fieldLen);
 			}
-		} else if (first_bytes2 == SIP_VIA2) {
-			if (sip_data->via[0] == 0) {
-				parser_field_value(line, line_len, 2, sip_data->via, sizeof(sip_data->via));
+		} else if (firstBytes2 == SIP_VIA2) {
+			if (sipData->via[0] == 0) {
+				parserFieldValue(line, lineLen, 2, sipData->via, sizeof(sipData->via));
 			} else {
-				field_len = strlen(sip_data->via);
-				sip_data->via[field_len++] = ';';
-				parser_field_value(
+				fieldLen = strlen(sipData->via);
+				sipData->via[fieldLen++] = ';';
+				parserFieldValue(
 					line,
-					line_len,
+					lineLen,
 					2,
-					sip_data->via + field_len,
-					sizeof(sip_data->via) - field_len);
+					sipData->via + fieldLen,
+					sizeof(sipData->via) - fieldLen);
 			}
 		}
 
 		/* Call-ID: */
-		else if (first_bytes4 == SIP_CALLID4) {
-			parser_field_value(line, line_len, 8, sip_data->call_id, sizeof(sip_data->call_id));
-		} else if (first_bytes2 == SIP_CALLID2) {
-			parser_field_value(line, line_len, 2, sip_data->call_id, sizeof(sip_data->call_id));
+		else if (firstBytes4 == SIP_CALLID4) {
+			parserFieldValue(line, lineLen, 8, sipData->callId, sizeof(sipData->callId));
+		} else if (firstBytes2 == SIP_CALLID2) {
+			parserFieldValue(line, lineLen, 2, sipData->callId, sizeof(sipData->callId));
 		}
 
 		/* User-Agent: */
-		else if (first_bytes4 == SIP_USERAGENT4) {
-			parser_field_value(
+		else if (firstBytes4 == SIP_USERAGENT4) {
+			parserFieldValue(
 				line,
-				line_len,
+				lineLen,
 				11,
-				sip_data->user_agent,
-				sizeof(sip_data->user_agent));
+				sipData->userAgent,
+				sizeof(sipData->userAgent));
 		}
 
 		/* CSeq: */
-		else if (first_bytes4 == SIP_CSEQ4) {
+		else if (firstBytes4 == SIP_CSEQ4) {
 			/* Save CSeq: */
-			parser_field_value(line, line_len, 5, sip_data->cseq, sizeof(sip_data->cseq));
+			parserFieldValue(line, lineLen, 5, sipData->cseq, sizeof(sipData->cseq));
 		}
 
 		/* Go to the next line: */
-		line = parser_strtok(nullptr, 0, ' ', &line_len, &line_parser);
+		line = parserStrtok(nullptr, 0, ' ', &lineLen, &lineParser);
 	}
 
 	return 0;

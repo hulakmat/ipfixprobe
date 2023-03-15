@@ -59,17 +59,17 @@
 #define ETH_ALEN 6
 #define ARPHRD_ETHER 1
 
-namespace ipxp {
+namespace Ipxp {
 
 // Copied protocol headers from netinet/* files, which may not be present on other platforms
 
-struct ethhdr {
-	unsigned char h_dest[ETH_ALEN]; /* destination eth addr */
-	unsigned char h_source[ETH_ALEN]; /* source ether addr */
-	uint16_t h_proto; /* packet type ID field */
+struct Ethhdr {
+	unsigned char hDest[ETH_ALEN]; /* destination eth addr */
+	unsigned char hSource[ETH_ALEN]; /* source ether addr */
+	uint16_t hProto; /* packet type ID field */
 } __attribute__((packed));
 
-struct iphdr {
+struct Iphdr {
 #if defined(__BYTE_ORDER) && __BYTE_ORDER == __LITTLE_ENDIAN
 	unsigned int ihl : 4;
 	unsigned int version : 4;
@@ -80,9 +80,9 @@ struct iphdr {
 #error "Please fix <endian.h>"
 #endif
 	uint8_t tos;
-	uint16_t tot_len;
+	uint16_t totLen;
 	uint16_t id;
-	uint16_t frag_off;
+	uint16_t fragOff;
 	uint8_t ttl;
 	uint8_t protocol;
 	uint16_t check;
@@ -91,66 +91,66 @@ struct iphdr {
 	/*The options start here. */
 };
 
-struct ip6_hdr {
+struct Ip6Hdr {
 	union {
-		struct ip6_hdrctl {
-			uint32_t ip6_un1_flow; /* 4 bits version, 8 bits TC,
+		struct Ip6Hdrctl {
+			uint32_t ip6Un1Flow; /* 4 bits version, 8 bits TC,
 									  20 bits flow-ID */
-			uint16_t ip6_un1_plen; /* payload length */
-			uint8_t ip6_un1_nxt; /* next header */
-			uint8_t ip6_un1_hlim; /* hop limit */
-		} ip6_un1;
-		uint8_t ip6_un2_vfc; /* 4 bits version, top 4 bits tclass */
-	} ip6_ctlun;
-	struct in6_addr ip6_src; /* source address */
-	struct in6_addr ip6_dst; /* destination address */
+			uint16_t ip6Un1Plen; /* payload length */
+			uint8_t ip6Un1Nxt; /* next header */
+			uint8_t ip6Un1Hlim; /* hop limit */
+		} ip6Un1;
+		uint8_t ip6Un2Vfc; /* 4 bits version, top 4 bits tclass */
+	} ip6Ctlun;
+	struct in6_addr ip6Src; /* source address */
+	struct in6_addr ip6Dst; /* destination address */
 };
 
-struct ip6_ext {
-	uint8_t ip6e_nxt; /* next header.  */
-	uint8_t ip6e_len; /* length in units of 8 octets.  */
+struct Ip6Ext {
+	uint8_t ip6eNxt; /* next header.  */
+	uint8_t ip6eLen; /* length in units of 8 octets.  */
 };
 
-struct ip6_rthdr {
-	uint8_t ip6r_nxt; /* next header */
-	uint8_t ip6r_len; /* length in units of 8 octets */
-	uint8_t ip6r_type; /* routing type */
-	uint8_t ip6r_segleft; /* segments left */
+struct Ip6Rthdr {
+	uint8_t ip6rNxt; /* next header */
+	uint8_t ip6rLen; /* length in units of 8 octets */
+	uint8_t ip6rType; /* routing type */
+	uint8_t ip6rSegleft; /* segments left */
 	/* followed by routing type specific data */
 };
 
-struct tcphdr {
+struct Tcphdr {
 	__extension__ union {
 		struct {
-			uint16_t th_sport; /* source port */
-			uint16_t th_dport; /* destination port */
-			uint32_t th_seq; /* sequence number */
-			uint32_t th_ack; /* acknowledgement number */
+			uint16_t thSport; /* source port */
+			uint16_t thDport; /* destination port */
+			uint32_t thSeq; /* sequence number */
+			uint32_t thAck; /* acknowledgement number */
 #if defined(__BYTE_ORDER) && __BYTE_ORDER == __LITTLE_ENDIAN
-			uint8_t th_x2 : 4; /* (unused) */
-			uint8_t th_off : 4; /* data offset */
+			uint8_t thX2 : 4; /* (unused) */
+			uint8_t thOff : 4; /* data offset */
 #elif defined(__BYTE_ORDER) && __BYTE_ORDER == __BIG_ENDIAN
 			uint8_t th_off : 4; /* data offset */
 			uint8_t th_x2 : 4; /* (unused) */
 #else
 #error "Please fix <endian.h>"
 #endif
-			uint8_t th_flags;
+			uint8_t thFlags;
 #define TH_FIN 0x01
 #define TH_SYN 0x02
 #define TH_RST 0x04
 #define TH_PUSH 0x08
 #define TH_ACK 0x10
 #define TH_URG 0x20
-			uint16_t th_win; /* window */
-			uint16_t th_sum; /* checksum */
-			uint16_t th_urp; /* urgent pointer */
+			uint16_t thWin; /* window */
+			uint16_t thSum; /* checksum */
+			uint16_t thUrp; /* urgent pointer */
 		};
 		struct {
 			uint16_t source;
 			uint16_t dest;
 			uint32_t seq;
-			uint32_t ack_seq;
+			uint32_t ackSeq;
 #if defined(__BYTE_ORDER) && __BYTE_ORDER == __LITTLE_ENDIAN
 			uint16_t res1 : 4;
 			uint16_t doff : 4;
@@ -176,18 +176,18 @@ struct tcphdr {
 #endif
 			uint16_t window;
 			uint16_t check;
-			uint16_t urg_ptr;
+			uint16_t urgPtr;
 		};
 	};
 };
 
-struct udphdr {
+struct Udphdr {
 	__extension__ union {
 		struct {
-			uint16_t uh_sport; /* source port */
-			uint16_t uh_dport; /* destination port */
-			uint16_t uh_ulen; /* udp length */
-			uint16_t uh_sum; /* udp checksum */
+			uint16_t uhSport; /* source port */
+			uint16_t uhDport; /* destination port */
+			uint16_t uhUlen; /* udp length */
+			uint16_t uhSum; /* udp checksum */
 		};
 		struct {
 			uint16_t source;
@@ -198,7 +198,7 @@ struct udphdr {
 	};
 };
 
-struct icmphdr {
+struct Icmphdr {
 	uint8_t type; /* message type */
 	uint8_t code; /* type sub-code */
 	uint16_t checksum;
@@ -209,31 +209,31 @@ struct icmphdr {
 		} echo; /* echo datagram */
 		uint32_t gateway; /* gateway address */
 		struct {
-			uint16_t __glibc_reserved;
+			uint16_t glibcReserved;
 			uint16_t mtu;
 		} frag; /* path mtu discovery */
 	} un;
 };
 
-struct icmp6_hdr {
-	uint8_t icmp6_type; /* type field */
-	uint8_t icmp6_code; /* code field */
-	uint16_t icmp6_cksum; /* checksum field */
+struct Icmp6Hdr {
+	uint8_t icmp6Type; /* type field */
+	uint8_t icmp6Code; /* code field */
+	uint16_t icmp6Cksum; /* checksum field */
 	union {
-		uint32_t icmp6_un_data32[1]; /* type-specific field */
-		uint16_t icmp6_un_data16[2]; /* type-specific field */
-		uint8_t icmp6_un_data8[4]; /* type-specific field */
-	} icmp6_dataun;
+		uint32_t icmp6UnData32[1]; /* type-specific field */
+		uint16_t icmp6UnData16[2]; /* type-specific field */
+		uint8_t icmp6UnData8[4]; /* type-specific field */
+	} icmp6Dataun;
 };
 
-struct __attribute__((packed)) trill_hdr {
+struct __attribute__((packed)) TrillHdr {
 #if defined(__BYTE_ORDER) && __BYTE_ORDER == __LITTLE_ENDIAN
-	uint8_t op_len1 : 3;
+	uint8_t opLen1 : 3;
 	uint8_t m : 1;
 	uint8_t res : 2;
 	uint8_t version : 2;
-	uint8_t hop_cnt : 6;
-	uint8_t op_len2 : 2;
+	uint8_t hopCnt : 6;
+	uint8_t opLen2 : 2;
 #elif defined(__BYTE_ORDER) && __BYTE_ORDER == __BIG_ENDIAN
 	uint8_t version : 2;
 	uint8_t res : 2;
@@ -244,11 +244,11 @@ struct __attribute__((packed)) trill_hdr {
 #else
 #error "Please fix <endian.h>"
 #endif
-	uint16_t egress_nick;
-	uint16_t ingress_nick;
+	uint16_t egressNick;
+	uint16_t ingressNick;
 };
 
-struct __attribute__((packed)) pppoe_hdr {
+struct __attribute__((packed)) PppoeHdr {
 #if defined(__BYTE_ORDER) && __BYTE_ORDER == __LITTLE_ENDIAN
 	uint8_t type : 4;
 	uint8_t version : 4;

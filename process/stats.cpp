@@ -49,12 +49,12 @@
 #include <iostream>
 #include <sys/time.h>
 
-namespace ipxp {
+namespace Ipxp {
 
-__attribute__((constructor)) static void register_this_plugin()
+__attribute__((constructor)) static void registerThisPlugin()
 {
 	static PluginRecord rec = PluginRecord("stats", []() { return new StatsPlugin(); });
-	register_plugin(&rec);
+	registerPlugin(&rec);
 }
 
 StatsPlugin::StatsPlugin()
@@ -83,15 +83,15 @@ void StatsPlugin::init(const char* params)
 		throw PluginError(e.what());
 	}
 
-	m_interval = {parser.m_interval, 0};
-	if (parser.m_out == "stdout") {
+	m_interval = {parser.mInterval, 0};
+	if (parser.mOut == "stdout") {
 		m_out = &std::cout;
-	} else if (parser.m_out == "stderr") {
+	} else if (parser.mOut == "stderr") {
 		m_out = &std::cerr;
 	} else {
-		throw PluginError("Unknown argument " + parser.m_out);
+		throw PluginError("Unknown argument " + parser.mOut);
 	}
-	print_header();
+	printHeader();
 }
 
 void StatsPlugin::close() {}
@@ -101,34 +101,34 @@ ProcessPlugin* StatsPlugin::copy()
 	return new StatsPlugin(*this);
 }
 
-int StatsPlugin::post_create(Flow& rec, const Packet& pkt)
+int StatsPlugin::postCreate(Flow& rec, const Packet& pkt)
 {
 	m_packets += 1;
 	m_new_flows += 1;
 	m_flows_in_cache += 1;
-	check_timestamp(pkt);
+	checkTimestamp(pkt);
 	return 0;
 }
 
-int StatsPlugin::post_update(Flow& rec, const Packet& pkt)
+int StatsPlugin::postUpdate(Flow& rec, const Packet& pkt)
 {
 	m_packets += 1;
 	m_cache_hits += 1;
-	check_timestamp(pkt);
+	checkTimestamp(pkt);
 	return 0;
 }
 
-void StatsPlugin::pre_export(Flow& rec)
+void StatsPlugin::preExport(Flow& rec)
 {
 	m_flows_in_cache -= 1;
 }
 
-void StatsPlugin::finish(bool print_stats)
+void StatsPlugin::finish(bool printStats)
 {
-	print_line(m_last_ts);
+	printLine(m_last_ts);
 }
 
-void StatsPlugin::check_timestamp(const Packet& pkt)
+void StatsPlugin::checkTimestamp(const Packet& pkt)
 {
 	if (m_init_ts) {
 		m_init_ts = false;
@@ -140,7 +140,7 @@ void StatsPlugin::check_timestamp(const Packet& pkt)
 	timeradd(&m_last_ts, &m_interval, &tmp);
 
 	if (timercmp(&pkt.ts, &tmp, >)) {
-		print_line(m_last_ts);
+		printLine(m_last_ts);
 		timeradd(&m_last_ts, &m_interval, &m_last_ts);
 		m_packets = 0;
 		m_new_flows = 0;
@@ -148,12 +148,12 @@ void StatsPlugin::check_timestamp(const Packet& pkt)
 	}
 }
 
-void StatsPlugin::print_header() const
+void StatsPlugin::printHeader() const
 {
 	*m_out << "#timestamp packets hits newflows incache" << std::endl;
 }
 
-void StatsPlugin::print_line(const struct timeval& ts) const
+void StatsPlugin::printLine(const struct timeval& ts) const
 {
 	*m_out << ts.tv_sec << "." << ts.tv_usec << " ";
 	*m_out << m_packets << " " << m_cache_hits << " " << m_new_flows << " " << m_flows_in_cache

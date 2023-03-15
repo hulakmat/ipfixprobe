@@ -51,12 +51,12 @@
 
 #include "text.hpp"
 
-namespace ipxp {
+namespace Ipxp {
 
-__attribute__((constructor)) static void register_this_plugin()
+__attribute__((constructor)) static void registerThisPlugin()
 {
 	static PluginRecord rec = PluginRecord("text", []() { return new TextExporter(); });
-	register_plugin(&rec);
+	registerPlugin(&rec);
 }
 
 TextExporter::TextExporter()
@@ -79,14 +79,14 @@ void TextExporter::init(const char* params)
 		throw PluginError(e.what());
 	}
 
-	if (parser.m_to_file) {
-		std::ofstream* file = new std::ofstream(parser.m_file, std::ofstream::out);
+	if (parser.mToFile) {
+		std::ofstream* file = new std::ofstream(parser.mFile, std::ofstream::out);
 		if (file->fail()) {
 			throw PluginError("failed to open output file");
 		}
 		m_out = file;
 	}
-	m_hide_mac = parser.m_hide_mac;
+	m_hide_mac = parser.mHideMac;
 
 	if (!m_hide_mac) {
 		*m_out << "mac ";
@@ -107,45 +107,45 @@ void TextExporter::close()
 	}
 }
 
-int TextExporter::export_flow(const Flow& flow)
+int TextExporter::exportFlow(const Flow& flow)
 {
-	RecordExt* ext = flow.m_exts;
+	RecordExt* ext = flow.mExts;
 
-	m_flows_seen++;
-	print_basic_flow(flow);
+	mFlowsSeen++;
+	printBasicFlow(flow);
 	while (ext != nullptr) {
-		*m_out << " " << ext->get_text();
-		ext = ext->m_next;
+		*m_out << " " << ext->getText();
+		ext = ext->mNext;
 	}
 	*m_out << std::endl;
 
 	return 0;
 }
 
-void TextExporter::print_basic_flow(const Flow& flow)
+void TextExporter::printBasicFlow(const Flow& flow)
 {
 	time_t sec;
-	char time_begin[100];
-	char time_end[100];
-	char src_mac[18];
-	char dst_mac[18];
+	char timeBegin[100];
+	char timeEnd[100];
+	char srcMac[18];
+	char dstMac[18];
 	char tmp[50];
-	char src_ip[INET6_ADDRSTRLEN];
-	char dst_ip[INET6_ADDRSTRLEN];
+	char srcIp[INET6_ADDRSTRLEN];
+	char dstIp[INET6_ADDRSTRLEN];
 	std::string lb = "";
 	std::string rb = "";
 
-	sec = flow.time_first.tv_sec;
+	sec = flow.timeFirst.tv_sec;
 	strftime(tmp, sizeof(tmp), "%FT%T", localtime(&sec));
-	snprintf(time_begin, sizeof(time_begin), "%s.%06ld", tmp, flow.time_first.tv_usec);
-	sec = flow.time_last.tv_sec;
+	snprintf(timeBegin, sizeof(timeBegin), "%s.%06ld", tmp, flow.timeFirst.tv_usec);
+	sec = flow.timeLast.tv_sec;
 	strftime(tmp, sizeof(tmp), "%FT%T", localtime(&sec));
-	snprintf(time_end, sizeof(time_end), "%s.%06ld", tmp, flow.time_last.tv_usec);
+	snprintf(timeEnd, sizeof(timeEnd), "%s.%06ld", tmp, flow.timeLast.tv_usec);
 
-	const uint8_t* p = const_cast<uint8_t*>(flow.src_mac);
+	const uint8_t* p = const_cast<uint8_t*>(flow.srcMac);
 	snprintf(
-		src_mac,
-		sizeof(src_mac),
+		srcMac,
+		sizeof(srcMac),
 		"%02x:%02x:%02x:%02x:%02x:%02x",
 		p[0],
 		p[1],
@@ -153,10 +153,10 @@ void TextExporter::print_basic_flow(const Flow& flow)
 		p[3],
 		p[4],
 		p[5]);
-	p = const_cast<uint8_t*>(flow.dst_mac);
+	p = const_cast<uint8_t*>(flow.dstMac);
 	snprintf(
-		dst_mac,
-		sizeof(dst_mac),
+		dstMac,
+		sizeof(dstMac),
 		"%02x:%02x:%02x:%02x:%02x:%02x",
 		p[0],
 		p[1],
@@ -165,24 +165,24 @@ void TextExporter::print_basic_flow(const Flow& flow)
 		p[4],
 		p[5]);
 
-	if (flow.ip_version == IP::v4) {
-		inet_ntop(AF_INET, (const void*) &flow.src_ip.v4, src_ip, INET6_ADDRSTRLEN);
-		inet_ntop(AF_INET, (const void*) &flow.dst_ip.v4, dst_ip, INET6_ADDRSTRLEN);
-	} else if (flow.ip_version == IP::v6) {
-		inet_ntop(AF_INET6, (const void*) &flow.src_ip.v6, src_ip, INET6_ADDRSTRLEN);
-		inet_ntop(AF_INET6, (const void*) &flow.dst_ip.v6, dst_ip, INET6_ADDRSTRLEN);
+	if (flow.ipVersion == IP::V4) {
+		inet_ntop(AF_INET, (const void*) &flow.srcIp.v4, srcIp, INET6_ADDRSTRLEN);
+		inet_ntop(AF_INET, (const void*) &flow.dstIp.v4, dstIp, INET6_ADDRSTRLEN);
+	} else if (flow.ipVersion == IP::V6) {
+		inet_ntop(AF_INET6, (const void*) &flow.srcIp.v6, srcIp, INET6_ADDRSTRLEN);
+		inet_ntop(AF_INET6, (const void*) &flow.dstIp.v6, dstIp, INET6_ADDRSTRLEN);
 		lb = "[";
 		rb = "]";
 	}
 
 	if (!m_hide_mac) {
-		*m_out << src_mac << "->" << dst_mac << " ";
+		*m_out << srcMac << "->" << dstMac << " ";
 	}
-	*m_out << std::setw(2) << static_cast<unsigned>(flow.ip_proto) << "@" << lb << src_ip << rb
-		   << ":" << flow.src_port << "->" << lb << dst_ip << rb << ":" << flow.dst_port << " "
-		   << flow.src_packets << "->" << flow.dst_packets << " " << flow.src_bytes << "->"
-		   << flow.dst_bytes << " " << static_cast<unsigned>(flow.src_tcp_flags) << "->"
-		   << static_cast<unsigned>(flow.dst_tcp_flags) << " " << time_begin << "->" << time_end;
+	*m_out << std::setw(2) << static_cast<unsigned>(flow.ipProto) << "@" << lb << srcIp << rb
+		   << ":" << flow.srcPort << "->" << lb << dstIp << rb << ":" << flow.dstPort << " "
+		   << flow.srcPackets << "->" << flow.dstPackets << " " << flow.srcBytes << "->"
+		   << flow.dstBytes << " " << static_cast<unsigned>(flow.srcTcpFlags) << "->"
+		   << static_cast<unsigned>(flow.dstTcpFlags) << " " << timeBegin << "->" << timeEnd;
 }
 
 } // namespace ipxp

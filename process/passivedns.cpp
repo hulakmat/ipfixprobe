@@ -61,15 +61,15 @@
 #include "passivedns.hpp"
 #include <ipfixprobe/utils.hpp>
 
-namespace ipxp {
+namespace Ipxp {
 
-int RecordExtPassiveDNS::REGISTERED_ID = -1;
+int RecordExtPassiveDNS::s_registeredId = -1;
 
-__attribute__((constructor)) static void register_this_plugin()
+__attribute__((constructor)) static void registerThisPlugin()
 {
 	static PluginRecord rec = PluginRecord("passivedns", []() { return new PassiveDNSPlugin(); });
-	register_plugin(&rec);
-	RecordExtPassiveDNS::REGISTERED_ID = register_extension();
+	registerPlugin(&rec);
+	RecordExtPassiveDNS::s_registeredId = registerExtension();
 }
 
 //#define DEBUG_PASSIVEDNS
@@ -101,12 +101,12 @@ __attribute__((constructor)) static void register_this_plugin()
 #define GET_OFFSET(half1, half2) ((((uint8_t) (half1) &0x3F) << 8) | (uint8_t) (half2))
 
 PassiveDNSPlugin::PassiveDNSPlugin()
-	: total(0)
-	, parsed_a(0)
-	, parsed_aaaa(0)
-	, parsed_ptr(0)
-	, data_begin(nullptr)
-	, data_len(0)
+	: m_total(0)
+	, m_parsed_a(0)
+	, m_parsed_aaaa(0)
+	, m_parsed_ptr(0)
+	, m_data_begin(nullptr)
+	, m_data_len(0)
 {
 }
 
@@ -124,40 +124,40 @@ ProcessPlugin* PassiveDNSPlugin::copy()
 	return new PassiveDNSPlugin(*this);
 }
 
-int PassiveDNSPlugin::post_create(Flow& rec, const Packet& pkt)
+int PassiveDNSPlugin::postCreate(Flow& rec, const Packet& pkt)
 {
-	if (pkt.src_port == 53) {
-		return add_ext_dns(
+	if (pkt.srcPort == 53) {
+		return addExtDns(
 			reinterpret_cast<const char*>(pkt.payload),
-			pkt.payload_len,
-			pkt.ip_proto == IPPROTO_TCP,
+			pkt.payloadLen,
+			pkt.ipProto == IPPROTO_TCP,
 			rec);
 	}
 
 	return 0;
 }
 
-int PassiveDNSPlugin::post_update(Flow& rec, const Packet& pkt)
+int PassiveDNSPlugin::postUpdate(Flow& rec, const Packet& pkt)
 {
-	if (pkt.src_port == 53) {
-		return add_ext_dns(
+	if (pkt.srcPort == 53) {
+		return addExtDns(
 			reinterpret_cast<const char*>(pkt.payload),
-			pkt.payload_len,
-			pkt.ip_proto == IPPROTO_TCP,
+			pkt.payloadLen,
+			pkt.ipProto == IPPROTO_TCP,
 			rec);
 	}
 
 	return 0;
 }
 
-void PassiveDNSPlugin::finish(bool print_stats)
+void PassiveDNSPlugin::finish(bool printStats)
 {
-	if (print_stats) {
+	if (printStats) {
 		std::cout << "PassiveDNS plugin stats:" << std::endl;
-		std::cout << "   Parsed dns responses: " << total << std::endl;
-		std::cout << "   Parsed A records: " << parsed_a << std::endl;
-		std::cout << "   Parsed AAAA records: " << parsed_aaaa << std::endl;
-		std::cout << "   Parsed PTR records: " << parsed_ptr << std::endl;
+		std::cout << "   Parsed dns responses: " << m_total << std::endl;
+		std::cout << "   Parsed A records: " << m_parsed_a << std::endl;
+		std::cout << "   Parsed AAAA records: " << m_parsed_aaaa << std::endl;
+		std::cout << "   Parsed PTR records: " << m_parsed_ptr << std::endl;
 	}
 }
 
@@ -166,12 +166,12 @@ void PassiveDNSPlugin::finish(bool print_stats)
  * \param [in] data Pointer to string.
  * \return Number of characters in string.
  */
-size_t PassiveDNSPlugin::get_name_length(const char* data) const
+size_t PassiveDNSPlugin::getNameLength(const char* data) const
 {
 	size_t len = 0;
 
 	while (1) {
-		if ((uint32_t) (data - data_begin) + 1 > data_len) {
+		if ((uint32_t) (data - m_data_begin) + 1 > m_data_len) {
 			throw "Error: overflow";
 		}
 		if (!data[0]) {
@@ -196,18 +196,18 @@ size_t PassiveDNSPlugin::get_name_length(const char* data) const
 std::string PassiveDNSPlugin::get_name(const char* data) const
 {
 	std::string name = "";
-	int label_cnt = 0;
+	int labelCnt = 0;
 
-	if ((uint32_t) (data - data_begin) > data_len) {
+	if ((uint32_t) (data - m_data_begin) > m_data_len) {
 		throw "Error: overflow";
 	}
 
 	while (data[0]) { /* Check for terminating character. */
 		if (IS_POINTER(data[0])) { /* Check for label pointer (11xxxxxx byte) */
-			data = data_begin + GET_OFFSET(data[0], data[1]);
+			data = m_data_begin + GET_OFFSET(data[0], data[1]);
 
 			/* Check for possible errors.*/
-			if (label_cnt++ > MAX_LABEL_CNT || (uint32_t) (data - data_begin) > data_len) {
+			if (labelCnt++ > MAX_LABEL_CNT || (uint32_t) (data - m_data_begin) > m_data_len) {
 				throw "Error: label count exceed or overflow";
 			}
 
@@ -215,8 +215,8 @@ std::string PassiveDNSPlugin::get_name(const char* data) const
 		}
 
 		/* Check for possible errors.*/
-		if (label_cnt++ > MAX_LABEL_CNT || (uint8_t) data[0] > 63
-			|| (uint32_t) ((data - data_begin) + (uint8_t) data[0] + 2) > data_len) {
+		if (labelCnt++ > MAX_LABEL_CNT || (uint8_t) data[0] > 63
+			|| (uint32_t) ((data - m_data_begin) + (uint8_t) data[0] + 2) > m_data_len) {
 			throw "Error: label count exceed or overflow";
 		}
 
@@ -239,37 +239,37 @@ std::string PassiveDNSPlugin::get_name(const char* data) const
  * \return True if DNS was parsed.
  */
 RecordExtPassiveDNS*
-PassiveDNSPlugin::parse_dns(const char* data, unsigned int payload_len, bool tcp)
+PassiveDNSPlugin::parseDns(const char* data, unsigned int payloadLen, bool tcp)
 {
 	RecordExtPassiveDNS* list = nullptr;
 
 	try {
-		total++;
+		m_total++;
 
 		DEBUG_MSG("---------- dns parser #%u ----------\n", total);
 		DEBUG_MSG("Payload length: %u\n", payload_len);
 
 		if (tcp) {
-			payload_len -= 2;
-			if (ntohs(*(uint16_t*) data) != payload_len) {
+			payloadLen -= 2;
+			if (ntohs(*(uint16_t*) data) != payloadLen) {
 				DEBUG_MSG("parser quits: fragmented tcp pkt");
 				return nullptr;
 			}
 			data += 2;
 		}
 
-		if (payload_len < sizeof(struct dns_hdr)) {
+		if (payloadLen < sizeof(struct DnsHdr)) {
 			DEBUG_MSG("parser quits: payload length < %ld\n", sizeof(struct dns_hdr));
 			return nullptr;
 		}
 
-		data_begin = data;
-		data_len = payload_len;
+		m_data_begin = data;
+		m_data_len = payloadLen;
 
-		struct dns_hdr* dns = (struct dns_hdr*) data;
+		struct DnsHdr* dns = (struct DnsHdr*) data;
 		DEBUG_CODE(uint16_t flags = ntohs(dns->flags));
-		uint16_t question_cnt = ntohs(dns->question_rec_cnt);
-		uint16_t answer_rr_cnt = ntohs(dns->answer_rec_cnt);
+		uint16_t questionCnt = ntohs(dns->questionRecCnt);
+		uint16_t answerRrCnt = ntohs(dns->answerRecCnt);
 
 		DEBUG_MSG("DNS message header\n");
 		DEBUG_MSG("\tTransaction ID:\t\t%#06x\n", ntohs(dns->id));
@@ -292,34 +292,34 @@ PassiveDNSPlugin::parse_dns(const char* data, unsigned int payload_len, bool tcp
 		/********************************************************************
 		*****                   DNS Question section                    *****
 		********************************************************************/
-		data += sizeof(struct dns_hdr);
-		for (int i = 0; i < question_cnt; i++) {
+		data += sizeof(struct DnsHdr);
+		for (int i = 0; i < questionCnt; i++) {
 			DEBUG_MSG("\nDNS question #%d\n", i + 1);
 
-			data += get_name_length(data);
+			data += getNameLength(data);
 
-			if ((data - data_begin) + sizeof(struct dns_question) > payload_len) {
+			if ((data - m_data_begin) + sizeof(struct DnsQuestion) > payloadLen) {
 				DEBUG_MSG("DNS parser quits: overflow\n\n");
 				return nullptr;
 			}
 
-			data += sizeof(struct dns_question);
+			data += sizeof(struct DnsQuestion);
 		}
 
 		/********************************************************************
 		*****                    DNS Answers section                    *****
 		********************************************************************/
 		size_t rdlength;
-		for (int i = 0; i < answer_rr_cnt; i++) { // Process answers section.
+		for (int i = 0; i < answerRrCnt; i++) { // Process answers section.
 			DEBUG_MSG("DNS answer #%d\n", i + 1);
 			DEBUG_MSG("\tAnswer name:\t\t%s\n", get_name(data).c_str());
 			std::string name = get_name(data);
-			data += get_name_length(data);
+			data += getNameLength(data);
 
-			struct dns_answer* answer = (struct dns_answer*) data;
+			struct DnsAnswer* answer = (struct DnsAnswer*) data;
 
-			uint32_t tmp = (data - data_begin) + sizeof(dns_answer);
-			if (tmp > payload_len || tmp + ntohs(answer->rdlength) > payload_len) {
+			uint32_t tmp = (data - m_data_begin) + sizeof(DnsAnswer);
+			if (tmp > payloadLen || tmp + ntohs(answer->rdlength) > payloadLen) {
 				DEBUG_MSG("DNS parser quits: overflow\n\n");
 				return list;
 			}
@@ -329,7 +329,7 @@ PassiveDNSPlugin::parse_dns(const char* data, unsigned int payload_len, bool tcp
 			DEBUG_MSG("\tTTL:\t\t\t%u\n", ntohl(answer->ttl));
 			DEBUG_MSG("\tRD length:\t\t%u\n", ntohs(answer->rdlength));
 
-			data += sizeof(struct dns_answer);
+			data += sizeof(struct DnsAnswer);
 			rdlength = ntohs(answer->rdlength);
 
 			uint16_t type = ntohs(answer->atype);
@@ -348,31 +348,31 @@ PassiveDNSPlugin::parse_dns(const char* data, unsigned int payload_len, bool tcp
 				rec->aname[length] = 0;
 
 				rec->id = ntohs(dns->id);
-				rec->rr_ttl = ntohl(answer->ttl);
+				rec->rrTtl = ntohl(answer->ttl);
 				rec->atype = type;
 
 				if (rec->atype == DNS_TYPE_A) {
 					// IPv4
 					rec->ip.v4 = *(uint32_t*) data;
-					parsed_a++;
-					rec->ip_version = IP::v4;
+					m_parsed_a++;
+					rec->ipVersion = IP::V4;
 				} else {
 					// IPv6
 					memcpy(rec->ip.v6, data, 16);
-					parsed_aaaa++;
-					rec->ip_version = IP::v6;
+					m_parsed_aaaa++;
+					rec->ipVersion = IP::V6;
 				}
 
 				if (list == nullptr) {
 					list = rec;
 				} else {
-					list->add_extension(rec);
+					list->addExtension(rec);
 				}
 			} else if (type == DNS_TYPE_PTR) {
 				RecordExtPassiveDNS* rec = new RecordExtPassiveDNS();
 
 				rec->id = ntohs(dns->id);
-				rec->rr_ttl = ntohl(answer->ttl);
+				rec->rrTtl = ntohl(answer->ttl);
 				rec->atype = type;
 
 				/* Copy domain name. */
@@ -388,14 +388,14 @@ PassiveDNSPlugin::parse_dns(const char* data, unsigned int payload_len, bool tcp
 				memcpy(rec->aname, tmp.c_str(), length);
 				rec->aname[length] = 0;
 
-				if (!process_ptr_record(name, rec)) {
+				if (!processPtrRecord(name, rec)) {
 					delete rec;
 				} else {
-					parsed_ptr++;
+					m_parsed_ptr++;
 					if (list == nullptr) {
 						list = rec;
 					} else {
-						list->add_extension(rec);
+						list->addExtension(rec);
 					}
 				}
 			}
@@ -417,11 +417,11 @@ PassiveDNSPlugin::parse_dns(const char* data, unsigned int payload_len, bool tcp
  * \param [out] dst Destination variable.
  * \return True on success, false otherwise.
  */
-bool PassiveDNSPlugin::str_to_uint4(std::string str, uint8_t& dst)
+bool PassiveDNSPlugin::strToUint4(std::string str, uint8_t& dst)
 {
 	size_t check;
 	errno = 0;
-	trim_str(str);
+	trimStr(str);
 	unsigned long long value;
 	try {
 		value = std::stoull(str, &check, 16);
@@ -445,7 +445,7 @@ bool PassiveDNSPlugin::str_to_uint4(std::string str, uint8_t& dst)
  * \param [out] rec Plugin data record.
  * \return True on success, false otherwise.
  */
-bool PassiveDNSPlugin::process_ptr_record(std::string name, RecordExtPassiveDNS* rec)
+bool PassiveDNSPlugin::processPtrRecord(std::string name, RecordExtPassiveDNS* rec)
 {
 	memset(&rec->ip, 0, sizeof(rec->ip));
 
@@ -458,14 +458,14 @@ bool PassiveDNSPlugin::process_ptr_record(std::string name, RecordExtPassiveDNS*
 	}
 
 	std::string octet;
-	std::string type_str = ".in-addr.arpa";
-	size_t type_pos = name.find(type_str);
+	std::string typeStr = ".in-addr.arpa";
+	size_t typePos = name.find(typeStr);
 	size_t begin = 0, end = 0, cnt = 0;
 	uint8_t* ip;
-	if (type_pos != std::string::npos && type_pos + type_str.length() == name.length()) {
+	if (typePos != std::string::npos && typePos + typeStr.length() == name.length()) {
 		// IPv4
-		name.erase(type_pos);
-		rec->ip_version = IP::v4;
+		name.erase(typePos);
+		rec->ipVersion = IP::V4;
 		ip = (uint8_t*) &rec->ip.v4;
 
 		while (end != std::string::npos) {
@@ -487,12 +487,12 @@ bool PassiveDNSPlugin::process_ptr_record(std::string name, RecordExtPassiveDNS*
 		}
 		return cnt == 4;
 	} else {
-		type_str = ".ip6.arpa";
-		type_pos = name.find(type_str);
-		if (type_pos != std::string::npos && type_pos + type_str.length() == name.length()) {
+		typeStr = ".ip6.arpa";
+		typePos = name.find(typeStr);
+		if (typePos != std::string::npos && typePos + typeStr.length() == name.length()) {
 			// IPv6
-			name.erase(type_pos);
-			rec->ip_version = IP::v6;
+			name.erase(typePos);
+			rec->ipVersion = IP::V6;
 			ip = (uint8_t*) &rec->ip.v6;
 
 			uint8_t nums[32];
@@ -501,7 +501,7 @@ bool PassiveDNSPlugin::process_ptr_record(std::string name, RecordExtPassiveDNS*
 				octet = name.substr(
 					begin,
 					(end == std::string::npos ? (name.length() - begin) : (end - begin)));
-				if (cnt > 31 || !str_to_uint4(octet, nums[31 - cnt])) {
+				if (cnt > 31 || !strToUint4(octet, nums[31 - cnt])) {
 					return false;
 				}
 
@@ -529,11 +529,11 @@ bool PassiveDNSPlugin::process_ptr_record(std::string name, RecordExtPassiveDNS*
  * \param [in] tcp DNS over tcp.
  * \param [out] rec Destination Flow.
  */
-int PassiveDNSPlugin::add_ext_dns(const char* data, unsigned int payload_len, bool tcp, Flow& rec)
+int PassiveDNSPlugin::addExtDns(const char* data, unsigned int payloadLen, bool tcp, Flow& rec)
 {
-	RecordExt* tmp = parse_dns(data, payload_len, tcp);
+	RecordExt* tmp = parseDns(data, payloadLen, tcp);
 	if (tmp != nullptr) {
-		rec.add_extension(tmp);
+		rec.addExtension(tmp);
 	}
 
 	return FLOW_FLUSH;

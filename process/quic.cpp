@@ -16,20 +16,20 @@
 
 #include "quic.hpp"
 
-namespace ipxp {
-int RecordExtQUIC::REGISTERED_ID = -1;
+namespace Ipxp {
+int RecordExtQUIC::s_registeredId = -1;
 
-__attribute__((constructor)) static void register_this_plugin()
+__attribute__((constructor)) static void registerThisPlugin()
 {
 	static PluginRecord rec = PluginRecord("quic", []() { return new QUICPlugin(); });
 
-	register_plugin(&rec);
-	RecordExtQUIC::REGISTERED_ID = register_extension();
+	registerPlugin(&rec);
+	RecordExtQUIC::s_registeredId = registerExtension();
 }
 
 QUICPlugin::QUICPlugin()
 {
-	quic_ptr = nullptr;
+	m_quic_ptr = nullptr;
 }
 
 QUICPlugin::~QUICPlugin()
@@ -41,10 +41,10 @@ void QUICPlugin::init(const char* params) {}
 
 void QUICPlugin::close()
 {
-	if (quic_ptr != nullptr) {
-		delete quic_ptr;
+	if (m_quic_ptr != nullptr) {
+		delete m_quic_ptr;
 	}
-	quic_ptr = nullptr;
+	m_quic_ptr = nullptr;
 }
 
 ProcessPlugin* QUICPlugin::copy()
@@ -52,65 +52,65 @@ ProcessPlugin* QUICPlugin::copy()
 	return new QUICPlugin(*this);
 }
 
-bool QUICPlugin::process_quic(RecordExtQUIC* quic_data, const Packet& pkt)
+bool QUICPlugin::processQuic(RecordExtQUIC* quicData, const Packet& pkt)
 {
-	QUICParser process_quic;
+	QUICParser processQuic;
 
-	if (!process_quic.quic_start(pkt)) {
+	if (!processQuic.quicStart(pkt)) {
 		return false;
 	} else {
-		process_quic.quic_get_sni(quic_data->sni);
-		process_quic.quic_get_user_agent(quic_data->user_agent);
-		process_quic.quic_get_version(quic_data->quic_version);
+		processQuic.quicGetSni(quicData->sni);
+		processQuic.quicGetUserAgent(quicData->userAgent);
+		processQuic.quicGetVersion(quicData->quicVersion);
 		return true;
 	}
 } // QUICPlugin::process_quic
 
-int QUICPlugin::pre_create(Packet& pkt)
+int QUICPlugin::preCreate(Packet& pkt)
 {
 	return 0;
 }
 
-int QUICPlugin::post_create(Flow& rec, const Packet& pkt)
+int QUICPlugin::postCreate(Flow& rec, const Packet& pkt)
 {
-	add_quic(rec, pkt);
+	addQuic(rec, pkt);
 	return 0;
 }
 
-int QUICPlugin::pre_update(Flow& rec, Packet& pkt)
+int QUICPlugin::preUpdate(Flow& rec, Packet& pkt)
 {
 	return 0;
 }
 
-int QUICPlugin::post_update(Flow& rec, const Packet& pkt)
+int QUICPlugin::postUpdate(Flow& rec, const Packet& pkt)
 {
-	RecordExtQUIC* ext = (RecordExtQUIC*) rec.get_extension(RecordExtQUIC::REGISTERED_ID);
+	RecordExtQUIC* ext = (RecordExtQUIC*) rec.getExtension(RecordExtQUIC::s_registeredId);
 
 	if (ext == nullptr) {
 		return 0;
 	}
 
-	add_quic(rec, pkt);
+	addQuic(rec, pkt);
 	return 0;
 }
 
-void QUICPlugin::add_quic(Flow& rec, const Packet& pkt)
+void QUICPlugin::addQuic(Flow& rec, const Packet& pkt)
 {
-	if (quic_ptr == nullptr) {
-		quic_ptr = new RecordExtQUIC();
+	if (m_quic_ptr == nullptr) {
+		m_quic_ptr = new RecordExtQUIC();
 	}
 
-	if (process_quic(quic_ptr, pkt)) {
-		rec.add_extension(quic_ptr);
-		quic_ptr = nullptr;
+	if (processQuic(m_quic_ptr, pkt)) {
+		rec.addExtension(m_quic_ptr);
+		m_quic_ptr = nullptr;
 	}
 }
 
-void QUICPlugin::finish(bool print_stats)
+void QUICPlugin::finish(bool printStats)
 {
-	if (print_stats) {
+	if (printStats) {
 		std::cout << "QUIC plugin stats:" << std::endl;
-		std::cout << "   Parsed SNI: " << parsed_initial << std::endl;
+		std::cout << "   Parsed SNI: " << m_parsed_initial << std::endl;
 	}
 }
 } // namespace ipxp

@@ -59,7 +59,7 @@
 #include <ipfixprobe/packet.hpp>
 #include <ipfixprobe/process.hpp>
 
-namespace ipxp {
+namespace Ipxp {
 
 #define SIP_FIELD_LEN 128
 
@@ -349,152 +349,152 @@ UR_FIELDS(
 	string SIP_REQUEST_URI,
 	string SIP_VIA)
 
-struct parser_strtok_t {
-	parser_strtok_t()
+struct ParserStrtokT {
+	ParserStrtokT()
 	{
-		separator_mask = 0;
+		separatorMask = 0;
 		saveptr = nullptr;
 		separator = 0;
 		instrlen = 0;
 	}
 
-	MAGIC_INT separator_mask;
+	MAGIC_INT separatorMask;
 	const unsigned char* saveptr;
 	char separator;
 	unsigned int instrlen;
 };
 
 struct RecordExtSIP : public RecordExt {
-	static int REGISTERED_ID;
+	static int s_registeredId;
 
-	uint16_t msg_type; /* SIP message code (register, invite) < 100 or SIP response status > 100 */
-	uint16_t status_code;
-	char call_id[SIP_FIELD_LEN]; /* Call id. For sevice SIP traffic call id = 0 */
-	char calling_party[SIP_FIELD_LEN]; /* Calling party (ie. from) uri */
-	char called_party[SIP_FIELD_LEN]; /* Called party (ie. to) uri */
+	uint16_t msgType; /* SIP message code (register, invite) < 100 or SIP response status > 100 */
+	uint16_t statusCode;
+	char callId[SIP_FIELD_LEN]; /* Call id. For sevice SIP traffic call id = 0 */
+	char callingParty[SIP_FIELD_LEN]; /* Calling party (ie. from) uri */
+	char calledParty[SIP_FIELD_LEN]; /* Called party (ie. to) uri */
 	char via[SIP_FIELD_LEN]; /* Via field of SIP packet */
-	char user_agent[SIP_FIELD_LEN]; /* User-Agent field of SIP packet */
+	char userAgent[SIP_FIELD_LEN]; /* User-Agent field of SIP packet */
 	char cseq[SIP_FIELD_LEN]; /* CSeq field of SIP packet */
-	char request_uri[SIP_FIELD_LEN]; /* Request-URI of SIP request */
+	char requestUri[SIP_FIELD_LEN]; /* Request-URI of SIP request */
 
 	RecordExtSIP()
-		: RecordExt(REGISTERED_ID)
+		: RecordExt(s_registeredId)
 	{
-		msg_type = 0;
-		status_code = 0;
-		call_id[0] = 0;
-		calling_party[0] = 0;
-		called_party[0] = 0;
+		msgType = 0;
+		statusCode = 0;
+		callId[0] = 0;
+		callingParty[0] = 0;
+		calledParty[0] = 0;
 		via[0] = 0;
-		user_agent[0] = 0;
+		userAgent[0] = 0;
 		cseq[0] = 0;
-		request_uri[0] = 0;
+		requestUri[0] = 0;
 	}
 
 #ifdef WITH_NEMEA
-	virtual void fill_unirec(ur_template_t* tmplt, void* record)
+	virtual void fillUnirec(ur_template_t* tmplt, void* record)
 	{
-		ur_set(tmplt, record, F_SIP_MSG_TYPE, msg_type);
-		ur_set(tmplt, record, F_SIP_STATUS_CODE, status_code);
+		ur_set(tmplt, record, F_SIP_MSG_TYPE, msgType);
+		ur_set(tmplt, record, F_SIP_STATUS_CODE, statusCode);
 		ur_set_string(tmplt, record, F_SIP_CSEQ, cseq);
-		ur_set_string(tmplt, record, F_SIP_CALLING_PARTY, calling_party);
-		ur_set_string(tmplt, record, F_SIP_CALLED_PARTY, called_party);
-		ur_set_string(tmplt, record, F_SIP_CALL_ID, call_id);
-		ur_set_string(tmplt, record, F_SIP_USER_AGENT, user_agent);
-		ur_set_string(tmplt, record, F_SIP_REQUEST_URI, request_uri);
+		ur_set_string(tmplt, record, F_SIP_CALLING_PARTY, callingParty);
+		ur_set_string(tmplt, record, F_SIP_CALLED_PARTY, calledParty);
+		ur_set_string(tmplt, record, F_SIP_CALL_ID, callId);
+		ur_set_string(tmplt, record, F_SIP_USER_AGENT, userAgent);
+		ur_set_string(tmplt, record, F_SIP_REQUEST_URI, requestUri);
 		ur_set_string(tmplt, record, F_SIP_VIA, via);
 	}
 
-	const char* get_unirec_tmplt() const
+	const char* getUnirecTmplt() const
 	{
 		return SIP_UNIREC_TEMPLATE;
 	}
 #endif
 
-	virtual int fill_ipfix(uint8_t* buffer, int size)
+	virtual int fillIpfix(uint8_t* buffer, int size)
 	{
-		int length, total_length = 4;
+		int length, totalLength = 4;
 
 		length = strlen(cseq);
-		if (total_length + length + 1 > size) {
+		if (totalLength + length + 1 > size) {
 			return -1;
 		}
-		*(uint16_t*) (buffer) = ntohs(msg_type);
-		*(uint16_t*) (buffer + 2) = ntohs(status_code);
+		*(uint16_t*) (buffer) = ntohs(msgType);
+		*(uint16_t*) (buffer + 2) = ntohs(statusCode);
 
-		buffer[total_length] = length;
-		memcpy(buffer + total_length + 1, cseq, length);
-		total_length += length + 1;
+		buffer[totalLength] = length;
+		memcpy(buffer + totalLength + 1, cseq, length);
+		totalLength += length + 1;
 
-		length = strlen(calling_party);
-		if (total_length + length + 1 > size) {
+		length = strlen(callingParty);
+		if (totalLength + length + 1 > size) {
 			return -1;
 		}
-		buffer[total_length] = length;
-		memcpy(buffer + total_length + 1, calling_party, length);
-		total_length += length + 1;
+		buffer[totalLength] = length;
+		memcpy(buffer + totalLength + 1, callingParty, length);
+		totalLength += length + 1;
 
-		length = strlen(called_party);
-		if (total_length + length + 1 > size) {
+		length = strlen(calledParty);
+		if (totalLength + length + 1 > size) {
 			return -1;
 		}
-		buffer[total_length] = length;
-		memcpy(buffer + total_length + 1, called_party, length);
-		total_length += length + 1;
+		buffer[totalLength] = length;
+		memcpy(buffer + totalLength + 1, calledParty, length);
+		totalLength += length + 1;
 
-		length = strlen(call_id);
-		if (total_length + length + 1 > size) {
+		length = strlen(callId);
+		if (totalLength + length + 1 > size) {
 			return -1;
 		}
-		buffer[total_length] = length;
-		memcpy(buffer + total_length + 1, call_id, length);
-		total_length += length + 1;
+		buffer[totalLength] = length;
+		memcpy(buffer + totalLength + 1, callId, length);
+		totalLength += length + 1;
 
-		length = strlen(user_agent);
-		if (total_length + length + 1 > size) {
+		length = strlen(userAgent);
+		if (totalLength + length + 1 > size) {
 			return -1;
 		}
-		buffer[total_length] = length;
-		memcpy(buffer + total_length + 1, user_agent, length);
-		total_length += length + 1;
+		buffer[totalLength] = length;
+		memcpy(buffer + totalLength + 1, userAgent, length);
+		totalLength += length + 1;
 
-		length = strlen(request_uri);
-		if (total_length + length + 1 > size) {
+		length = strlen(requestUri);
+		if (totalLength + length + 1 > size) {
 			return -1;
 		}
-		buffer[total_length] = length;
-		memcpy(buffer + total_length + 1, request_uri, length);
-		total_length += length + 1;
+		buffer[totalLength] = length;
+		memcpy(buffer + totalLength + 1, requestUri, length);
+		totalLength += length + 1;
 
 		length = strlen(via);
-		if (total_length + length + 1 > size) {
+		if (totalLength + length + 1 > size) {
 			return -1;
 		}
-		buffer[total_length] = length;
-		memcpy(buffer + total_length + 1, via, length);
-		total_length += length + 1;
+		buffer[totalLength] = length;
+		memcpy(buffer + totalLength + 1, via, length);
+		totalLength += length + 1;
 
-		return total_length;
+		return totalLength;
 	}
 
-	const char** get_ipfix_tmplt() const
+	const char** getIpfixTmplt() const
 	{
-		static const char* ipfix_tmplt[] = {IPFIX_SIP_TEMPLATE(IPFIX_FIELD_NAMES) nullptr};
+		static const char* ipfixTmplt[] = {IPFIX_SIP_TEMPLATE(IPFIX_FIELD_NAMES) nullptr};
 
-		return ipfix_tmplt;
+		return ipfixTmplt;
 	}
 
-	std::string get_text() const
+	std::string getText() const
 	{
 		std::ostringstream out;
 
-		out << "sipmsgtype=" << msg_type << ",statuscode=" << status_code << ",cseq=\"" << cseq
+		out << "sipmsgtype=" << msgType << ",statuscode=" << statusCode << ",cseq=\"" << cseq
 			<< "\""
-			<< ",callingparty=\"" << calling_party << "\""
-			<< ",calledparty=\"" << called_party << "\""
-			<< ",callid=\"" << call_id << "\""
-			<< ",useragent=\"" << user_agent << "\""
-			<< ",requri=\"" << request_uri << "\""
+			<< ",callingparty=\"" << callingParty << "\""
+			<< ",calledparty=\"" << calledParty << "\""
+			<< ",callid=\"" << callId << "\""
+			<< ",useragent=\"" << userAgent << "\""
+			<< ",requri=\"" << requestUri << "\""
 			<< ",via=\"" << via << "\"";
 		return out.str();
 	}
@@ -506,40 +506,40 @@ public:
 	~SIPPlugin();
 	void init(const char* params);
 	void close();
-	OptionsParser* get_parser() const { return new OptionsParser("sip", "Parse SIP traffic"); }
-	std::string get_name() const { return "sip"; }
-	RecordExt* get_ext() const { return new RecordExtSIP(); }
+	OptionsParser* getParser() const { return new OptionsParser("sip", "Parse SIP traffic"); }
+	std::string getName() const { return "sip"; }
+	RecordExt* getExt() const { return new RecordExtSIP(); }
 	ProcessPlugin* copy();
-	int post_create(Flow& rec, const Packet& pkt);
-	int pre_update(Flow& rec, Packet& pkt);
-	void finish(bool print_stats);
+	int postCreate(Flow& rec, const Packet& pkt);
+	int preUpdate(Flow& rec, Packet& pkt);
+	void finish(bool printStats);
 
 private:
-	uint16_t parse_msg_type(const Packet& pkt);
-	const unsigned char* parser_strtok(
+	uint16_t parseMsgType(const Packet& pkt);
+	const unsigned char* parserStrtok(
 		const unsigned char* str,
 		unsigned int instrlen,
 		char separator,
 		unsigned int* strlen,
-		parser_strtok_t* nst);
-	int parser_process_sip(const Packet& pkt, RecordExtSIP* sip_data);
-	void parser_field_uri(
+		ParserStrtokT* nst);
+	int parserProcessSip(const Packet& pkt, RecordExtSIP* sipData);
+	void parserFieldUri(
 		const unsigned char* line,
 		int linelen,
 		int skip,
 		char* dst,
 		unsigned int dstlen);
-	void parser_field_value(
+	void parserFieldValue(
 		const unsigned char* line,
 		int linelen,
 		int skip,
 		char* dst,
 		unsigned int dstlen);
 
-	uint32_t requests;
-	uint32_t responses;
-	uint32_t total;
-	bool flow_flush;
+	uint32_t m_requests;
+	uint32_t m_responses;
+	uint32_t m_total;
+	bool m_flow_flush;
 };
 
 } // namespace ipxp

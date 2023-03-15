@@ -49,9 +49,9 @@
 
 #include <ipfixprobe/utils.hpp>
 
-namespace ipxp {
+namespace Ipxp {
 
-void parse_range(
+void parseRange(
 	const std::string& arg,
 	std::string& from,
 	std::string& to,
@@ -74,19 +74,19 @@ void parse_range(
 
 	from = arg.substr(0, pos);
 	to = arg.substr(pos + 1);
-	trim_str(from);
-	trim_str(to);
+	trimStr(from);
+	trimStr(to);
 }
 
 bool str2bool(std::string str)
 {
-	std::set<std::string> accepted_values = {"y", "yes", "t", "true", "on", "1"};
-	trim_str(str);
+	std::set<std::string> acceptedValues = {"y", "yes", "t", "true", "on", "1"};
+	trimStr(str);
 	std::transform(str.begin(), str.end(), str.begin(), ::tolower);
-	return accepted_values.find(str) != accepted_values.end();
+	return acceptedValues.find(str) != acceptedValues.end();
 }
 
-void trim_str(std::string& str)
+void trimStr(std::string& str)
 {
 	// when std::string::npos returned by find
 	// string.erase() will remove all characters till end
@@ -120,7 +120,7 @@ uint64_t pntoh64(const void* p)
 	return buffer;
 }
 
-uint32_t variable2ipfix_buffer(uint8_t* buffer2write, uint8_t* buffer2read, uint16_t len)
+uint32_t variable2ipfixBuffer(uint8_t* buffer2write, uint8_t* buffer2read, uint16_t len)
 {
 	uint32_t ptr = 0;
 	if (len >= 255) {

@@ -51,7 +51,7 @@
 #include "parser.hpp"
 #include <ipfixprobe/packet.hpp>
 
-namespace ipxp {
+namespace Ipxp {
 
 //#define DEBUG_PARSER
 
@@ -73,14 +73,14 @@ static uint32_t s_total_pkts = 0;
  * \param [out] pkt Pointer to Packet structure where parsed fields will be stored.
  * \return Size of header in bytes.
  */
-inline uint16_t parse_eth_hdr(const u_char* data_ptr, uint16_t data_len, Packet* pkt)
+inline uint16_t parseEthHdr(const u_char* dataPtr, uint16_t dataLen, Packet* pkt)
 {
-	struct ethhdr* eth = (struct ethhdr*) data_ptr;
-	if (sizeof(struct ethhdr) > data_len) {
+	struct Ethhdr* eth = (struct Ethhdr*) dataPtr;
+	if (sizeof(struct Ethhdr) > dataLen) {
 		throw "Parser detected malformed packet";
 	}
-	uint16_t hdr_len = sizeof(struct ethhdr);
-	uint16_t ethertype = ntohs(eth->h_proto);
+	uint16_t hdrLen = sizeof(struct Ethhdr);
+	uint16_t ethertype = ntohs(eth->hProto);
 
 	DEBUG_MSG("Ethernet header:\n");
 #ifndef __CYGWIN__
@@ -116,11 +116,11 @@ inline uint16_t parse_eth_hdr(const u_char* data_ptr, uint16_t data_len, Packet*
 #endif
 	DEBUG_MSG("\tEthertype:\t%#06x\n", ethertype);
 
-	memcpy(pkt->dst_mac, eth->h_dest, 6);
-	memcpy(pkt->src_mac, eth->h_source, 6);
+	memcpy(pkt->dstMac, eth->hDest, 6);
+	memcpy(pkt->srcMac, eth->hSource, 6);
 
 	if (ethertype == ETH_P_8021AD) {
-		if (4 > data_len - hdr_len) {
+		if (4 > dataLen - hdrLen) {
 			throw "Parser detected malformed packet";
 		}
 		DEBUG_CODE(uint16_t vlan = ntohs(*(uint16_t*) (data_ptr + hdr_len)));
@@ -129,12 +129,12 @@ inline uint16_t parse_eth_hdr(const u_char* data_ptr, uint16_t data_len, Packet*
 		DEBUG_MSG("\t\tCFI:\t\t%u\n", ((vlan & 0x1000) >> 11));
 		DEBUG_MSG("\t\tVLAN:\t\t%u\n", (vlan & 0x0FFF));
 
-		hdr_len += 4;
-		ethertype = ntohs(*(uint16_t*) (data_ptr + hdr_len - 2));
+		hdrLen += 4;
+		ethertype = ntohs(*(uint16_t*) (dataPtr + hdrLen - 2));
 		DEBUG_MSG("\t\tEthertype:\t%#06x\n", ethertype);
 	}
 	while (ethertype == ETH_P_8021Q) {
-		if (4 > data_len - hdr_len) {
+		if (4 > dataLen - hdrLen) {
 			throw "Parser detected malformed packet";
 		}
 		DEBUG_CODE(uint16_t vlan = ntohs(*(uint16_t*) (data_ptr + hdr_len)));
@@ -143,14 +143,14 @@ inline uint16_t parse_eth_hdr(const u_char* data_ptr, uint16_t data_len, Packet*
 		DEBUG_MSG("\t\tCFI:\t\t%u\n", ((vlan & 0x1000) >> 11));
 		DEBUG_MSG("\t\tVLAN:\t\t%u\n", (vlan & 0x0FFF));
 
-		hdr_len += 4;
-		ethertype = ntohs(*(uint16_t*) (data_ptr + hdr_len - 2));
+		hdrLen += 4;
+		ethertype = ntohs(*(uint16_t*) (dataPtr + hdrLen - 2));
 		DEBUG_MSG("\t\tEthertype:\t%#06x\n", ethertype);
 	}
 
 	pkt->ethertype = ethertype;
 
-	return hdr_len;
+	return hdrLen;
 }
 
 #ifdef WITH_PCAP
@@ -161,10 +161,10 @@ inline uint16_t parse_eth_hdr(const u_char* data_ptr, uint16_t data_len, Packet*
  * \param [out] pkt Pointer to Packet structure where parsed fields will be stored.
  * \return Size of header in bytes.
  */
-inline uint16_t parse_sll(const u_char* data_ptr, uint16_t data_len, Packet* pkt)
+inline uint16_t parseSll(const u_char* dataPtr, uint16_t dataLen, Packet* pkt)
 {
-	struct sll_header* sll = (struct sll_header*) data_ptr;
-	if (sizeof(struct sll_header) > data_len) {
+	struct sll_header* sll = (struct sll_header*) dataPtr;
+	if (sizeof(struct sll_header) > dataLen) {
 		throw "Parser detected malformed packet";
 	}
 
@@ -178,20 +178,20 @@ inline uint16_t parse_sll(const u_char* data_ptr, uint16_t data_len, Packet* pkt
 	DEBUG_MSG("\tProtocol:\t%u\n", ntohs(sll->sll_protocol));
 
 	if (ntohs(sll->sll_hatype) == ARPHRD_ETHER) {
-		memcpy(pkt->src_mac, sll->sll_addr, 6);
+		memcpy(pkt->srcMac, sll->sll_addr, 6);
 	} else {
-		memset(pkt->src_mac, 0, sizeof(pkt->src_mac));
+		memset(pkt->srcMac, 0, sizeof(pkt->srcMac));
 	}
-	memset(pkt->dst_mac, 0, sizeof(pkt->dst_mac));
+	memset(pkt->dstMac, 0, sizeof(pkt->dstMac));
 	pkt->ethertype = ntohs(sll->sll_protocol);
 	return sizeof(struct sll_header);
 }
 
 #ifdef DLT_LINUX_SLL2
-inline uint16_t parse_sll2(const u_char* data_ptr, uint16_t data_len, Packet* pkt)
+inline uint16_t parseSll2(const u_char* dataPtr, uint16_t dataLen, Packet* pkt)
 {
-	struct sll2_header* sll = (struct sll2_header*) data_ptr;
-	if (sizeof(struct sll2_header) > data_len) {
+	struct sll2_header* sll = (struct sll2_header*) dataPtr;
+	if (sizeof(struct sll2_header) > dataLen) {
 		throw "Parser detected malformed packet";
 	}
 
@@ -206,11 +206,11 @@ inline uint16_t parse_sll2(const u_char* data_ptr, uint16_t data_len, Packet* pk
 	DEBUG_MSG("\tProtocol:\t%u\n", ntohs(sll->sll2_protocol));
 
 	if (ntohs(sll->sll2_hatype) == ARPHRD_ETHER) {
-		memcpy(pkt->src_mac, sll->sll2_addr, 6);
+		memcpy(pkt->srcMac, sll->sll2_addr, 6);
 	} else {
-		memset(pkt->src_mac, 0, sizeof(pkt->src_mac));
+		memset(pkt->srcMac, 0, sizeof(pkt->srcMac));
 	}
-	memset(pkt->dst_mac, 0, sizeof(pkt->dst_mac));
+	memset(pkt->dstMac, 0, sizeof(pkt->dstMac));
 	pkt->ethertype = ntohs(sll->sll2_protocol);
 	return sizeof(struct sll2_header);
 }
@@ -224,14 +224,14 @@ inline uint16_t parse_sll2(const u_char* data_ptr, uint16_t data_len, Packet* pk
  * \param [out] pkt Pointer to Packet structure where parsed fields will be stored.
  * \return Size of header in bytes.
  */
-inline uint16_t parse_trill(const u_char* data_ptr, uint16_t data_len, Packet* pkt)
+inline uint16_t parseTrill(const u_char* dataPtr, uint16_t dataLen, Packet* pkt)
 {
-	struct trill_hdr* trill = (struct trill_hdr*) data_ptr;
-	if (sizeof(struct trill_hdr) > data_len) {
+	struct TrillHdr* trill = (struct TrillHdr*) dataPtr;
+	if (sizeof(struct TrillHdr) > dataLen) {
 		throw "Parser detected malformed packet";
 	}
-	uint8_t op_len = ((trill->op_len1 << 2) | trill->op_len2);
-	uint8_t op_len_bytes = op_len * 4;
+	uint8_t opLen = ((trill->opLen1 << 2) | trill->opLen2);
+	uint8_t opLenBytes = opLen * 4;
 
 	DEBUG_MSG("TRILL header:\n");
 	DEBUG_MSG("\tHDR version:\t%u\n", trill->version);
@@ -242,7 +242,7 @@ inline uint16_t parse_trill(const u_char* data_ptr, uint16_t data_len, Packet* p
 	DEBUG_MSG("\tEgress nick:\t%u\n", ntohs(trill->egress_nick));
 	DEBUG_MSG("\tIngress nick:\t%u\n", ntohs(trill->ingress_nick));
 
-	return sizeof(trill_hdr) + op_len_bytes;
+	return sizeof(TrillHdr) + opLenBytes;
 }
 
 /**
@@ -252,22 +252,22 @@ inline uint16_t parse_trill(const u_char* data_ptr, uint16_t data_len, Packet* p
  * \param [out] pkt Pointer to Packet structure where parsed fields will be stored.
  * \return Size of header in bytes.
  */
-inline uint16_t parse_ipv4_hdr(const u_char* data_ptr, uint16_t data_len, Packet* pkt)
+inline uint16_t parseIpv4Hdr(const u_char* dataPtr, uint16_t dataLen, Packet* pkt)
 {
-	struct iphdr* ip = (struct iphdr*) data_ptr;
-	if (sizeof(struct iphdr) > data_len) {
+	struct Iphdr* ip = (struct Iphdr*) dataPtr;
+	if (sizeof(struct Iphdr) > dataLen) {
 		throw "Parser detected malformed packet";
 	}
 
-	pkt->ip_version = IP::v4;
-	pkt->ip_proto = ip->protocol;
-	pkt->ip_tos = ip->tos;
-	pkt->ip_len = ntohs(ip->tot_len);
-	pkt->ip_payload_len = pkt->ip_len - (ip->ihl << 2);
-	pkt->ip_ttl = ip->ttl;
-	pkt->ip_flags = (ntohs(ip->frag_off) & 0xE000) >> 13;
-	pkt->src_ip.v4 = ip->saddr;
-	pkt->dst_ip.v4 = ip->daddr;
+	pkt->ipVersion = IP::V4;
+	pkt->ipProto = ip->protocol;
+	pkt->ipTos = ip->tos;
+	pkt->ipLen = ntohs(ip->totLen);
+	pkt->ipPayloadLen = pkt->ipLen - (ip->ihl << 2);
+	pkt->ipTtl = ip->ttl;
+	pkt->ipFlags = (ntohs(ip->fragOff) & 0xE000) >> 13;
+	pkt->srcIp.v4 = ip->saddr;
+	pkt->dstIp.v4 = ip->daddr;
 
 	DEBUG_MSG("IPv4 header:\n");
 	DEBUG_MSG("\tHDR version:\t%u\n", ip->version);
@@ -293,39 +293,39 @@ inline uint16_t parse_ipv4_hdr(const u_char* data_ptr, uint16_t data_len, Packet
  * \param [out] pkt Pointer to Packet structure where parsed fields will be stored.
  * \return Length of headers in bytes.
  */
-uint16_t skip_ipv6_ext_hdrs(const u_char* data_ptr, uint16_t data_len, Packet* pkt)
+uint16_t skipIpv6ExtHdrs(const u_char* dataPtr, uint16_t dataLen, Packet* pkt)
 {
-	struct ip6_ext* ext = (struct ip6_ext*) data_ptr;
-	uint8_t next_hdr = pkt->ip_proto;
-	uint16_t hdrs_len = 0;
+	struct Ip6Ext* ext = (struct Ip6Ext*) dataPtr;
+	uint8_t nextHdr = pkt->ipProto;
+	uint16_t hdrsLen = 0;
 
 	/* Skip extension headers... */
 	while (1) {
-		if ((int) sizeof(struct ip6_ext) > data_len - hdrs_len) {
+		if ((int) sizeof(struct Ip6Ext) > dataLen - hdrsLen) {
 			throw "Parser detected malformed packet";
 		}
-		if (next_hdr == IPPROTO_HOPOPTS || next_hdr == IPPROTO_DSTOPTS) {
-			hdrs_len += (ext->ip6e_len << 3) + 8;
-		} else if (next_hdr == IPPROTO_ROUTING) {
-			struct ip6_rthdr* rt = (struct ip6_rthdr*) (data_ptr + hdrs_len);
-			hdrs_len += (rt->ip6r_len << 3) + 8;
-		} else if (next_hdr == IPPROTO_AH) {
-			hdrs_len += (ext->ip6e_len << 2) - 2;
-		} else if (next_hdr == IPPROTO_FRAGMENT) {
-			hdrs_len += 8;
+		if (nextHdr == IPPROTO_HOPOPTS || nextHdr == IPPROTO_DSTOPTS) {
+			hdrsLen += (ext->ip6eLen << 3) + 8;
+		} else if (nextHdr == IPPROTO_ROUTING) {
+			struct Ip6Rthdr* rt = (struct Ip6Rthdr*) (dataPtr + hdrsLen);
+			hdrsLen += (rt->ip6rLen << 3) + 8;
+		} else if (nextHdr == IPPROTO_AH) {
+			hdrsLen += (ext->ip6eLen << 2) - 2;
+		} else if (nextHdr == IPPROTO_FRAGMENT) {
+			hdrsLen += 8;
 		} else {
 			break;
 		}
 		DEBUG_MSG("\tIPv6 extension header:\t%u\n", next_hdr);
 		DEBUG_MSG("\t\tLength:\t%u\n", ext->ip6e_len);
 
-		next_hdr = ext->ip6e_nxt;
-		ext = (struct ip6_ext*) (data_ptr + hdrs_len);
-		pkt->ip_proto = next_hdr;
+		nextHdr = ext->ip6eNxt;
+		ext = (struct Ip6Ext*) (dataPtr + hdrsLen);
+		pkt->ipProto = nextHdr;
 	}
 
-	pkt->ip_payload_len -= hdrs_len;
-	return hdrs_len;
+	pkt->ipPayloadLen -= hdrsLen;
+	return hdrsLen;
 }
 
 /**
@@ -335,23 +335,23 @@ uint16_t skip_ipv6_ext_hdrs(const u_char* data_ptr, uint16_t data_len, Packet* p
  * \param [out] pkt Pointer to Packet structure where parsed fields will be stored.
  * \return Size of header in bytes.
  */
-inline uint16_t parse_ipv6_hdr(const u_char* data_ptr, uint16_t data_len, Packet* pkt)
+inline uint16_t parseIpv6Hdr(const u_char* dataPtr, uint16_t dataLen, Packet* pkt)
 {
-	struct ip6_hdr* ip6 = (struct ip6_hdr*) data_ptr;
-	uint16_t hdr_len = sizeof(struct ip6_hdr);
-	if (sizeof(struct ip6_hdr) > data_len) {
+	struct Ip6Hdr* ip6 = (struct Ip6Hdr*) dataPtr;
+	uint16_t hdrLen = sizeof(struct Ip6Hdr);
+	if (sizeof(struct Ip6Hdr) > dataLen) {
 		throw "Parser detected malformed packet";
 	}
 
-	pkt->ip_version = IP::v6;
-	pkt->ip_tos = (ntohl(ip6->ip6_ctlun.ip6_un1.ip6_un1_flow) & 0x0ff00000) >> 20;
-	pkt->ip_proto = ip6->ip6_ctlun.ip6_un1.ip6_un1_nxt;
-	pkt->ip_ttl = ip6->ip6_ctlun.ip6_un1.ip6_un1_hlim;
-	pkt->ip_flags = 0;
-	pkt->ip_payload_len = ntohs(ip6->ip6_ctlun.ip6_un1.ip6_un1_plen);
-	pkt->ip_len = pkt->ip_payload_len + 40;
-	memcpy(pkt->src_ip.v6, (const char*) &ip6->ip6_src, 16);
-	memcpy(pkt->dst_ip.v6, (const char*) &ip6->ip6_dst, 16);
+	pkt->ipVersion = IP::V6;
+	pkt->ipTos = (ntohl(ip6->ip6Ctlun.ip6Un1.ip6Un1Flow) & 0x0ff00000) >> 20;
+	pkt->ipProto = ip6->ip6Ctlun.ip6Un1.ip6Un1Nxt;
+	pkt->ipTtl = ip6->ip6Ctlun.ip6Un1.ip6Un1Hlim;
+	pkt->ipFlags = 0;
+	pkt->ipPayloadLen = ntohs(ip6->ip6Ctlun.ip6Un1.ip6Un1Plen);
+	pkt->ipLen = pkt->ipPayloadLen + 40;
+	memcpy(pkt->srcIp.v6, (const char*) &ip6->ip6Src, 16);
+	memcpy(pkt->dstIp.v6, (const char*) &ip6->ip6Dst, 16);
 
 	DEBUG_CODE(char buffer[INET6_ADDRSTRLEN]);
 	DEBUG_MSG("IPv6 header:\n");
@@ -367,11 +367,11 @@ inline uint16_t parse_ipv6_hdr(const u_char* data_ptr, uint16_t data_len, Packet
 	DEBUG_CODE(inet_ntop(AF_INET6, (const void*) &ip6->ip6_dst, buffer, INET6_ADDRSTRLEN));
 	DEBUG_MSG("\tDest addr:\t%s\n", buffer);
 
-	if (pkt->ip_proto != IPPROTO_TCP && pkt->ip_proto != IPPROTO_UDP) {
-		hdr_len += skip_ipv6_ext_hdrs(data_ptr + hdr_len, data_len - hdr_len, pkt);
+	if (pkt->ipProto != IPPROTO_TCP && pkt->ipProto != IPPROTO_UDP) {
+		hdrLen += skipIpv6ExtHdrs(dataPtr + hdrLen, dataLen - hdrLen, pkt);
 	}
 
-	return hdr_len;
+	return hdrLen;
 }
 
 /**
@@ -381,19 +381,19 @@ inline uint16_t parse_ipv6_hdr(const u_char* data_ptr, uint16_t data_len, Packet
  * \param [out] pkt Pointer to Packet structure where parsed fields will be stored.
  * \return Size of header in bytes.
  */
-inline uint16_t parse_tcp_hdr(const u_char* data_ptr, uint16_t data_len, Packet* pkt)
+inline uint16_t parseTcpHdr(const u_char* dataPtr, uint16_t dataLen, Packet* pkt)
 {
-	struct tcphdr* tcp = (struct tcphdr*) data_ptr;
-	if (sizeof(struct tcphdr) > data_len) {
+	struct Tcphdr* tcp = (struct Tcphdr*) dataPtr;
+	if (sizeof(struct Tcphdr) > dataLen) {
 		throw "Parser detected malformed packet";
 	}
 
-	pkt->src_port = ntohs(tcp->source);
-	pkt->dst_port = ntohs(tcp->dest);
-	pkt->tcp_seq = ntohl(tcp->seq);
-	pkt->tcp_ack = ntohl(tcp->ack_seq);
-	pkt->tcp_flags = (uint8_t) * (data_ptr + 13) & 0xFF;
-	pkt->tcp_window = ntohs(tcp->window);
+	pkt->srcPort = ntohs(tcp->source);
+	pkt->dstPort = ntohs(tcp->dest);
+	pkt->tcpSeq = ntohl(tcp->seq);
+	pkt->tcpAck = ntohl(tcp->ackSeq);
+	pkt->tcpFlags = (uint8_t) * (dataPtr + 13) & 0xFF;
+	pkt->tcpWindow = ntohs(tcp->window);
 
 	DEBUG_MSG("TCP header:\n");
 	DEBUG_MSG("\tSrc port:\t%u\n", ntohs(tcp->source));
@@ -415,40 +415,40 @@ inline uint16_t parse_tcp_hdr(const u_char* data_ptr, uint16_t data_len, Packet*
 	DEBUG_MSG("\tReserved1:\t%#x\n", tcp->res1);
 	DEBUG_MSG("\tReserved2:\t%#x\n", tcp->res2);
 
-	int hdr_len = tcp->doff << 2;
-	int hdr_opt_len = hdr_len - sizeof(struct tcphdr);
+	int hdrLen = tcp->doff << 2;
+	int hdrOptLen = hdrLen - sizeof(struct Tcphdr);
 	int i = 0;
 	DEBUG_MSG("\tTCP_OPTIONS (%uB):\n", hdr_opt_len);
-	if (hdr_len > data_len) {
+	if (hdrLen > dataLen) {
 		throw "Parser detected malformed packet";
 	}
-	while (i < hdr_opt_len) {
-		uint8_t* opt_ptr = (uint8_t*) data_ptr + sizeof(struct tcphdr) + i;
-		uint8_t opt_kind = *opt_ptr;
-		if (i + 1 >= hdr_opt_len) {
-			if (opt_kind <= 1) {
-				return hdr_len;
+	while (i < hdrOptLen) {
+		uint8_t* optPtr = (uint8_t*) dataPtr + sizeof(struct Tcphdr) + i;
+		uint8_t optKind = *optPtr;
+		if (i + 1 >= hdrOptLen) {
+			if (optKind <= 1) {
+				return hdrLen;
 			}
 			throw "Parser detected malformed packet";
 		}
-		uint8_t opt_len = (opt_kind <= 1 ? 1 : *(opt_ptr + 1));
+		uint8_t optLen = (optKind <= 1 ? 1 : *(optPtr + 1));
 		DEBUG_MSG("\t\t%u: len=%u\n", opt_kind, opt_len);
 
-		pkt->tcp_options |= ((uint64_t) 1 << opt_kind);
-		if (opt_kind == 0x00) {
+		pkt->tcpOptions |= ((uint64_t) 1 << optKind);
+		if (optKind == 0x00) {
 			break;
-		} else if (opt_kind == 0x02) {
+		} else if (optKind == 0x02) {
 			// Parse Maximum Segment Size (MSS)
-			pkt->tcp_mss = ntohl(*(uint32_t*) (opt_ptr + 2));
+			pkt->tcpMss = ntohl(*(uint32_t*) (optPtr + 2));
 		}
-		if (opt_len == 0) {
+		if (optLen == 0) {
 			// Prevent infinity loop
 			throw "Parser detected malformed packet";
 		}
-		i += opt_len;
+		i += optLen;
 	}
 
-	return hdr_len;
+	return hdrLen;
 }
 
 /**
@@ -458,15 +458,15 @@ inline uint16_t parse_tcp_hdr(const u_char* data_ptr, uint16_t data_len, Packet*
  * \param [out] pkt Pointer to Packet structure where parsed fields will be stored.
  * \return Size of header in bytes.
  */
-inline uint16_t parse_udp_hdr(const u_char* data_ptr, uint16_t data_len, Packet* pkt)
+inline uint16_t parseUdpHdr(const u_char* dataPtr, uint16_t dataLen, Packet* pkt)
 {
-	struct udphdr* udp = (struct udphdr*) data_ptr;
-	if (sizeof(struct udphdr) > data_len) {
+	struct Udphdr* udp = (struct Udphdr*) dataPtr;
+	if (sizeof(struct Udphdr) > dataLen) {
 		throw "Parser detected malformed packet";
 	}
 
-	pkt->src_port = ntohs(udp->source);
-	pkt->dst_port = ntohs(udp->dest);
+	pkt->srcPort = ntohs(udp->source);
+	pkt->dstPort = ntohs(udp->dest);
 
 	DEBUG_MSG("UDP header:\n");
 	DEBUG_MSG("\tSrc port:\t%u\n", ntohs(udp->source));
@@ -484,13 +484,13 @@ inline uint16_t parse_udp_hdr(const u_char* data_ptr, uint16_t data_len, Packet*
  * \param [out] pkt Pointer to Packet structure where parsed fields will be stored.
  * \return Size of header in bytes.
  */
-inline uint16_t parse_icmp_hdr(const u_char* data_ptr, uint16_t data_len, Packet* pkt)
+inline uint16_t parseIcmpHdr(const u_char* dataPtr, uint16_t dataLen, Packet* pkt)
 {
-	struct icmphdr* icmp = (struct icmphdr*) data_ptr;
-	if (sizeof(struct icmphdr) > data_len) {
+	struct Icmphdr* icmp = (struct Icmphdr*) dataPtr;
+	if (sizeof(struct Icmphdr) > dataLen) {
 		throw "Parser detected malformed packet";
 	}
-	pkt->dst_port = icmp->type * 256 + icmp->code;
+	pkt->dstPort = icmp->type * 256 + icmp->code;
 
 	DEBUG_MSG("ICMP header:\n");
 	DEBUG_MSG("\tType:\t\t%u\n", icmp->type);
@@ -508,13 +508,13 @@ inline uint16_t parse_icmp_hdr(const u_char* data_ptr, uint16_t data_len, Packet
  * \param [out] pkt Pointer to Packet structure where parsed fields will be stored.
  * \return Size of header in bytes.
  */
-inline uint16_t parse_icmpv6_hdr(const u_char* data_ptr, uint16_t data_len, Packet* pkt)
+inline uint16_t parseIcmpv6Hdr(const u_char* dataPtr, uint16_t dataLen, Packet* pkt)
 {
-	struct icmp6_hdr* icmp6 = (struct icmp6_hdr*) data_ptr;
-	if (sizeof(struct icmp6_hdr) > data_len) {
+	struct Icmp6Hdr* icmp6 = (struct Icmp6Hdr*) dataPtr;
+	if (sizeof(struct Icmp6Hdr) > dataLen) {
 		throw "Parser detected malformed packet";
 	}
-	pkt->dst_port = icmp6->icmp6_type * 256 + icmp6->icmp6_code;
+	pkt->dstPort = icmp6->icmp6Type * 256 + icmp6->icmp6Code;
 
 	DEBUG_MSG("ICMPv6 header:\n");
 	DEBUG_MSG("\tType:\t\t%u\n", icmp6->icmp6_type);
@@ -531,15 +531,15 @@ inline uint16_t parse_icmpv6_hdr(const u_char* data_ptr, uint16_t data_len, Pack
  * \param [in] data_len Length of packet data in `data_ptr`.
  * \return Size of headers in bytes.
  */
-uint16_t process_mpls_stack(const u_char* data_ptr, uint16_t data_len)
+uint16_t processMplsStack(const u_char* dataPtr, uint16_t dataLen)
 {
 	uint32_t* mpls;
 	uint16_t length = 0;
 
 	do {
-		mpls = (uint32_t*) (data_ptr + length);
+		mpls = (uint32_t*) (dataPtr + length);
 		length += sizeof(uint32_t);
-		if (0 > data_len - length) {
+		if (0 > dataLen - length) {
 			throw "Parser detected malformed packet";
 		}
 
@@ -561,24 +561,24 @@ uint16_t process_mpls_stack(const u_char* data_ptr, uint16_t data_len)
  * \param [out] pkt Pointer to Packet structure where parsed fields will be stored.
  * \return Size of parsed data in bytes.
  */
-uint16_t process_mpls(const u_char* data_ptr, uint16_t data_len, Packet* pkt)
+uint16_t processMpls(const u_char* dataPtr, uint16_t dataLen, Packet* pkt)
 {
 	Packet tmp;
-	uint16_t length = process_mpls_stack(data_ptr, data_len);
-	uint8_t next_hdr = (*(data_ptr + length) & 0xF0) >> 4;
+	uint16_t length = processMplsStack(dataPtr, dataLen);
+	uint8_t nextHdr = (*(dataPtr + length) & 0xF0) >> 4;
 
-	if (next_hdr == IP::v4) {
-		length += parse_ipv4_hdr(data_ptr + length, data_len - length, pkt);
-	} else if (next_hdr == IP::v6) {
-		length += parse_ipv6_hdr(data_ptr + length, data_len - length, pkt);
-	} else if (next_hdr == 0) {
+	if (nextHdr == IP::V4) {
+		length += parseIpv4Hdr(dataPtr + length, dataLen - length, pkt);
+	} else if (nextHdr == IP::V6) {
+		length += parseIpv6Hdr(dataPtr + length, dataLen - length, pkt);
+	} else if (nextHdr == 0) {
 		/* Process EoMPLS */
 		length += 4; /* Skip Pseudo Wire Ethernet control word. */
-		length = parse_eth_hdr(data_ptr + length, data_len - length, &tmp);
+		length = parseEthHdr(dataPtr + length, dataLen - length, &tmp);
 		if (tmp.ethertype == ETH_P_IP) {
-			length += parse_ipv4_hdr(data_ptr + length, data_len - length, pkt);
+			length += parseIpv4Hdr(dataPtr + length, dataLen - length, pkt);
 		} else if (tmp.ethertype == ETH_P_IPV6) {
-			length += parse_ipv6_hdr(data_ptr + length, data_len - length, pkt);
+			length += parseIpv6Hdr(dataPtr + length, dataLen - length, pkt);
 		}
 	}
 
@@ -592,14 +592,14 @@ uint16_t process_mpls(const u_char* data_ptr, uint16_t data_len, Packet* pkt)
  * \param [out] pkt Pointer to Packet structure where parsed fields will be stored.
  * \return Size of parsed data in bytes.
  */
-inline uint16_t process_pppoe(const u_char* data_ptr, uint16_t data_len, Packet* pkt)
+inline uint16_t processPppoe(const u_char* dataPtr, uint16_t dataLen, Packet* pkt)
 {
-	struct pppoe_hdr* pppoe = (struct pppoe_hdr*) data_ptr;
-	if (sizeof(struct pppoe_hdr) + 2 > data_len) {
+	struct PppoeHdr* pppoe = (struct PppoeHdr*) dataPtr;
+	if (sizeof(struct PppoeHdr) + 2 > dataLen) {
 		throw "Parser detected malformed packet";
 	}
-	uint16_t next_hdr = ntohs(*(uint16_t*) (data_ptr + sizeof(struct pppoe_hdr)));
-	uint16_t length = sizeof(struct pppoe_hdr) + 2;
+	uint16_t nextHdr = ntohs(*(uint16_t*) (dataPtr + sizeof(struct PppoeHdr)));
+	uint16_t length = sizeof(struct PppoeHdr) + 2;
 
 	DEBUG_MSG("PPPoE header:\n");
 	DEBUG_MSG("\tVer:\t%u\n", pppoe->version);
@@ -613,16 +613,16 @@ inline uint16_t process_pppoe(const u_char* data_ptr, uint16_t data_len, Packet*
 		return length;
 	}
 
-	if (next_hdr == 0x0021) {
-		length += parse_ipv4_hdr(data_ptr + length, data_len - length, pkt);
-	} else if (next_hdr == 0x0057) {
-		length += parse_ipv6_hdr(data_ptr + length, data_len - length, pkt);
+	if (nextHdr == 0x0021) {
+		length += parseIpv4Hdr(dataPtr + length, dataLen - length, pkt);
+	} else if (nextHdr == 0x0057) {
+		length += parseIpv6Hdr(dataPtr + length, dataLen - length, pkt);
 	}
 
 	return length;
 }
 
-void parse_packet(
+void parsePacket(
 	parser_opt_t* opt,
 	struct timeval ts,
 	const uint8_t* data,
@@ -633,7 +633,7 @@ void parse_packet(
 		return;
 	}
 	Packet* pkt = &opt->pblock->pkts[opt->pblock->cnt];
-	uint16_t data_offset = 0;
+	uint16_t dataOffset = 0;
 
 	DEBUG_MSG("---------- packet parser  #%u -------------\n", ++s_total_pkts);
 	DEBUG_CODE(char timestamp[32]; time_t time = ts.tv_sec;
@@ -641,31 +641,31 @@ void parse_packet(
 	DEBUG_MSG("Time:\t\t\t%s.%06lu\n", timestamp, ts.tv_usec);
 	DEBUG_MSG("Packet length:\t\tcaplen=%uB len=%uB\n\n", caplen, len);
 
-	pkt->packet_len_wire = len;
+	pkt->packetLenWire = len;
 	pkt->ts = ts;
-	pkt->src_port = 0;
-	pkt->dst_port = 0;
-	pkt->ip_proto = 0;
-	pkt->ip_ttl = 0;
-	pkt->ip_flags = 0;
-	pkt->ip_version = 0;
-	pkt->ip_payload_len = 0;
-	pkt->tcp_flags = 0;
-	pkt->tcp_window = 0;
-	pkt->tcp_options = 0;
-	pkt->tcp_mss = 0;
+	pkt->srcPort = 0;
+	pkt->dstPort = 0;
+	pkt->ipProto = 0;
+	pkt->ipTtl = 0;
+	pkt->ipFlags = 0;
+	pkt->ipVersion = 0;
+	pkt->ipPayloadLen = 0;
+	pkt->tcpFlags = 0;
+	pkt->tcpWindow = 0;
+	pkt->tcpOptions = 0;
+	pkt->tcpMss = 0;
 
-	uint32_t l3_hdr_offset = 0;
-	uint32_t l4_hdr_offset = 0;
+	uint32_t l3HdrOffset = 0;
+	uint32_t l4HdrOffset = 0;
 	try {
 #ifdef WITH_PCAP
 		if (opt->datalink == DLT_EN10MB) {
-			data_offset = parse_eth_hdr(data, caplen, pkt);
+			dataOffset = parseEthHdr(data, caplen, pkt);
 		} else if (opt->datalink == DLT_LINUX_SLL) {
-			data_offset = parse_sll(data, caplen, pkt);
+			dataOffset = parseSll(data, caplen, pkt);
 #ifdef DLT_LINUX_SLL2
 		} else if (opt->datalink == DLT_LINUX_SLL2) {
-			data_offset = parse_sll2(data, caplen, pkt);
+			dataOffset = parseSll2(data, caplen, pkt);
 #endif /* DLT_LINUX_SLL2 */
 		} else if (opt->datalink == DLT_RAW) {
 			if ((data[0] & 0xF0) == 0x40) {
@@ -679,62 +679,62 @@ void parse_packet(
 #endif /* WITH_PCAP */
 
 		if (pkt->ethertype == ETH_P_TRILL) {
-			data_offset += parse_trill(data + data_offset, caplen - data_offset, pkt);
-			data_offset += parse_eth_hdr(data + data_offset, caplen - data_offset, pkt);
+			dataOffset += parseTrill(data + dataOffset, caplen - dataOffset, pkt);
+			dataOffset += parseEthHdr(data + dataOffset, caplen - dataOffset, pkt);
 		}
-		l3_hdr_offset = data_offset;
+		l3HdrOffset = dataOffset;
 		if (pkt->ethertype == ETH_P_IP) {
-			data_offset += parse_ipv4_hdr(data + data_offset, caplen - data_offset, pkt);
+			dataOffset += parseIpv4Hdr(data + dataOffset, caplen - dataOffset, pkt);
 		} else if (pkt->ethertype == ETH_P_IPV6) {
-			data_offset += parse_ipv6_hdr(data + data_offset, caplen - data_offset, pkt);
+			dataOffset += parseIpv6Hdr(data + dataOffset, caplen - dataOffset, pkt);
 		} else if (pkt->ethertype == ETH_P_MPLS_UC || pkt->ethertype == ETH_P_MPLS_MC) {
-			data_offset += process_mpls(data + data_offset, caplen - data_offset, pkt);
+			dataOffset += processMpls(data + dataOffset, caplen - dataOffset, pkt);
 		} else if (pkt->ethertype == ETH_P_PPP_SES) {
-			data_offset += process_pppoe(data + data_offset, caplen - data_offset, pkt);
-		} else if (!opt->parse_all) {
+			dataOffset += processPppoe(data + dataOffset, caplen - dataOffset, pkt);
+		} else if (!opt->parseAll) {
 			DEBUG_MSG("Unknown ethertype %x\n", pkt->ethertype);
 			return;
 		}
 
-		l4_hdr_offset = data_offset;
-		if (pkt->ip_proto == IPPROTO_TCP) {
-			data_offset += parse_tcp_hdr(data + data_offset, caplen - data_offset, pkt);
-		} else if (pkt->ip_proto == IPPROTO_UDP) {
-			data_offset += parse_udp_hdr(data + data_offset, caplen - data_offset, pkt);
-		} else if (pkt->ip_proto == IPPROTO_ICMP) {
-			data_offset += parse_icmp_hdr(data + data_offset, caplen - data_offset, pkt);
-		} else if (pkt->ip_proto == IPPROTO_ICMPV6) {
-			data_offset += parse_icmpv6_hdr(data + data_offset, caplen - data_offset, pkt);
+		l4HdrOffset = dataOffset;
+		if (pkt->ipProto == IPPROTO_TCP) {
+			dataOffset += parseTcpHdr(data + dataOffset, caplen - dataOffset, pkt);
+		} else if (pkt->ipProto == IPPROTO_UDP) {
+			dataOffset += parseUdpHdr(data + dataOffset, caplen - dataOffset, pkt);
+		} else if (pkt->ipProto == IPPROTO_ICMP) {
+			dataOffset += parseIcmpHdr(data + dataOffset, caplen - dataOffset, pkt);
+		} else if (pkt->ipProto == IPPROTO_ICMPV6) {
+			dataOffset += parseIcmpv6Hdr(data + dataOffset, caplen - dataOffset, pkt);
 		}
 	} catch (const char* err) {
 		DEBUG_MSG("%s\n", err);
 		return;
 	}
 
-	uint16_t pkt_len = caplen;
+	uint16_t pktLen = caplen;
 	pkt->packet = data;
-	pkt->packet_len = caplen;
+	pkt->packetLen = caplen;
 
-	if (l4_hdr_offset != l3_hdr_offset) {
-		if (l4_hdr_offset + pkt->ip_payload_len < 64) {
+	if (l4HdrOffset != l3HdrOffset) {
+		if (l4HdrOffset + pkt->ipPayloadLen < 64) {
 			// Packet contains 0x00 padding bytes, do not include them in payload
-			pkt_len = l4_hdr_offset + pkt->ip_payload_len;
+			pktLen = l4HdrOffset + pkt->ipPayloadLen;
 		}
-		pkt->payload_len_wire = pkt->ip_payload_len - (data_offset - l4_hdr_offset);
+		pkt->payloadLenWire = pkt->ipPayloadLen - (dataOffset - l4HdrOffset);
 	} else {
-		pkt->payload_len_wire = pkt_len - data_offset;
+		pkt->payloadLenWire = pktLen - dataOffset;
 	}
 
-	pkt->payload_len = pkt->payload_len_wire;
-	if (pkt->payload_len + data_offset > pkt_len) {
+	pkt->payloadLen = pkt->payloadLenWire;
+	if (pkt->payloadLen + dataOffset > pktLen) {
 		// Set correct size when payload length is bigger than captured payload length
-		pkt->payload_len = pkt_len - data_offset;
+		pkt->payloadLen = pktLen - dataOffset;
 	}
-	pkt->payload = pkt->packet + data_offset;
+	pkt->payload = pkt->packet + dataOffset;
 
 	DEBUG_MSG("Payload length:\t%u\n", pkt->payload_len);
 	DEBUG_MSG("Packet parser exits: packet parsed\n");
-	opt->packet_valid = true;
+	opt->packetValid = true;
 	opt->pblock->cnt++;
 	opt->pblock->bytes += len;
 }

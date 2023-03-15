@@ -51,7 +51,7 @@
 #include <ipfixprobe/packet.hpp>
 #include <ipfixprobe/utils.hpp>
 
-namespace ipxp {
+namespace Ipxp {
 
 /*
  * \brief Minimum snapshot length of pcap handle.
@@ -68,78 +68,78 @@ namespace ipxp {
 
 class PcapOptParser : public OptionsParser {
 public:
-	std::string m_file;
-	std::string m_ifc;
-	std::string m_filter;
-	uint16_t m_snaplen;
-	uint64_t m_id;
-	bool m_list;
+	std::string mFile;
+	std::string mIfc;
+	std::string mFilter;
+	uint16_t mSnaplen;
+	uint64_t mId;
+	bool mList;
 
 	PcapOptParser()
 		: OptionsParser(
 			"pcap",
 			"Input plugin for reading packets from a pcap file or a network interface")
-		, m_file("")
-		, m_ifc("")
-		, m_filter("")
-		, m_snaplen(-1)
-		, m_id(0)
-		, m_list(false)
+		, mFile("")
+		, mIfc("")
+		, mFilter("")
+		, mSnaplen(-1)
+		, mId(0)
+		, mList(false)
 	{
-		register_option(
+		registerOption(
 			"f",
 			"file",
 			"PATH",
 			"Path to a pcap file",
 			[this](const char* arg) {
-				m_file = arg;
+				mFile = arg;
 				return true;
 			},
-			OptionFlags::RequiredArgument);
-		register_option(
+			OptionFlags::REQUIRED_ARGUMENT);
+		registerOption(
 			"i",
 			"ifc",
 			"IFC",
 			"Network interface name",
 			[this](const char* arg) {
-				m_ifc = arg;
+				mIfc = arg;
 				return true;
 			},
-			OptionFlags::RequiredArgument);
-		register_option(
+			OptionFlags::REQUIRED_ARGUMENT);
+		registerOption(
 			"F",
 			"filter",
 			"STR",
 			"Filter string",
 			[this](const char* arg) {
-				m_filter = arg;
+				mFilter = arg;
 				return true;
 			},
-			OptionFlags::RequiredArgument);
-		register_option(
+			OptionFlags::REQUIRED_ARGUMENT);
+		registerOption(
 			"s",
 			"snaplen",
 			"SIZE",
 			"Snapshot length in bytes (live capture only)",
 			[this](const char* arg) {
 				try {
-					m_snaplen = str2num<decltype(m_snaplen)>(arg);
+					mSnaplen = str2num<decltype(mSnaplen)>(arg);
 				} catch (std::invalid_argument& e) {
 					return false;
 				}
 				return true;
 			},
-			OptionFlags::RequiredArgument);
-		register_option(
+			OptionFlags::REQUIRED_ARGUMENT);
+		registerOption(
 			"l",
 			"list",
 			"",
 			"Print list of available interfaces",
 			[this](const char* arg) {
-				m_list = true;
+				mList = true;
 				return true;
 			},
-			OptionFlags::NoArgument);
+			OptionFlags::NO_ARGUMENT);
 	}
 };
 
@@ -153,8 +153,8 @@ public:
 
 	void init(const char* params);
 	void close();
-	OptionsParser* get_parser() const { return new PcapOptParser(); }
-	std::string get_name() const { return "pcap"; }
+	OptionsParser* getParser() const { return new PcapOptParser(); }
+	std::string getName() const { return "pcap"; }
 	InputPlugin::Result get(PacketBlock& packets);
 
 private:
@@ -164,15 +164,15 @@ private:
 	bool m_live; /**< Capturing from network interface */
 	bpf_u_int32 m_netmask; /**< Network mask. Used when setting filter */
 
-	void open_file(const std::string& file);
-	void open_ifc(const std::string& ifc);
-	void set_filter(const std::string& filter_str);
+	void openFile(const std::string& file);
+	void openIfc(const std::string& ifc);
+	void setFilter(const std::string& filterStr);
 
-	void check_datalink(int datalink);
-	void print_available_ifcs();
+	void checkDatalink(int datalink);
+	void printAvailableIfcs();
 };
 
-void packet_handler(u_char* arg, const struct pcap_pkthdr* h, const u_char* data);
+void packetHandler(u_char* arg, const struct pcap_pkthdr* h, const u_char* data);
 
 } // namespace ipxp
 #endif /* IPXP_INPUT_PCAP_HPP */

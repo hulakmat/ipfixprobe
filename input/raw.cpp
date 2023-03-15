@@ -63,19 +63,19 @@
 #include "parser.hpp"
 #include "raw.hpp"
 
-namespace ipxp {
+namespace Ipxp {
 
 #ifndef TPACKET3_HDRLEN
 #error "raw plugin is supported with TPACKET3 only"
 #endif
 
 // Read only 1 packet into packet block
-constexpr size_t RAW_PACKET_BLOCK_SIZE = 1;
+constexpr size_t g_RAW_PACKET_BLOCK_SIZE = 1;
 
-__attribute__((constructor)) static void register_this_plugin()
+__attribute__((constructor)) static void registerThisPlugin()
 {
 	static PluginRecord rec = PluginRecord("raw", []() { return new RawReader(); });
-	register_plugin(&rec);
+	registerPlugin(&rec);
 }
 
 RawReader::RawReader()
@@ -109,13 +109,13 @@ void RawReader::init(const char* params)
 		throw PluginError(e.what());
 	}
 
-	if (parser.m_list) {
-		print_available_ifcs();
+	if (parser.mList) {
+		printAvailableIfcs();
 		throw PluginExit();
 	}
 
-	m_fanout = parser.m_fanout;
-	if (parser.m_ifc.empty()) {
+	m_fanout = parser.mFanout;
+	if (parser.mIfc.empty()) {
 		throw PluginError("specify network interface");
 	}
 
@@ -124,15 +124,15 @@ void RawReader::init(const char* params)
 		throw PluginError("get page size failed");
 	}
 
-	m_blocksize = pagesize * parser.m_pkt_cnt;
+	m_blocksize = pagesize * parser.mPktCnt;
 	m_framesize = 2048;
-	m_blocknum = parser.m_block_cnt;
+	m_blocknum = parser.mBlockCnt;
 
 	if (static_cast<long>(m_framesize) > pagesize) {
 		m_framesize = pagesize;
 	}
 
-	open_ifc(parser.m_ifc);
+	openIfc(parser.mIfc);
 }
 
 void RawReader::close()
@@ -151,7 +151,7 @@ void RawReader::close()
 	}
 }
 
-void RawReader::open_ifc(const std::string& ifc)
+void RawReader::openIfc(const std::string& ifc)
 {
 	int sock = socket(AF_PACKET, SOCK_RAW, htons(ETH_P_ALL));
 	if (sock == -1) {
@@ -159,8 +159,8 @@ void RawReader::open_ifc(const std::string& ifc)
 	}
 
 	int version = TPACKET_V3;
-	int ssopt_pkt_version = setsockopt(sock, SOL_PACKET, PACKET_VERSION, &version, sizeof(version));
-	if (ssopt_pkt_version == -1) {
+	int ssoptPktVersion = setsockopt(sock, SOL_PACKET, PACKET_VERSION, &version, sizeof(version));
+	if (ssoptPktVersion == -1) {
 		::close(sock);
 		throw PluginError(std::string("unable to set packet to v3: ") + strerror(errno));
 	}
@@ -179,20 +179,20 @@ void RawReader::open_ifc(const std::string& ifc)
 			std::string("unable to get ifc number: ioctl failed: ") + strerror(errno));
 	}
 
-	int ifc_num = ifr.ifr_ifindex;
+	int ifcNum = ifr.ifr_ifindex;
 
-	struct packet_mreq sock_params;
-	memset(&sock_params, 0, sizeof(sock_params));
-	sock_params.mr_type = PACKET_MR_PROMISC;
-	sock_params.mr_ifindex = ifc_num;
+	struct packet_mreq sockParams;
+	memset(&sockParams, 0, sizeof(sockParams));
+	sockParams.mr_type = PACKET_MR_PROMISC;
+	sockParams.mr_ifindex = ifcNum;
 
-	int set_promisc = setsockopt(
+	int setPromisc = setsockopt(
 		sock,
 		SOL_PACKET,
 		PACKET_ADD_MEMBERSHIP,
-		static_cast<void*>(&sock_params),
-		sizeof(sock_params));
-	if (set_promisc == -1) {
+		static_cast<void*>(&sockParams),
+		sizeof(sockParams));
+	if (setPromisc == -1) {
 		::close(sock);
 		throw PluginError(std::string("unable to set ifc to promisc mode: ") + strerror(errno));
 	}
@@ -208,16 +208,16 @@ void RawReader::open_ifc(const std::string& ifc)
 	req.tp_retire_blk_tov = 60; // timeout in msec
 	req.tp_feature_req_word = TP_FT_REQ_FILL_RXHASH;
 
-	int ssopt_rx_ring = setsockopt(sock, SOL_PACKET, PACKET_RX_RING, (void*) &req, sizeof(req));
-	if (ssopt_rx_ring == -1) {
+	int ssoptRxRing = setsockopt(sock, SOL_PACKET, PACKET_RX_RING, (void*) &req, sizeof(req));
+	if (ssoptRxRing == -1) {
 		::close(sock);
 		throw PluginError(
 			std::string("failed to enable RX_RING for AF_PACKET: ") + strerror(errno));
 	}
 
-	size_t mmap_bufsize = static_cast<size_t>(req.tp_block_size) * req.tp_block_nr;
+	size_t mmapBufsize = static_cast<size_t>(req.tp_block_size) * req.tp_block_nr;
 	uint8_t* buffer = static_cast<uint8_t*>(
-		mmap(NULL, mmap_bufsize, PROT_READ | PROT_WRITE, MAP_SHARED | MAP_LOCKED, sock, 0));
+		mmap(NULL, mmapBufsize, PROT_READ | PROT_WRITE, MAP_SHARED | MAP_LOCKED, sock, 0));
 	if (buffer == MAP_FAILED) {
 		::close(sock);
 		throw PluginError(std::string("mmap() failed: ") + strerror(errno));
@@ -225,7 +225,7 @@ void RawReader::open_ifc(const std::string& ifc)
 
 	struct iovec* rd = static_cast<struct iovec*>(malloc(req.tp_block_nr * sizeof(struct iovec)));
 	if (rd == nullptr) {
-		munmap(buffer, mmap_bufsize);
+		munmap(buffer, mmapBufsize);
 		::close(sock);
 		throw PluginError("not enough memory");
 	}
@@ -234,30 +234,30 @@ void RawReader::open_ifc(const std::string& ifc)
 		rd[i].iov_len = req.tp_block_size;
 	}
 
-	struct sockaddr_ll bind_addr;
-	memset(&bind_addr, 0, sizeof(bind_addr));
-	bind_addr.sll_family = PF_PACKET;
-	bind_addr.sll_protocol = htons(ETH_P_ALL);
-	bind_addr.sll_ifindex = ifc_num;
-	bind_addr.sll_hatype = 0;
-	bind_addr.sll_pkttype = 0;
-	bind_addr.sll_halen = 0;
+	struct sockaddr_ll bindAddr;
+	memset(&bindAddr, 0, sizeof(bindAddr));
+	bindAddr.sll_family = PF_PACKET;
+	bindAddr.sll_protocol = htons(ETH_P_ALL);
+	bindAddr.sll_ifindex = ifcNum;
+	bindAddr.sll_hatype = 0;
+	bindAddr.sll_pkttype = 0;
+	bindAddr.sll_halen = 0;
 
-	int bind_res = bind(sock, (struct sockaddr*) &bind_addr, sizeof(bind_addr));
-	if (bind_res == -1) {
-		munmap(buffer, mmap_bufsize);
+	int bindRes = bind(sock, (struct sockaddr*) &bindAddr, sizeof(bindAddr));
+	if (bindRes == -1) {
+		munmap(buffer, mmapBufsize);
 		::close(sock);
 		free(rd);
 		throw PluginError(std::string("bind failed: ") + strerror(errno));
 	}
 
 	if (m_fanout) {
-		int fanout_type = PACKET_FANOUT_CPU;
-		int fanout_arg = (m_fanout | (fanout_type << 16));
-		int setsockopt_fanout
-			= setsockopt(sock, SOL_PACKET, PACKET_FANOUT, &fanout_arg, sizeof(fanout_arg));
-		if (setsockopt_fanout == -1) {
-			munmap(buffer, mmap_bufsize);
+		int fanoutType = PACKET_FANOUT_CPU;
+		int fanoutArg = (m_fanout | (fanoutType << 16));
+		int setsockoptFanout
+			= setsockopt(sock, SOL_PACKET, PACKET_FANOUT, &fanoutArg, sizeof(fanoutArg));
+		if (setsockoptFanout == -1) {
+			munmap(buffer, mmapBufsize);
 			::close(sock);
 			free(rd);
 			throw PluginError(std::string("fanout failed: ") + strerror(errno));
@@ -271,14 +271,14 @@ void RawReader::open_ifc(const std::string& ifc)
 
 	m_sock = sock;
 	m_rd = rd;
-	m_buffer_size = mmap_bufsize;
+	m_buffer_size = mmapBufsize;
 	m_buffer = buffer;
 	m_block_idx = 0;
 
 	m_pbd = (struct tpacket_block_desc*) m_rd[m_block_idx].iov_base;
 }
 
-bool RawReader::get_block()
+bool RawReader::getBlock()
 {
 	if ((m_pbd->hdr.bh1.block_status & TP_STATUS_USER) == 0) {
 		// No data available at the moment
@@ -290,70 +290,70 @@ bool RawReader::get_block()
 	return true;
 }
 
-void RawReader::return_block()
+void RawReader::returnBlock()
 {
 	m_pbd->hdr.bh1.block_status = TP_STATUS_KERNEL;
 	m_block_idx = (m_block_idx + 1) % m_blocknum;
 	m_pbd = (struct tpacket_block_desc*) m_rd[m_block_idx].iov_base;
 }
 
-int RawReader::read_packets(PacketBlock& packets)
+int RawReader::readPackets(PacketBlock& packets)
 {
-	int read_cnt = 0;
+	int readCnt = 0;
 
 	if (m_pkts_left) {
-		read_cnt = process_packets(m_pbd, packets);
+		readCnt = processPackets(m_pbd, packets);
 		if (!m_pkts_left) {
-			return_block();
+			returnBlock();
 		}
 		if (packets.cnt == packets.size) {
-			return read_cnt;
+			return readCnt;
 		}
 	}
-	if (!get_block()) {
+	if (!getBlock()) {
 		return 0;
 	}
 
-	read_cnt += process_packets(m_pbd, packets);
+	readCnt += processPackets(m_pbd, packets);
 	if (!m_pkts_left) {
-		return_block();
+		returnBlock();
 	}
-	return read_cnt;
+	return readCnt;
 }
 
-int RawReader::process_packets(struct tpacket_block_desc* pbd, PacketBlock& packets)
+int RawReader::processPackets(struct tpacket_block_desc* pbd, PacketBlock& packets)
 {
 	parser_opt_t opt = {&packets, false, false, DLT_EN10MB};
-	uint32_t num_pkts = pbd->hdr.bh1.num_pkts;
-	uint32_t capacity = RAW_PACKET_BLOCK_SIZE - packets.cnt;
-	uint32_t to_read = 0;
+	uint32_t numPkts = pbd->hdr.bh1.num_pkts;
+	uint32_t capacity = g_RAW_PACKET_BLOCK_SIZE - packets.cnt;
+	uint32_t toRead = 0;
 	struct tpacket3_hdr* ppd;
 
 	if (m_pkts_left) {
 		ppd = m_last_ppd;
-		to_read = (m_pkts_left >= capacity ? capacity : m_pkts_left);
-		m_pkts_left = m_pkts_left - to_read;
+		toRead = (m_pkts_left >= capacity ? capacity : m_pkts_left);
+		m_pkts_left = m_pkts_left - toRead;
 	} else {
 		ppd = (struct tpacket3_hdr*) ((uint8_t*) pbd + pbd->hdr.bh1.offset_to_first_pkt);
-		to_read = (num_pkts >= capacity ? capacity : num_pkts);
-		m_pkts_left = num_pkts - to_read;
+		toRead = (numPkts >= capacity ? capacity : numPkts);
+		m_pkts_left = numPkts - toRead;
 	}
 
-	for (uint32_t i = 0; i < to_read; ++i) {
+	for (uint32_t i = 0; i < toRead; ++i) {
 		const u_char* data = (uint8_t*) ppd + ppd->tp_mac;
 		size_t len = ppd->tp_len;
 		size_t snaplen = ppd->tp_snaplen;
 		struct timeval ts = {ppd->tp_sec, ppd->tp_nsec / 1000};
 
-		parse_packet(&opt, ts, data, len, snaplen);
+		parsePacket(&opt, ts, data, len, snaplen);
 		ppd = (struct tpacket3_hdr*) ((uint8_t*) ppd + ppd->tp_next_offset);
 	}
 	m_last_ppd = ppd;
 
-	return to_read;
+	return toRead;
 }
 
-void RawReader::print_available_ifcs()
+void RawReader::printAvailableIfcs()
 {
 	struct ifaddrs* ifaddr;
 
@@ -385,7 +385,7 @@ InputPlugin::Result RawReader::get(PacketBlock& packets)
 	int ret;
 
 	packets.cnt = 0;
-	ret = read_packets(packets);
+	ret = readPackets(packets);
 	if (ret == 0) {
 		return Result::TIMEOUT;
 	}
@@ -393,8 +393,8 @@ InputPlugin::Result RawReader::get(PacketBlock& packets)
 		throw PluginError("error during reading from socket");
 	}
 
-	m_seen += ret;
-	m_parsed += packets.cnt;
+	mSeen += ret;
+	mParsed += packets.cnt;
 	return packets.cnt ? Result::PARSED : Result::NOT_PARSED;
 }
 

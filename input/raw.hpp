@@ -51,35 +51,35 @@
 #include <ipfixprobe/packet.hpp>
 #include <ipfixprobe/utils.hpp>
 
-namespace ipxp {
+namespace Ipxp {
 
 class RawOptParser : public OptionsParser {
 public:
-	std::string m_ifc;
-	uint16_t m_fanout;
-	uint32_t m_block_cnt;
-	uint32_t m_pkt_cnt;
-	bool m_list;
+	std::string mIfc;
+	uint16_t mFanout;
+	uint32_t mBlockCnt;
+	uint32_t mPktCnt;
+	bool mList;
 
 	RawOptParser()
 		: OptionsParser("raw", "Input plugin for reading packets from a raw socket")
-		, m_ifc("")
-		, m_fanout(0)
-		, m_block_cnt(2048)
-		, m_pkt_cnt(32)
-		, m_list(false)
+		, mIfc("")
+		, mFanout(0)
+		, mBlockCnt(2048)
+		, mPktCnt(32)
+		, mList(false)
 	{
-		register_option(
+		registerOption(
 			"i",
 			"ifc",
 			"IFC",
 			"Network interface name",
 			[this](const char* arg) {
-				m_ifc = arg;
+				mIfc = arg;
 				return true;
 			},
-			OptionFlags::RequiredArgument);
-		register_option(
+			OptionFlags::REQUIRED_ARGUMENT);
+		registerOption(
 			"f",
 			"fanout",
 			"ID",
@@ -87,57 +87,57 @@ public:
 			[this](const char* arg) {
 				if (arg) {
 					try {
-						m_fanout = str2num<decltype(m_fanout)>(arg);
-						if (!m_fanout) {
+						mFanout = str2num<decltype(mFanout)>(arg);
+						if (!mFanout) {
 							return false;
 						}
 					} catch (std::invalid_argument& e) {
 						return false;
 					}
 				} else {
-					m_fanout = getpid() & 0xFFFF;
+					mFanout = getpid() & 0xFFFF;
 				}
 				return true;
 			},
-			OptionFlags::OptionalArgument);
-		register_option(
+			OptionFlags::OPTIONAL_ARGUMENT);
+		registerOption(
 			"b",
 			"blocks",
 			"SIZE",
 			"Number of packet blocks (should be power of two num)",
 			[this](const char* arg) {
 				try {
-					m_block_cnt = str2num<decltype(m_block_cnt)>(arg);
+					mBlockCnt = str2num<decltype(mBlockCnt)>(arg);
 				} catch (std::invalid_argument& e) {
 					return false;
 				}
 				return true;
 			},
-			OptionFlags::RequiredArgument);
-		register_option(
+			OptionFlags::REQUIRED_ARGUMENT);
+		registerOption(
 			"p",
 			"pkts",
 			"SIZE",
 			"Number of packets in block (should be power of two num)",
 			[this](const char* arg) {
 				try {
-					m_pkt_cnt = str2num<decltype(m_pkt_cnt)>(arg);
+					mPktCnt = str2num<decltype(mPktCnt)>(arg);
 				} catch (std::invalid_argument& e) {
 					return false;
 				}
 				return true;
 			},
-			OptionFlags::RequiredArgument);
-		register_option(
+			OptionFlags::REQUIRED_ARGUMENT);
+		registerOption(
 			"l",
 			"list",
 			"",
 			"Print list of available interfaces",
 			[this](const char* arg) {
-				m_list = true;
+				mList = true;
 				return true;
 			},
-			OptionFlags::NoArgument);
+			OptionFlags::NO_ARGUMENT);
 	}
 };
 
@@ -147,8 +147,8 @@ public:
 	~RawReader();
 	void init(const char* params);
 	void close();
-	OptionsParser* get_parser() const { return new RawOptParser(); }
-	std::string get_name() const { return "raw"; }
+	OptionsParser* getParser() const { return new RawOptParser(); }
+	std::string getName() const { return "raw"; }
 	InputPlugin::Result get(PacketBlock& packets);
 
 private:
@@ -169,15 +169,15 @@ private:
 	struct tpacket_block_desc* m_pbd;
 	uint32_t m_pkts_left;
 
-	void open_ifc(const std::string& ifc);
-	bool get_block();
-	void return_block();
-	int read_packets(PacketBlock& packets);
-	int process_packets(struct tpacket_block_desc* pbd, PacketBlock& packets);
-	void print_available_ifcs();
+	void openIfc(const std::string& ifc);
+	bool getBlock();
+	void returnBlock();
+	int readPackets(PacketBlock& packets);
+	int processPackets(struct tpacket_block_desc* pbd, PacketBlock& packets);
+	void printAvailableIfcs();
 };
 
-void packet_handler(u_char* arg, const struct pcap_pkthdr* h, const u_char* data);
+void packetHandler(u_char* arg, const struct pcap_pkthdr* h, const u_char* data);
 
 } // namespace ipxp
 #endif /* IPXP_INPUT_RAW_HPP */

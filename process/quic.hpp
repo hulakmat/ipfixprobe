@@ -22,7 +22,7 @@
 #include <ipfixprobe/utils.hpp>
 #include <sstream>
 
-namespace ipxp {
+namespace Ipxp {
 #define QUIC_UNIREC_TEMPLATE "QUIC_SNI,QUIC_USER_AGENT,QUIC_VERSION"
 UR_FIELDS(string QUIC_SNI, string QUIC_USER_AGENT, uint32 QUIC_VERSION)
 
@@ -30,66 +30,66 @@ UR_FIELDS(string QUIC_SNI, string QUIC_USER_AGENT, uint32 QUIC_VERSION)
  * \brief Flow record extension header for storing parsed QUIC packets.
  */
 struct RecordExtQUIC : public RecordExt {
-	static int REGISTERED_ID;
+	static int s_registeredId;
 	char sni[BUFF_SIZE] = {0};
-	char user_agent[BUFF_SIZE] = {0};
-	uint32_t quic_version;
+	char userAgent[BUFF_SIZE] = {0};
+	uint32_t quicVersion;
 
 	RecordExtQUIC()
-		: RecordExt(REGISTERED_ID)
+		: RecordExt(s_registeredId)
 	{
 		sni[0] = 0;
-		user_agent[0] = 0;
-		quic_version = 0;
+		userAgent[0] = 0;
+		quicVersion = 0;
 	}
 
 #ifdef WITH_NEMEA
-	virtual void fill_unirec(ur_template_t* tmplt, void* record)
+	virtual void fillUnirec(ur_template_t* tmplt, void* record)
 	{
 		ur_set_string(tmplt, record, F_QUIC_SNI, sni);
-		ur_set_string(tmplt, record, F_QUIC_USER_AGENT, user_agent);
-		ur_set(tmplt, record, F_QUIC_VERSION, quic_version);
+		ur_set_string(tmplt, record, F_QUIC_USER_AGENT, userAgent);
+		ur_set(tmplt, record, F_QUIC_VERSION, quicVersion);
 	}
 
-	const char* get_unirec_tmplt() const
+	const char* getUnirecTmplt() const
 	{
 		return QUIC_UNIREC_TEMPLATE;
 	}
 
 #endif // ifdef WITH_NEMEA
 
-	virtual int fill_ipfix(uint8_t* buffer, int size)
+	virtual int fillIpfix(uint8_t* buffer, int size)
 	{
-		uint16_t len_sni = strlen(sni);
-		uint16_t len_user_agent = strlen(user_agent);
-		uint16_t len_version = sizeof(quic_version);
+		uint16_t lenSni = strlen(sni);
+		uint16_t lenUserAgent = strlen(userAgent);
+		uint16_t lenVersion = sizeof(quicVersion);
 		int pos = 0;
 
-		if ((len_sni + 3) + (len_user_agent + 3) + len_version > size) {
+		if ((lenSni + 3) + (lenUserAgent + 3) + lenVersion > size) {
 			return -1;
 		}
 
-		pos += variable2ipfix_buffer(buffer + pos, (uint8_t*) sni, len_sni);
-		pos += variable2ipfix_buffer(buffer + pos, (uint8_t*) user_agent, len_user_agent);
-		*(uint32_t*) (buffer + pos) = htonl(quic_version);
-		pos += len_version;
+		pos += variable2ipfixBuffer(buffer + pos, (uint8_t*) sni, lenSni);
+		pos += variable2ipfixBuffer(buffer + pos, (uint8_t*) userAgent, lenUserAgent);
+		*(uint32_t*) (buffer + pos) = htonl(quicVersion);
+		pos += lenVersion;
 		return pos;
 	}
 
-	const char** get_ipfix_tmplt() const
+	const char** getIpfixTmplt() const
 	{
-		static const char* ipfix_template[] = {IPFIX_QUIC_TEMPLATE(IPFIX_FIELD_NAMES) nullptr};
+		static const char* ipfixTemplate[] = {IPFIX_QUIC_TEMPLATE(IPFIX_FIELD_NAMES) nullptr};
 
-		return ipfix_template;
+		return ipfixTemplate;
 	}
 
-	std::string get_text() const
+	std::string getText() const
 	{
 		std::ostringstream out;
 
 		out << "quicsni=\"" << sni << "\""
-			<< "quicuseragent=\"" << user_agent << "\""
-			<< "quicversion=\"" << quic_version << "\"";
+			<< "quicuseragent=\"" << userAgent << "\""
+			<< "quicversion=\"" << quicVersion << "\"";
 		return out.str();
 	}
 };
@@ -103,25 +103,25 @@ public:
 	~QUICPlugin();
 	void init(const char* params);
 	void close();
-	RecordExt* get_ext() const { return new RecordExtQUIC(); }
+	RecordExt* getExt() const { return new RecordExtQUIC(); }
 
-	OptionsParser* get_parser() const { return new OptionsParser("quic", "Parse QUIC traffic"); }
+	OptionsParser* getParser() const { return new OptionsParser("quic", "Parse QUIC traffic"); }
 
-	std::string get_name() const { return "quic"; }
+	std::string getName() const { return "quic"; }
 
 	ProcessPlugin* copy();
 
-	int pre_create(Packet& pkt);
-	int post_create(Flow& rec, const Packet& pkt);
-	int pre_update(Flow& rec, Packet& pkt);
-	int post_update(Flow& rec, const Packet& pkt);
-	void add_quic(Flow& rec, const Packet& pkt);
-	void finish(bool print_stats);
+	int preCreate(Packet& pkt);
+	int postCreate(Flow& rec, const Packet& pkt);
+	int preUpdate(Flow& rec, Packet& pkt);
+	int postUpdate(Flow& rec, const Packet& pkt);
+	void addQuic(Flow& rec, const Packet& pkt);
+	void finish(bool printStats);
 
 private:
-	bool process_quic(RecordExtQUIC*, const Packet&);
-	int parsed_initial;
-	RecordExtQUIC* quic_ptr;
+	bool processQuic(RecordExtQUIC*, const Packet&);
+	int m_parsed_initial;
+	RecordExtQUIC* m_quic_ptr;
 };
 } // namespace ipxp
 #endif /* IPXP_PROCESS_QUIC_HPP */

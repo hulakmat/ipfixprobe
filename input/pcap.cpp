@@ -51,15 +51,15 @@
 #include "parser.hpp"
 #include "pcap.hpp"
 
-namespace ipxp {
+namespace Ipxp {
 
 // Read only 1 packet into packet block
-constexpr size_t PCAP_PACKET_BLOCK_SIZE = 1;
+constexpr size_t g_PCAP_PACKET_BLOCK_SIZE = 1;
 
-__attribute__((constructor)) static void register_this_plugin()
+__attribute__((constructor)) static void registerThisPlugin()
 {
 	static PluginRecord rec = PluginRecord("pcap", []() { return new PcapReader(); });
-	register_plugin(&rec);
+	registerPlugin(&rec);
 }
 
 /**
@@ -68,7 +68,7 @@ __attribute__((constructor)) static void register_this_plugin()
  * \param [in] h Contains timestamp and packet size.
  * \param [in] data Pointer to the captured packet data.
  */
-void packet_handler(u_char* arg, const struct pcap_pkthdr* h, const u_char* data)
+void packetHandler(u_char* arg, const struct pcap_pkthdr* h, const u_char* data)
 {
 #ifdef __CYGWIN__
 	// WinPcap, uses Microsoft's definition of struct timeval, which has `long` data type
@@ -82,7 +82,7 @@ void packet_handler(u_char* arg, const struct pcap_pkthdr* h, const u_char* data
 	new_h.len = *(reinterpret_cast<const uint32_t*>(h) + 3);
 	parse_packet((parser_opt_t*) arg, new_h.ts, data, new_h.len, new_h.caplen);
 #else
-	parse_packet((parser_opt_t*) arg, h->ts, data, h->len, h->caplen);
+	parsePacket((parser_opt_t*) arg, h->ts, data, h->len, h->caplen);
 #endif
 }
 
@@ -109,19 +109,19 @@ void PcapReader::init(const char* params)
 		throw PluginError(e.what());
 	}
 
-	if (parser.m_list) {
-		print_available_ifcs();
+	if (parser.mList) {
+		printAvailableIfcs();
 		throw PluginExit();
 	}
 
-	if (parser.m_ifc.empty() && parser.m_file.empty()) {
+	if (parser.mIfc.empty() && parser.mFile.empty()) {
 		throw PluginError("specify network interface or pcap file path");
 	}
-	if (!parser.m_ifc.empty() && !parser.m_file.empty()) {
+	if (!parser.mIfc.empty() && !parser.mFile.empty()) {
 		throw PluginError("only one input can be specified");
 	}
 
-	m_snaplen = parser.m_snaplen;
+	m_snaplen = parser.mSnaplen;
 	if (m_snaplen < MIN_SNAPLEN) {
 		std::cerr << "setting snapshot length to minimum value " << MIN_SNAPLEN << std::endl;
 		m_snaplen = MIN_SNAPLEN;
@@ -130,14 +130,14 @@ void PcapReader::init(const char* params)
 		m_snaplen = MAX_SNAPLEN;
 	}
 
-	if (!parser.m_ifc.empty()) {
-		open_ifc(parser.m_ifc);
+	if (!parser.mIfc.empty()) {
+		openIfc(parser.mIfc);
 	} else {
-		open_file(parser.m_file);
+		openFile(parser.mFile);
 	}
 
-	if (!parser.m_filter.empty()) {
-		set_filter(parser.m_filter);
+	if (!parser.mFilter.empty()) {
+		setFilter(parser.mFilter);
 	}
 }
 
@@ -149,7 +149,7 @@ void PcapReader::close()
 	}
 }
 
-void PcapReader::open_file(const std::string& file)
+void PcapReader::openFile(const std::string& file)
 {
 	char errbuf[PCAP_ERRBUF_SIZE];
 
@@ -161,10 +161,10 @@ void PcapReader::open_file(const std::string& file)
 	m_datalink = pcap_datalink(m_handle);
 	m_live = false;
 
-	check_datalink(m_datalink);
+	checkDatalink(m_datalink);
 }
 
-void PcapReader::open_ifc(const std::string& ifc)
+void PcapReader::openIfc(const std::string& ifc)
 {
 	char errbuf[PCAP_ERRBUF_SIZE];
 	errbuf[0] = 0;
@@ -182,7 +182,7 @@ void PcapReader::open_ifc(const std::string& ifc)
 	}
 
 	m_datalink = pcap_datalink(m_handle);
-	check_datalink(m_datalink);
+	checkDatalink(m_datalink);
 
 	bpf_u_int32 net;
 	if (pcap_lookupnet(ifc.c_str(), &net, &m_netmask, errbuf) != 0) {
@@ -192,7 +192,7 @@ void PcapReader::open_ifc(const std::string& ifc)
 	m_live = true;
 }
 
-void PcapReader::check_datalink(int datalink)
+void PcapReader::checkDatalink(int datalink)
 {
 	if (m_datalink != DLT_EN10MB && m_datalink != DLT_LINUX_SLL && m_datalink != DLT_RAW) {
 #ifdef DLT_LINUX_SLL2
@@ -213,12 +213,12 @@ void PcapReader::check_datalink(int datalink)
 	}
 }
 
-void PcapReader::print_available_ifcs()
+void PcapReader::printAvailableIfcs()
 {
 	char errbuf[PCAP_ERRBUF_SIZE];
 	pcap_if_t* devs;
 	pcap_if_t* d;
-	int max_width = 0;
+	int maxWidth = 0;
 	int i = 0;
 
 	if (pcap_findalldevs(&devs, errbuf) == -1) {
@@ -231,8 +231,8 @@ void PcapReader::print_available_ifcs()
 
 	for (d = devs; d != nullptr; d = d->next) {
 		int len = strlen(d->name);
-		if (len > max_width) {
-			max_width = len;
+		if (len > maxWidth) {
+			maxWidth = len;
 		}
 	}
 	for (d = devs; d != nullptr; d = d->next) {
@@ -241,7 +241,7 @@ void PcapReader::print_available_ifcs()
 			continue;
 		}
 #endif
-		std::cout << std::setw(2) << ++i << ".  " << std::setw(max_width) << d->name;
+		std::cout << std::setw(2) << ++i << ".  " << std::setw(maxWidth) << d->name;
 		if (d->description) {
 			std::cout << "    " << d->description << std::endl;
 		} else {
@@ -255,17 +255,17 @@ void PcapReader::print_available_ifcs()
 	pcap_freealldevs(devs);
 }
 
-void PcapReader::set_filter(const std::string& filter_str)
+void PcapReader::setFilter(const std::string& filterStr)
 {
 	struct bpf_program filter;
-	if (pcap_compile(m_handle, &filter, filter_str.c_str(), 0, m_netmask) == -1) {
+	if (pcap_compile(m_handle, &filter, filterStr.c_str(), 0, m_netmask) == -1) {
 		throw PluginError(
-			"couldn't parse filter " + filter_str + ": " + std::string(pcap_geterr(m_handle)));
+			"couldn't parse filter " + filterStr + ": " + std::string(pcap_geterr(m_handle)));
 	}
 	if (pcap_setfilter(m_handle, &filter) == -1) {
 		pcap_freecode(&filter);
 		throw PluginError(
-			"couldn't parse filter " + filter_str + ": " + std::string(pcap_geterr(m_handle)));
+			"couldn't parse filter " + filterStr + ": " + std::string(pcap_geterr(m_handle)));
 	}
 
 	pcap_freecode(&filter);
@@ -281,20 +281,20 @@ InputPlugin::Result PcapReader::get(PacketBlock& packets)
 	}
 
 	packets.cnt = 0;
-	ret = pcap_dispatch(m_handle, PCAP_PACKET_BLOCK_SIZE, packet_handler, (u_char*) (&opt));
+	ret = pcap_dispatch(m_handle, g_PCAP_PACKET_BLOCK_SIZE, packetHandler, (u_char*) (&opt));
 	if (m_live) {
 		if (ret == 0) {
 			return Result::TIMEOUT;
 		}
 		if (ret > 0) {
-			m_seen += ret;
-			m_parsed += opt.pblock->cnt;
-			return opt.packet_valid ? Result::PARSED : Result::NOT_PARSED;
+			mSeen += ret;
+			mParsed += opt.pblock->cnt;
+			return opt.packetValid ? Result::PARSED : Result::NOT_PARSED;
 		}
 	} else {
 		if (opt.pblock->cnt) {
-			m_seen += ret ? ret : opt.pblock->cnt;
-			m_parsed += opt.pblock->cnt;
+			mSeen += ret ? ret : opt.pblock->cnt;
+			mParsed += opt.pblock->cnt;
 			return Result::PARSED;
 		} else if (ret == 0) {
 			return Result::END_OF_FILE;

@@ -56,7 +56,7 @@
 #include <ipfixprobe/packet.hpp>
 #include <ipfixprobe/process.hpp>
 
-namespace ipxp {
+namespace Ipxp {
 
 /**
  * \brief WireGuard packet types.
@@ -82,68 +82,68 @@ UR_FIELDS(uint8 WG_CONF_LEVEL, uint32 WG_SRC_PEER, uint32 WG_DST_PEER)
  * \brief Flow record extension header for storing parsed WG packets.
  */
 struct RecordExtWG : public RecordExt {
-	static int REGISTERED_ID;
+	static int s_registeredId;
 
-	uint8_t possible_wg;
-	uint32_t src_peer;
-	uint32_t dst_peer;
+	uint8_t possibleWg;
+	uint32_t srcPeer;
+	uint32_t dstPeer;
 
 	RecordExtWG()
-		: RecordExt(REGISTERED_ID)
+		: RecordExt(s_registeredId)
 	{
-		possible_wg = 0;
-		src_peer = 0;
-		dst_peer = 0;
+		possibleWg = 0;
+		srcPeer = 0;
+		dstPeer = 0;
 	}
 
 #ifdef WITH_NEMEA
-	virtual void fill_unirec(ur_template_t* tmplt, void* record)
+	virtual void fillUnirec(ur_template_t* tmplt, void* record)
 	{
-		ur_set(tmplt, record, F_WG_CONF_LEVEL, possible_wg);
-		ur_set(tmplt, record, F_WG_SRC_PEER, src_peer);
-		ur_set(tmplt, record, F_WG_DST_PEER, dst_peer);
+		ur_set(tmplt, record, F_WG_CONF_LEVEL, possibleWg);
+		ur_set(tmplt, record, F_WG_SRC_PEER, srcPeer);
+		ur_set(tmplt, record, F_WG_DST_PEER, dstPeer);
 	}
 
-	const char* get_unirec_tmplt() const
+	const char* getUnirecTmplt() const
 	{
 		return WG_UNIREC_TEMPLATE;
 	}
 #endif
 
-	virtual int fill_ipfix(uint8_t* buffer, int size)
+	virtual int fillIpfix(uint8_t* buffer, int size)
 	{
 		int requiredLen = 0;
 
-		requiredLen += sizeof(possible_wg); // WG_CONF_LEVEL
-		requiredLen += sizeof(src_peer); // WG_SRC_PEER
-		requiredLen += sizeof(dst_peer); // WG_DST_PEER
+		requiredLen += sizeof(possibleWg); // WG_CONF_LEVEL
+		requiredLen += sizeof(srcPeer); // WG_SRC_PEER
+		requiredLen += sizeof(dstPeer); // WG_DST_PEER
 
 		if (requiredLen > size) {
 			return -1;
 		}
 
-		memcpy(buffer, &possible_wg, sizeof(possible_wg));
-		buffer += sizeof(possible_wg);
-		memcpy(buffer, &src_peer, sizeof(src_peer));
-		buffer += sizeof(src_peer);
-		memcpy(buffer, &dst_peer, sizeof(dst_peer));
-		buffer += sizeof(dst_peer);
+		memcpy(buffer, &possibleWg, sizeof(possibleWg));
+		buffer += sizeof(possibleWg);
+		memcpy(buffer, &srcPeer, sizeof(srcPeer));
+		buffer += sizeof(srcPeer);
+		memcpy(buffer, &dstPeer, sizeof(dstPeer));
+		buffer += sizeof(dstPeer);
 
 		return requiredLen;
 	}
 
-	const char** get_ipfix_tmplt() const
+	const char** getIpfixTmplt() const
 	{
-		static const char* ipfix_tmplt[] = {IPFIX_WG_TEMPLATE(IPFIX_FIELD_NAMES) nullptr};
+		static const char* ipfixTmplt[] = {IPFIX_WG_TEMPLATE(IPFIX_FIELD_NAMES) nullptr};
 
-		return ipfix_tmplt;
+		return ipfixTmplt;
 	}
 
-	std::string get_text() const
+	std::string getText() const
 	{
 		std::ostringstream out;
-		out << "wgconf=" << (uint16_t) possible_wg << ",wgsrcpeer=" << src_peer
-			<< ",wgdstpeer=" << dst_peer;
+		out << "wgconf=" << (uint16_t) possibleWg << ",wgsrcpeer=" << srcPeer
+			<< ",wgdstpeer=" << dstPeer;
 		return out.str();
 	}
 };
@@ -157,24 +157,24 @@ public:
 	~WGPlugin();
 	void init(const char* params);
 	void close();
-	OptionsParser* get_parser() const { return new OptionsParser("wg", "Parse WireGuard traffic"); }
-	std::string get_name() const { return "wg"; }
-	RecordExt* get_ext() const { return new RecordExtWG(); }
+	OptionsParser* getParser() const { return new OptionsParser("wg", "Parse WireGuard traffic"); }
+	std::string getName() const { return "wg"; }
+	RecordExt* getExt() const { return new RecordExtWG(); }
 	ProcessPlugin* copy();
 
-	int post_create(Flow& rec, const Packet& pkt);
-	int pre_update(Flow& rec, Packet& pkt);
-	void pre_export(Flow& rec);
-	void finish(bool print_stats);
+	int postCreate(Flow& rec, const Packet& pkt);
+	int preUpdate(Flow& rec, Packet& pkt);
+	void preExport(Flow& rec);
+	void finish(bool printStats);
 
 private:
-	RecordExtWG* preallocated_record; /**< Preallocated instance of record to use */
-	bool flow_flush; /**< Instructs the engine to create new flow, during pre_update. */
-	uint32_t total; /**< Total number of processed packets. */
-	uint32_t identified; /**< Total number of identified WireGuard packets. */
+	RecordExtWG* m_preallocated_record; /**< Preallocated instance of record to use */
+	bool m_flow_flush; /**< Instructs the engine to create new flow, during pre_update. */
+	uint32_t m_total; /**< Total number of processed packets. */
+	uint32_t m_identified; /**< Total number of identified WireGuard packets. */
 
-	bool parse_wg(const char* data, unsigned int payload_len, bool source_pkt, RecordExtWG* ext);
-	int add_ext_wg(const char* data, unsigned int payload_len, bool source_pkt, Flow& rec);
+	bool parseWg(const char* data, unsigned int payloadLen, bool sourcePkt, RecordExtWG* ext);
+	int addExtWg(const char* data, unsigned int payloadLen, bool sourcePkt, Flow& rec);
 };
 
 } // namespace ipxp

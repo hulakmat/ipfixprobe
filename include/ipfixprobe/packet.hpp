@@ -53,7 +53,7 @@
 #include <ipfixprobe/flowifc.hpp>
 #include <ipfixprobe/ipaddr.hpp>
 
-namespace ipxp {
+namespace Ipxp {
 
 /**
  * \brief Structure for storing parsed packet fields
@@ -61,82 +61,82 @@ namespace ipxp {
 struct Packet : public Record {
 	struct timeval ts;
 
-	uint8_t dst_mac[6];
-	uint8_t src_mac[6];
+	uint8_t dstMac[6];
+	uint8_t srcMac[6];
 	uint16_t ethertype;
 
-	uint16_t ip_len; /**< Length of IP header + its payload */
-	uint16_t ip_payload_len; /**< Length of IP payload */
-	uint8_t ip_version;
-	uint8_t ip_ttl;
-	uint8_t ip_proto;
-	uint8_t ip_tos;
-	uint8_t ip_flags;
-	ipaddr_t src_ip;
-	ipaddr_t dst_ip;
+	uint16_t ipLen; /**< Length of IP header + its payload */
+	uint16_t ipPayloadLen; /**< Length of IP payload */
+	uint8_t ipVersion;
+	uint8_t ipTtl;
+	uint8_t ipProto;
+	uint8_t ipTos;
+	uint8_t ipFlags;
+	ipaddr_t srcIp;
+	ipaddr_t dstIp;
 
-	uint16_t src_port;
-	uint16_t dst_port;
-	uint8_t tcp_flags;
-	uint16_t tcp_window;
-	uint64_t tcp_options;
-	uint32_t tcp_mss;
-	uint32_t tcp_seq;
-	uint32_t tcp_ack;
+	uint16_t srcPort;
+	uint16_t dstPort;
+	uint8_t tcpFlags;
+	uint16_t tcpWindow;
+	uint64_t tcpOptions;
+	uint32_t tcpMss;
+	uint32_t tcpSeq;
+	uint32_t tcpAck;
 
 	const uint8_t* packet; /**< Pointer to begin of packet, if available */
-	uint16_t packet_len; /**< Length of data in packet buffer, packet_len <= packet_len_wire */
-	uint16_t packet_len_wire; /**< Original packet length on wire */
+	uint16_t packetLen; /**< Length of data in packet buffer, packet_len <= packet_len_wire */
+	uint16_t packetLenWire; /**< Original packet length on wire */
 
 	const uint8_t* payload; /**< Pointer to begin of payload, if available */
-	uint16_t payload_len; /**< Length of data in payload buffer, payload_len <= payload_len_wire */
-	uint16_t payload_len_wire; /**< Original payload length computed from headers */
+	uint16_t payloadLen; /**< Length of data in payload buffer, payload_len <= payload_len_wire */
+	uint16_t payloadLenWire; /**< Original payload length computed from headers */
 
 	uint8_t* custom; /**< Pointer to begin of custom data, if available */
-	uint16_t custom_len; /**< Length of data in custom buffer */
+	uint16_t customLen; /**< Length of data in custom buffer */
 
 	// TODO REMOVE
 	uint8_t* buffer; /**< Buffer for packet, payload and custom data */
-	uint16_t buffer_size; /**< Size of buffer */
+	uint16_t bufferSize; /**< Size of buffer */
 
-	bool source_pkt; /**< Direction of packet from flow point of view */
+	bool sourcePkt; /**< Direction of packet from flow point of view */
 
 	/**
 	 * \brief Constructor.
 	 */
 	Packet()
 		: ts({0})
-		, dst_mac()
-		, src_mac()
+		, dstMac()
+		, srcMac()
 		, ethertype(0)
-		, ip_len(0)
-		, ip_payload_len(0)
-		, ip_version(0)
-		, ip_ttl(0)
-		, ip_proto(0)
-		, ip_tos(0)
-		, ip_flags(0)
-		, src_ip({0})
-		, dst_ip({0})
-		, src_port(0)
-		, dst_port(0)
-		, tcp_flags(0)
-		, tcp_window(0)
-		, tcp_options(0)
-		, tcp_mss(0)
-		, tcp_seq(0)
-		, tcp_ack(0)
+		, ipLen(0)
+		, ipPayloadLen(0)
+		, ipVersion(0)
+		, ipTtl(0)
+		, ipProto(0)
+		, ipTos(0)
+		, ipFlags(0)
+		, srcIp({0})
+		, dstIp({0})
+		, srcPort(0)
+		, dstPort(0)
+		, tcpFlags(0)
+		, tcpWindow(0)
+		, tcpOptions(0)
+		, tcpMss(0)
+		, tcpSeq(0)
+		, tcpAck(0)
 		, packet(nullptr)
-		, packet_len(0)
-		, packet_len_wire(0)
+		, packetLen(0)
+		, packetLenWire(0)
 		, payload(nullptr)
-		, payload_len(0)
-		, payload_len_wire(0)
+		, payloadLen(0)
+		, payloadLenWire(0)
 		, custom(nullptr)
-		, custom_len(0)
+		, customLen(0)
 		, buffer(nullptr)
-		, buffer_size(0)
-		, source_pkt(true)
+		, bufferSize(0)
+		, sourcePkt(true)
 	{
 	}
 };
@@ -147,12 +147,12 @@ struct PacketBlock {
 	size_t bytes;
 	size_t size;
 
-	PacketBlock(size_t pkts_size)
+	PacketBlock(size_t pktsSize)
 		: cnt(0)
 		, bytes(0)
-		, size(pkts_size)
+		, size(pktsSize)
 	{
-		pkts = new Packet[pkts_size];
+		pkts = new Packet[pktsSize];
 	}
 
 	~PacketBlock() { delete[] pkts; }

@@ -52,7 +52,7 @@
 
 #include <ipfixprobe/plugin.hpp>
 
-namespace ipxp {
+namespace Ipxp {
 
 class PluginManagerError : public std::runtime_error {
 public:
@@ -71,15 +71,15 @@ class PluginManager {
 public:
 	PluginManager();
 	~PluginManager();
-	void register_plugin(const std::string& name, PluginGetter g);
+	void registerPlugin(const std::string& name, PluginGetter g);
 	Plugin* get(const std::string& name);
 	std::vector<Plugin*> get() const;
 	Plugin* load(const std::string& name);
 
 private:
 	struct LoadedPlugin {
-		void* m_handle;
-		std::string m_file;
+		void* mHandle;
+		std::string mFile;
 	};
 
 	std::map<std::string, PluginGetter> m_getters;
@@ -87,7 +87,7 @@ private:
 	PluginRecord* m_last_rec;
 
 	void unload();
-	void register_loaded_plugins();
+	void registerLoadedPlugins();
 };
 
 } // namespace ipxp

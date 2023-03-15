@@ -13,22 +13,22 @@
 #include "tls_parser.hpp"
 #include <endian.h>
 
-namespace ipxp {
+namespace Ipxp {
 TLSParser::TLSParser()
 {
-	tls_hs = NULL;
+	m_tls_hs = NULL;
 }
 
-uint64_t quic_get_variable_length(uint8_t* start, uint64_t& offset)
+uint64_t quicGetVariableLength(uint8_t* start, uint64_t& offset)
 {
 	// find out length of parameter field (and load parameter, then move offset) , defined in:
 	// https://www.rfc-editor.org/rfc/rfc9000.html#name-summary-of-integer-encoding
 	// this approach is used also in length field , and other QUIC defined fields.
 	uint64_t tmp = 0;
 
-	uint8_t two_bits = *(start + offset) & 0xC0;
+	uint8_t twoBits = *(start + offset) & 0xC0;
 
-	switch (two_bits) {
+	switch (twoBits) {
 	case 0:
 		tmp = *(start + offset) & 0x3F;
 		offset += sizeof(uint8_t);
@@ -54,7 +54,7 @@ uint64_t quic_get_variable_length(uint8_t* start, uint64_t& offset)
 	}
 } // quic_get_variable_length
 
-bool TLSParser::tls_is_grease_value(uint16_t val)
+bool TLSParser::tlsIsGreaseValue(uint16_t val)
 {
 	if (val != 0 && !(val & ~(0xFAFA)) && ((0x00FF & val) == (val >> 8))) {
 		return true;
@@ -62,14 +62,14 @@ bool TLSParser::tls_is_grease_value(uint16_t val)
 	return false;
 }
 
-void TLSParser::tls_get_quic_user_agent(TLSData& data, char* buffer, size_t buffer_size)
+void TLSParser::tlsGetQuicUserAgent(TLSData& data, char* buffer, size_t bufferSize)
 {
 	// compute end of quic_transport_parameters
-	const uint16_t quic_transport_params_len = ntohs(*(uint16_t*) data.start);
-	const uint8_t* quic_transport_params_end
-		= data.start + quic_transport_params_len + sizeof(quic_transport_params_len);
+	const uint16_t quicTransportParamsLen = ntohs(*(uint16_t*) data.start);
+	const uint8_t* quicTransportParamsEnd
+		= data.start + quicTransportParamsLen + sizeof(quicTransportParamsLen);
 
-	if (quic_transport_params_end > data.end) {
+	if (quicTransportParamsEnd > data.end) {
 		return;
 	}
 
@@ -77,62 +77,62 @@ void TLSParser::tls_get_quic_user_agent(TLSData& data, char* buffer, size_t buff
 	uint64_t param = 0;
 	uint64_t length = 0;
 
-	while (data.start + offset < quic_transport_params_end) {
-		param = quic_get_variable_length((uint8_t*) data.start, offset);
-		length = quic_get_variable_length((uint8_t*) data.start, offset);
+	while (data.start + offset < quicTransportParamsEnd) {
+		param = quicGetVariableLength((uint8_t*) data.start, offset);
+		length = quicGetVariableLength((uint8_t*) data.start, offset);
 		if (param == TLS_EXT_GOOGLE_USER_AGENT) {
-			if (length + (size_t) 1 > buffer_size) {
-				length = buffer_size - 1;
+			if (length + (size_t) 1 > bufferSize) {
+				length = bufferSize - 1;
 			}
 			memcpy(buffer, data.start + offset, length);
 			buffer[length] = 0;
-			data.obejcts_parsed++;
+			data.obejctsParsed++;
 		}
 		offset += length;
 	}
 	return;
 }
 
-void TLSParser::tls_get_server_name(TLSData& data, char* buffer, size_t buffer_size)
+void TLSParser::tlsGetServerName(TLSData& data, char* buffer, size_t bufferSize)
 {
-	uint16_t list_len = ntohs(*(uint16_t*) data.start);
-	uint16_t offset = sizeof(list_len);
-	const uint8_t* list_end = data.start + list_len + offset;
-	size_t buff_offset = 0;
+	uint16_t listLen = ntohs(*(uint16_t*) data.start);
+	uint16_t offset = sizeof(listLen);
+	const uint8_t* listEnd = data.start + listLen + offset;
+	size_t buffOffset = 0;
 
-	if (list_end > data.end) {
+	if (listEnd > data.end) {
 		// data.valid = false;
 		return;
 	}
 
-	while (data.start + sizeof(tls_ext_sni) + offset < list_end) {
-		tls_ext_sni* tmp_sni = (tls_ext_sni*) (data.start + offset);
-		uint16_t sni_len = ntohs(tmp_sni->length);
+	while (data.start + sizeof(TlsExtSni) + offset < listEnd) {
+		TlsExtSni* tmpSni = (TlsExtSni*) (data.start + offset);
+		uint16_t sniLen = ntohs(tmpSni->length);
 
-		offset += sizeof(tls_ext_sni);
-		if (data.start + offset + sni_len > list_end) {
+		offset += sizeof(TlsExtSni);
+		if (data.start + offset + sniLen > listEnd) {
 			break;
 		}
-		if (sni_len + (size_t) 1 + buff_offset > buffer_size) {
-			sni_len = buffer_size - 1 - buff_offset;
+		if (sniLen + (size_t) 1 + buffOffset > bufferSize) {
+			sniLen = bufferSize - 1 - buffOffset;
 		}
-		memcpy(buffer + buff_offset, data.start + offset, sni_len);
+		memcpy(buffer + buffOffset, data.start + offset, sniLen);
 
-		buff_offset += sni_len + 1;
-		buffer[buff_offset - 1] = 0;
-		data.obejcts_parsed++;
-		offset += ntohs(tmp_sni->length);
+		buffOffset += sniLen + 1;
+		buffer[buffOffset - 1] = 0;
+		data.obejctsParsed++;
+		offset += ntohs(tmpSni->length);
 	}
 	return;
 }
 
-void TLSParser::tls_get_alpn(TLSData& data, char* buffer, size_t buffer_size)
+void TLSParser::tlsGetAlpn(TLSData& data, char* buffer, size_t bufferSize)
 {
-	uint16_t list_len = ntohs(*(uint16_t*) data.start);
-	uint16_t offset = sizeof(list_len);
-	const uint8_t* list_end = data.start + list_len + offset;
+	uint16_t listLen = ntohs(*(uint16_t*) data.start);
+	uint16_t offset = sizeof(listLen);
+	const uint8_t* listEnd = data.start + listLen + offset;
 
-	if (list_end > data.end) {
+	if (listEnd > data.end) {
 		// data.valid = false;
 		return;
 	}
@@ -140,70 +140,70 @@ void TLSParser::tls_get_alpn(TLSData& data, char* buffer, size_t buffer_size)
 		return;
 	}
 
-	uint16_t alpn_written = 0;
+	uint16_t alpnWritten = 0;
 
-	while (data.start + sizeof(uint8_t) + offset < list_end) {
-		uint8_t alpn_len = *(uint8_t*) (data.start + offset);
-		const uint8_t* alpn_str = data.start + offset + sizeof(uint8_t);
+	while (data.start + sizeof(uint8_t) + offset < listEnd) {
+		uint8_t alpnLen = *(uint8_t*) (data.start + offset);
+		const uint8_t* alpnStr = data.start + offset + sizeof(uint8_t);
 
-		offset += sizeof(uint8_t) + alpn_len;
-		if (data.start + offset > list_end) {
+		offset += sizeof(uint8_t) + alpnLen;
+		if (data.start + offset > listEnd) {
 			break;
 		}
-		if (alpn_written + alpn_len + (size_t) 2 >= buffer_size) {
+		if (alpnWritten + alpnLen + (size_t) 2 >= bufferSize) {
 			break;
 		}
 
-		if (alpn_written != 0) {
-			buffer[alpn_written++] = ';';
+		if (alpnWritten != 0) {
+			buffer[alpnWritten++] = ';';
 		}
-		memcpy(buffer + alpn_written, alpn_str, alpn_len);
-		alpn_written += alpn_len;
-		buffer[alpn_written] = 0;
+		memcpy(buffer + alpnWritten, alpnStr, alpnLen);
+		alpnWritten += alpnLen;
+		buffer[alpnWritten] = 0;
 	}
 	return;
 } // TLSParser::tls_get_alpn
 
-tls_handshake TLSParser::tls_get_handshake()
+TlsHandshake TLSParser::tlsGetHandshake()
 {
-	if (tls_hs != NULL) {
-		return *tls_hs;
+	if (m_tls_hs != NULL) {
+		return *m_tls_hs;
 	}
 	return {};
 }
 
-bool TLSParser::tls_check_handshake(TLSData& payload)
+bool TLSParser::tlsCheckHandshake(TLSData& payload)
 {
-	tls_hs = (tls_handshake*) payload.start;
-	const uint8_t tmp_hs_type = tls_hs->type;
+	m_tls_hs = (TlsHandshake*) payload.start;
+	const uint8_t tmpHsType = m_tls_hs->type;
 
-	if (payload.start + sizeof(tls_handshake) > payload.end
+	if (payload.start + sizeof(TlsHandshake) > payload.end
 		|| !(
-			tmp_hs_type == TLS_HANDSHAKE_CLIENT_HELLO
-			|| tmp_hs_type == TLS_HANDSHAKE_SERVER_HELLO)) {
+			tmpHsType == TLS_HANDSHAKE_CLIENT_HELLO
+			|| tmpHsType == TLS_HANDSHAKE_SERVER_HELLO)) {
 		return false;
 	}
-	if (payload.start + 44 > payload.end || tls_hs->version.major != 3 || tls_hs->version.minor < 1
-		|| tls_hs->version.minor > 3) {
+	if (payload.start + 44 > payload.end || m_tls_hs->version.major != 3 || m_tls_hs->version.minor < 1
+		|| m_tls_hs->version.minor > 3) {
 		return false;
 	}
-	payload.start += sizeof(tls_handshake);
+	payload.start += sizeof(TlsHandshake);
 	return true;
 }
 
-bool TLSParser::tls_check_rec(TLSData& payload)
+bool TLSParser::tlsCheckRec(TLSData& payload)
 {
-	tls_rec* tls = (tls_rec*) payload.start;
+	TlsRec* tls = (TlsRec*) payload.start;
 
-	if (payload.start + sizeof(tls_rec) > payload.end || !tls || tls->type != TLS_HANDSHAKE
+	if (payload.start + sizeof(TlsRec) > payload.end || !tls || tls->type != TLS_HANDSHAKE
 		|| tls->version.major != 3 || tls->version.minor > 3) {
 		return false;
 	}
-	payload.start += sizeof(tls_rec);
+	payload.start += sizeof(TlsRec);
 	return true;
 }
 
-bool TLSParser::tls_skip_random(TLSData& payload)
+bool TLSParser::tlsSkipRandom(TLSData& payload)
 {
 	if (payload.start + 32 > payload.end) {
 		return false;
@@ -212,70 +212,70 @@ bool TLSParser::tls_skip_random(TLSData& payload)
 	return true;
 }
 
-bool TLSParser::tls_skip_sessid(TLSData& payload)
+bool TLSParser::tlsSkipSessid(TLSData& payload)
 {
-	uint8_t sess_id_len = *(uint8_t*) payload.start;
+	uint8_t sessIdLen = *(uint8_t*) payload.start;
 
-	if (payload.start + sizeof(sess_id_len) + sess_id_len > payload.end) {
+	if (payload.start + sizeof(sessIdLen) + sessIdLen > payload.end) {
 		return false;
 	}
-	payload.start += sizeof(sess_id_len) + sess_id_len;
+	payload.start += sizeof(sessIdLen) + sessIdLen;
 	return true;
 }
 
-bool TLSParser::tls_skip_cipher_suites(TLSData& payload)
+bool TLSParser::tlsSkipCipherSuites(TLSData& payload)
 {
-	uint16_t cipher_suite_len = ntohs(*(uint16_t*) payload.start);
+	uint16_t cipherSuiteLen = ntohs(*(uint16_t*) payload.start);
 
-	if (payload.start + sizeof(cipher_suite_len) + +cipher_suite_len > payload.end) {
+	if (payload.start + sizeof(cipherSuiteLen) + +cipherSuiteLen > payload.end) {
 		return false;
 	}
-	payload.start += sizeof(cipher_suite_len) + cipher_suite_len;
+	payload.start += sizeof(cipherSuiteLen) + cipherSuiteLen;
 	return true;
 }
 
-bool TLSParser::tls_skip_compression_met(TLSData& payload)
+bool TLSParser::tlsSkipCompressionMet(TLSData& payload)
 {
-	uint8_t compression_met_len = *(uint8_t*) payload.start;
+	uint8_t compressionMetLen = *(uint8_t*) payload.start;
 
-	if (payload.start + sizeof(compression_met_len) + compression_met_len > payload.end) {
+	if (payload.start + sizeof(compressionMetLen) + compressionMetLen > payload.end) {
 		return false;
 	}
-	payload.start += sizeof(compression_met_len) + compression_met_len;
+	payload.start += sizeof(compressionMetLen) + compressionMetLen;
 	return true;
 }
 
-bool TLSParser::tls_check_ext_len(TLSData& payload)
+bool TLSParser::tlsCheckExtLen(TLSData& payload)
 {
-	const uint8_t* ext_end = payload.start + ntohs(*(uint16_t*) payload.start) + sizeof(uint16_t);
+	const uint8_t* extEnd = payload.start + ntohs(*(uint16_t*) payload.start) + sizeof(uint16_t);
 
 	payload.start += 2;
-	if (ext_end > payload.end) {
+	if (extEnd > payload.end) {
 		return false;
 	}
-	if (ext_end <= payload.end) {
-		payload.end = ext_end;
+	if (extEnd <= payload.end) {
+		payload.end = extEnd;
 	}
 	return true;
 }
 
-bool TLSParser::tls_get_ja3_cipher_suites(std::string& ja3, TLSData& data)
+bool TLSParser::tlsGetJa3CipherSuites(std::string& ja3, TLSData& data)
 {
-	uint16_t cipher_suites_length = ntohs(*(uint16_t*) data.start);
-	uint16_t type_id = 0;
-	const uint8_t* section_end = data.start + cipher_suites_length;
+	uint16_t cipherSuitesLength = ntohs(*(uint16_t*) data.start);
+	uint16_t typeId = 0;
+	const uint8_t* sectionEnd = data.start + cipherSuitesLength;
 
-	if (data.start + cipher_suites_length + 1 > data.end) {
+	if (data.start + cipherSuitesLength + 1 > data.end) {
 		// data.valid = false;
 		return false;
 	}
-	data.start += sizeof(cipher_suites_length);
+	data.start += sizeof(cipherSuitesLength);
 
-	for (; data.start <= section_end; data.start += sizeof(uint16_t)) {
-		type_id = ntohs(*(uint16_t*) (data.start));
-		if (!tls_is_grease_value(type_id)) {
-			ja3 += std::to_string(type_id);
-			if (data.start < section_end) {
+	for (; data.start <= sectionEnd; data.start += sizeof(uint16_t)) {
+		typeId = ntohs(*(uint16_t*) (data.start));
+		if (!tlsIsGreaseValue(typeId)) {
+			ja3 += std::to_string(typeId);
+			if (data.start < sectionEnd) {
 				ja3 += '-';
 			}
 		}
@@ -284,54 +284,54 @@ bool TLSParser::tls_get_ja3_cipher_suites(std::string& ja3, TLSData& data)
 	return true;
 }
 
-std::string TLSParser::tls_get_ja3_ecpliptic_curves(TLSData& data)
+std::string TLSParser::tlsGetJa3EcplipticCurves(TLSData& data)
 {
-	std::string collected_types;
-	uint16_t type_id = 0;
-	uint16_t list_len = ntohs(*(uint16_t*) data.start);
-	const uint8_t* list_end = data.start + list_len + sizeof(list_len);
-	uint16_t offset = sizeof(list_len);
+	std::string collectedTypes;
+	uint16_t typeId = 0;
+	uint16_t listLen = ntohs(*(uint16_t*) data.start);
+	const uint8_t* listEnd = data.start + listLen + sizeof(listLen);
+	uint16_t offset = sizeof(listLen);
 
-	if (list_end > data.end) {
+	if (listEnd > data.end) {
 		// data.valid = false;
 		return "";
 	}
 
-	while (data.start + sizeof(uint16_t) + offset <= list_end) {
-		type_id = ntohs(*(uint16_t*) (data.start + offset));
+	while (data.start + sizeof(uint16_t) + offset <= listEnd) {
+		typeId = ntohs(*(uint16_t*) (data.start + offset));
 		offset += sizeof(uint16_t);
-		if (!tls_is_grease_value(type_id)) {
-			collected_types += std::to_string(type_id);
+		if (!tlsIsGreaseValue(typeId)) {
+			collectedTypes += std::to_string(typeId);
 
-			if (data.start + sizeof(uint16_t) + offset <= list_end) {
-				collected_types += '-';
+			if (data.start + sizeof(uint16_t) + offset <= listEnd) {
+				collectedTypes += '-';
 			}
 		}
 	}
-	return collected_types;
+	return collectedTypes;
 }
 
-std::string TLSParser::tls_get_ja3_ec_point_formats(TLSData& data)
+std::string TLSParser::tlsGetJa3EcPointFormats(TLSData& data)
 {
-	std::string collected_formats;
-	uint8_t list_len = *data.start;
-	uint16_t offset = sizeof(list_len);
-	const uint8_t* list_end = data.start + list_len + offset;
+	std::string collectedFormats;
+	uint8_t listLen = *data.start;
+	uint16_t offset = sizeof(listLen);
+	const uint8_t* listEnd = data.start + listLen + offset;
 	uint8_t format;
 
-	if (list_end > data.end) {
+	if (listEnd > data.end) {
 		// data.valid = false;
 		return "";
 	}
 
-	while (data.start + sizeof(uint8_t) + offset <= list_end) {
+	while (data.start + sizeof(uint8_t) + offset <= listEnd) {
 		format = *(data.start + offset);
-		collected_formats += std::to_string((int) format);
+		collectedFormats += std::to_string((int) format);
 		offset += sizeof(uint8_t);
-		if (data.start + sizeof(uint8_t) + offset <= list_end) {
-			collected_formats += '-';
+		if (data.start + sizeof(uint8_t) + offset <= listEnd) {
+			collectedFormats += '-';
 		}
 	}
-	return collected_formats;
+	return collectedFormats;
 }
 } // namespace ipxp

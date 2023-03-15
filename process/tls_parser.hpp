@@ -26,20 +26,20 @@
 #define TLS_EXT_QUIC_TRANSPORT_PARAMETERS_V2 0x26
 #define TLS_EXT_GOOGLE_USER_AGENT 0x3129
 
-namespace ipxp {
+namespace Ipxp {
 typedef struct TLSData {
 	const uint8_t* start;
 	const uint8_t* end;
-	int obejcts_parsed;
+	int obejctsParsed;
 } TLSData;
 
-struct __attribute__((packed)) tls_ext_sni {
+struct __attribute__((packed)) TlsExtSni {
 	uint8_t type;
 	uint16_t length;
 	/* Hostname bytes... */
 };
 
-struct __attribute__((packed)) tls_ext {
+struct __attribute__((packed)) TlsExt {
 	uint16_t type;
 	uint16_t length;
 	/* Extension pecific data... */
@@ -53,7 +53,7 @@ union __attribute__((packed)) tls_version {
 	};
 };
 
-struct __attribute__((packed)) tls_handshake {
+struct __attribute__((packed)) TlsHandshake {
 	uint8_t type;
 	uint8_t length1; // length field is 3 bytes long...
 	uint16_t length2;
@@ -63,7 +63,7 @@ struct __attribute__((packed)) tls_handshake {
 };
 
 #define TLS_HANDSHAKE 22
-struct __attribute__((packed)) tls_rec {
+struct __attribute__((packed)) TlsRec {
 	uint8_t type;
 	tls_version version;
 	uint16_t length;
@@ -72,29 +72,29 @@ struct __attribute__((packed)) tls_rec {
 
 class TLSParser {
 private:
-	tls_handshake* tls_hs;
+	TlsHandshake* m_tls_hs;
 
 public:
 	TLSParser();
-	bool tls_skip_random(TLSData&);
-	bool tls_skip_sessid(TLSData&);
-	bool tls_skip_cipher_suites(TLSData&);
-	bool tls_skip_compression_met(TLSData&);
-	bool tls_check_ext_len(TLSData&);
-	bool tls_check_rec(TLSData&);
-	void tls_get_server_name(TLSData&, char*, size_t);
-	void tls_get_alpn(TLSData&, char*, size_t);
+	bool tlsSkipRandom(TLSData&);
+	bool tlsSkipSessid(TLSData&);
+	bool tlsSkipCipherSuites(TLSData&);
+	bool tlsSkipCompressionMet(TLSData&);
+	bool tlsCheckExtLen(TLSData&);
+	bool tlsCheckRec(TLSData&);
+	void tlsGetServerName(TLSData&, char*, size_t);
+	void tlsGetAlpn(TLSData&, char*, size_t);
 
-	void tls_get_quic_user_agent(TLSData&, char*, size_t);
-	bool tls_check_handshake(TLSData&);
-	bool tls_get_ja3_cipher_suites(std::string&, TLSData&);
+	void tlsGetQuicUserAgent(TLSData&, char*, size_t);
+	bool tlsCheckHandshake(TLSData&);
+	bool tlsGetJa3CipherSuites(std::string&, TLSData&);
 
-	bool tls_is_grease_value(uint16_t);
+	bool tlsIsGreaseValue(uint16_t);
 
-	tls_handshake tls_get_handshake();
-	uint8_t tls_get_hstype();
-	std::string tls_get_version_ja3();
-	std::string tls_get_ja3_ecpliptic_curves(TLSData& data);
-	std::string tls_get_ja3_ec_point_formats(TLSData& data);
+	TlsHandshake tlsGetHandshake();
+	uint8_t tlsGetHstype();
+	std::string tlsGetVersionJa3();
+	std::string tlsGetJa3EcplipticCurves(TLSData& data);
+	std::string tlsGetJa3EcPointFormats(TLSData& data);
 };
 } // namespace ipxp

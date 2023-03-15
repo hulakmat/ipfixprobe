@@ -12,16 +12,16 @@ struct NdpReaderContext {
 	void* reader;
 };
 
-extern void ndp_reader_init(struct NdpReaderContext* context);
-extern void ndp_reader_free(struct NdpReaderContext* context);
-extern const char* ndp_reader_error_msg(struct NdpReaderContext* context);
-extern int ndp_reader_init_interface(struct NdpReaderContext* context, const char* interface);
-extern void ndp_reader_print_stats(struct NdpReaderContext* context);
-extern void ndp_reader_close(struct NdpReaderContext* context);
-extern int ndp_reader_get_pkt(
+extern void ndpReaderInit(struct NdpReaderContext* context);
+extern void ndpReaderFree(struct NdpReaderContext* context);
+extern const char* ndpReaderErrorMsg(struct NdpReaderContext* context);
+extern int ndpReaderInitInterface(struct NdpReaderContext* context, const char* interface);
+extern void ndpReaderPrintStats(struct NdpReaderContext* context);
+extern void ndpReaderClose(struct NdpReaderContext* context);
+extern int ndpReaderGetPkt(
 	struct NdpReaderContext* context,
-	struct ndp_packet** ndp_packet,
-	struct ndp_header** ndp_header);
+	struct ndp_packet** ndpPacket,
+	struct NdpHeader** ndpHeader);
 
 #ifdef __cplusplus
 }

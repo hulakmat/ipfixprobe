@@ -52,44 +52,44 @@
 #include <ipfixprobe/process.hpp>
 #include <ipfixprobe/utils.hpp>
 
-namespace ipxp {
+namespace Ipxp {
 
 #define STATS_PRINT_INTERVAL 1
 
 class StatsOptParser : public OptionsParser {
 public:
-	uint32_t m_interval;
-	std::string m_out;
+	uint32_t mInterval;
+	std::string mOut;
 
 	StatsOptParser()
 		: OptionsParser("stats", "Print storage plugin statistics")
-		, m_interval(STATS_PRINT_INTERVAL)
-		, m_out("stdout")
+		, mInterval(STATS_PRINT_INTERVAL)
+		, mOut("stdout")
 	{
-		register_option(
+		registerOption(
 			"i",
 			"interval",
 			"SECS",
 			"Print interval in seconds",
 			[this](const char* arg) {
 				try {
-					m_interval = str2num<decltype(m_interval)>(arg);
+					mInterval = str2num<decltype(mInterval)>(arg);
 				} catch (std::invalid_argument& e) {
 					return false;
 				}
 				return true;
 			},
-			OptionFlags::RequiredArgument);
-		register_option(
+			OptionFlags::REQUIRED_ARGUMENT);
+		registerOption(
 			"o",
 			"out",
 			"DESC",
 			"Print statistics to stdout or stderr",
 			[this](const char* arg) {
-				m_out = arg;
-				return m_out != "stdout" && m_out != "stderr";
+				mOut = arg;
+				return mOut != "stdout" && mOut != "stderr";
 			},
-			OptionFlags::RequiredArgument);
+			OptionFlags::REQUIRED_ARGUMENT);
 	}
 };
 
@@ -99,14 +99,14 @@ public:
 	~StatsPlugin();
 	void init(const char* params);
 	void close();
-	OptionsParser* get_parser() const { return new StatsOptParser(); }
-	std::string get_name() const { return "stats"; }
+	OptionsParser* getParser() const { return new StatsOptParser(); }
+	std::string getName() const { return "stats"; }
 	ProcessPlugin* copy();
 
-	int post_create(Flow& rec, const Packet& pkt);
-	int post_update(Flow& rec, const Packet& pkt);
-	void pre_export(Flow& rec);
-	void finish(bool print_stats);
+	int postCreate(Flow& rec, const Packet& pkt);
+	int postUpdate(Flow& rec, const Packet& pkt);
+	void preExport(Flow& rec);
+	void finish(bool printStats);
 
 private:
 	uint64_t m_packets;
@@ -119,9 +119,9 @@ private:
 	struct timeval m_last_ts;
 	std::ostream* m_out;
 
-	void check_timestamp(const Packet& pkt);
-	void print_header() const;
-	void print_line(const struct timeval& ts) const;
+	void checkTimestamp(const Packet& pkt);
+	void printHeader() const;
+	void printLine(const struct timeval& ts) const;
 };
 
 } // namespace ipxp

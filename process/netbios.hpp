@@ -58,7 +58,7 @@
 #include <ipfixprobe/packet.hpp>
 #include <ipfixprobe/process.hpp>
 
-namespace ipxp {
+namespace Ipxp {
 
 #define NETBIOS_UNIREC_TEMPLATE "NB_NAME,NB_SUFFIX"
 
@@ -68,56 +68,56 @@ UR_FIELDS(string NB_NAME, uint8 NB_SUFFIX)
  * \brief Flow record extension header for storing parsed NETBIOS packets.
  */
 struct RecordExtNETBIOS : public RecordExt {
-	static int REGISTERED_ID;
+	static int s_registeredId;
 
-	std::string netbios_name;
-	char netbios_suffix;
+	std::string netbiosName;
+	char netbiosSuffix;
 
 	RecordExtNETBIOS()
-		: RecordExt(REGISTERED_ID)
-		, netbios_suffix(0)
+		: RecordExt(s_registeredId)
+		, netbiosSuffix(0)
 	{
 	}
 
 #ifdef WITH_NEMEA
-	virtual void fill_unirec(ur_template_t* tmplt, void* record)
+	virtual void fillUnirec(ur_template_t* tmplt, void* record)
 	{
-		ur_set(tmplt, record, F_NB_SUFFIX, netbios_suffix);
-		ur_set_string(tmplt, record, F_NB_NAME, netbios_name.c_str());
+		ur_set(tmplt, record, F_NB_SUFFIX, netbiosSuffix);
+		ur_set_string(tmplt, record, F_NB_NAME, netbiosName.c_str());
 	}
 
-	const char* get_unirec_tmplt() const
+	const char* getUnirecTmplt() const
 	{
 		return NETBIOS_UNIREC_TEMPLATE;
 	}
 #endif
 
-	virtual int fill_ipfix(uint8_t* buffer, int size)
+	virtual int fillIpfix(uint8_t* buffer, int size)
 	{
-		int length = netbios_name.length();
+		int length = netbiosName.length();
 
 		if (2 + length > size) {
 			return -1;
 		}
 
-		buffer[0] = netbios_suffix;
+		buffer[0] = netbiosSuffix;
 		buffer[1] = length;
-		memcpy(buffer + 2, netbios_name.c_str(), length);
+		memcpy(buffer + 2, netbiosName.c_str(), length);
 
 		return length + 2;
 	}
 
-	const char** get_ipfix_tmplt() const
+	const char** getIpfixTmplt() const
 	{
-		static const char* ipfix_netbios_template[]
+		static const char* ipfixNetbiosTemplate[]
 			= {IPFIX_NETBIOS_TEMPLATE(IPFIX_FIELD_NAMES) nullptr};
-		return ipfix_netbios_template;
+		return ipfixNetbiosTemplate;
 	}
 
-	std::string get_text() const
+	std::string getText() const
 	{
 		std::ostringstream out;
-		out << "netbiossuffix=" << netbios_suffix << ",name=\"" << netbios_name << "\"";
+		out << "netbiossuffix=" << netbiosSuffix << ",name=\"" << netbiosName << "\"";
 		return out.str();
 	}
 };
@@ -131,27 +131,27 @@ public:
 	~NETBIOSPlugin();
 	void init(const char* params);
 	void close();
-	OptionsParser* get_parser() const
+	OptionsParser* getParser() const
 	{
 		return new OptionsParser("netbios", "Parse netbios traffic");
 	}
-	std::string get_name() const { return "netbios"; }
-	RecordExt* get_ext() const { return new RecordExtNETBIOS(); }
+	std::string getName() const { return "netbios"; }
+	RecordExt* getExt() const { return new RecordExtNETBIOS(); }
 	ProcessPlugin* copy();
 
-	int post_create(Flow& rec, const Packet& pkt);
-	int post_update(Flow& rec, const Packet& pkt);
-	void finish(bool print_stats);
+	int postCreate(Flow& rec, const Packet& pkt);
+	int postUpdate(Flow& rec, const Packet& pkt);
+	void finish(bool printStats);
 
 private:
-	int total_netbios_packets;
+	int m_total_netbios_packets;
 
-	int add_netbios_ext(Flow& rec, const Packet& pkt);
-	bool parse_nbns(RecordExtNETBIOS* rec, const Packet& pkt);
-	int get_query_count(const char* payload, uint16_t payload_length);
-	bool store_first_query(const char* payload, RecordExtNETBIOS* rec);
-	char compress_nbns_name_char(const char* uncompressed);
-	uint8_t get_nbns_suffix(const char* uncompressed);
+	int addNetbiosExt(Flow& rec, const Packet& pkt);
+	bool parseNbns(RecordExtNETBIOS* rec, const Packet& pkt);
+	int getQueryCount(const char* payload, uint16_t payloadLength);
+	bool storeFirstQuery(const char* payload, RecordExtNETBIOS* rec);
+	char compressNbnsNameChar(const char* uncompressed);
+	uint8_t getNbnsSuffix(const char* uncompressed);
 };
 
 } // namespace ipxp

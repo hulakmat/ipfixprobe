@@ -41,18 +41,18 @@
 #define BUFF_SIZE 255
 #define CURRENT_BUFFER_SIZE 1500
 
-namespace ipxp {
-typedef struct __attribute__((packed)) quic_first_ver_dcidlen {
-	uint8_t first_byte;
+namespace Ipxp {
+typedef struct __attribute__((packed)) QuicFirstVerDcidlen {
+	uint8_t firstByte;
 	uint32_t version;
-	uint8_t dcid_len;
+	uint8_t dcidLen;
 } quic_first_ver_dcidlen;
 
-typedef struct __attribute__((packed)) quic_scidlen {
-	uint8_t scid_len;
+typedef struct __attribute__((packed)) QuicScidlen {
+	uint8_t scidLen;
 } quic_scidlen;
 
-typedef struct Initial_Secrets {
+typedef struct InitialSecrets {
 	uint8_t key[AES_128_KEY_LENGTH];
 	uint8_t iv[TLS13_AEAD_NONCE_LENGTH];
 	uint8_t hp[AES_128_KEY_LENGTH];
@@ -70,96 +70,96 @@ private:
 		CONNECTION_CLOSE2 = 0x1D
 	};
 	enum HKDF_LENGTHS {
-		quic_key_hkdf_v1
+		QUIC_KEY_HKDF_V1
 		= sizeof("tls13 quic key") + sizeof(uint16_t) + sizeof(uint8_t) + sizeof(uint8_t),
-		quic_iv_hkdf_v1
+		QUIC_IV_HKDF_V1
 		= sizeof("tls13 quic iv") + sizeof(uint16_t) + sizeof(uint8_t) + sizeof(uint8_t),
-		quic_hp_hkdf_v1
+		QUIC_HP_HKDF_V1
 		= sizeof("tls13 quic hp") + sizeof(uint16_t) + sizeof(uint8_t) + sizeof(uint8_t),
-		quic_key_hkdf_v2
+		QUIC_KEY_HKDF_V2
 		= sizeof("tls13 quicv2 key") + sizeof(uint16_t) + sizeof(uint8_t) + sizeof(uint8_t),
-		quic_iv_hkdf_v2
+		QUIC_IV_HKDF_V2
 		= sizeof("tls13 quicv2 iv") + sizeof(uint16_t) + sizeof(uint8_t) + sizeof(uint8_t),
-		quic_hp_hkdf_v2
+		QUIC_HP_HKDF_V2
 		= sizeof("tls13 quicv2 hp") + sizeof(uint16_t) + sizeof(uint8_t) + sizeof(uint8_t),
-		quic_clientin_hkdf
+		QUIC_CLIENTIN_HKDF
 		= sizeof("tls13 client in") + sizeof(uint16_t) + sizeof(uint8_t) + sizeof(uint8_t)
 	};
 
 	enum QUIC_VERSION {
-		older_version = 0xff0000,
-		faceebook1 = 0xfaceb001,
-		faceebook2 = 0xfaceb002,
-		facebook_experimental = 0xfaceb00e,
-		q_version2_draft00 = 0xff020000,
-		q_version2_newest = 0x709a50c4,
-		force_ver_neg_pattern = 0x0a0a0a0a,
-		version_negotiation = 0x00000000,
-		quic_newest = 0x00000001
+		OLDER_VERSION = 0xff0000,
+		FACEEBOOK1 = 0xfaceb001,
+		FACEEBOOK2 = 0xfaceb002,
+		FACEBOOK_EXPERIMENTAL = 0xfaceb00e,
+		Q_VERSION2_DRAFT00 = 0xff020000,
+		Q_VERSION2_NEWEST = 0x709a50c4,
+		FORCE_VER_NEG_PATTERN = 0x0a0a0a0a,
+		VERSION_NEGOTIATION = 0x00000000,
+		QUIC_NEWEST = 0x00000001
 	};
-	bool quic_initial_checks(const Packet&);
-	void quic_initialze_arrays();
-	bool quic_check_initial(uint8_t);
-	bool quic_parse_header(const Packet&);
-	bool quic_create_initial_secrets();
-	bool quic_decrypt_header(const Packet&);
-	bool quic_decrypt_payload();
-	bool quic_reassemble_frames();
-	bool quic_parse_tls();
-	bool quic_obtain_version();
-	bool quic_derive_secrets(uint8_t*);
-	bool quic_check_frame_type(uint8_t*, FRAME_TYPE);
-	void quic_skip_ack1(uint8_t*, uint64_t&);
-	void quic_skip_ack2(uint8_t*, uint64_t&);
-	void quic_skip_connection_close1(uint8_t*, uint64_t&);
-	void quic_skip_connection_close2(uint8_t*, uint64_t&);
-	void quic_copy_crypto(uint8_t*, uint64_t&);
-	bool quic_encrypt_sample(uint8_t*);
-	uint8_t quic_draft_version(uint32_t);
-	uint64_t quic_get_variable_length(const uint8_t*, uint64_t&);
-	bool quic_check_version(uint32_t, uint8_t);
-	bool quic_check_pointer_pos(const uint8_t*, const uint8_t*);
-	bool quic_obtain_tls_data(TLSData&);
+	bool quicInitialChecks(const Packet&);
+	void quicInitialzeArrays();
+	bool quicCheckInitial(uint8_t);
+	bool quicParseHeader(const Packet&);
+	bool quicCreateInitialSecrets();
+	bool quicDecryptHeader(const Packet&);
+	bool quicDecryptPayload();
+	bool quicReassembleFrames();
+	bool quicParseTls();
+	bool quicObtainVersion();
+	bool quicDeriveSecrets(uint8_t*);
+	bool quicCheckFrameType(uint8_t*, FRAME_TYPE);
+	void quicSkipAck1(uint8_t*, uint64_t&);
+	void quicSkipAck2(uint8_t*, uint64_t&);
+	void quicSkipConnectionClose1(uint8_t*, uint64_t&);
+	void quicSkipConnectionClose2(uint8_t*, uint64_t&);
+	void quicCopyCrypto(uint8_t*, uint64_t&);
+	bool quicEncryptSample(uint8_t*);
+	uint8_t quicDraftVersion(uint32_t);
+	uint64_t quicGetVariableLength(const uint8_t*, uint64_t&);
+	bool quicCheckVersion(uint32_t, uint8_t);
+	bool quicCheckPointerPos(const uint8_t*, const uint8_t*);
+	bool quicObtainTlsData(TLSData&);
 
-	Initial_Secrets initial_secrets;
+	Initial_Secrets m_initial_secrets;
 
-	quic_first_ver_dcidlen* quic_h1;
-	quic_scidlen* quic_h2;
+	quic_first_ver_dcidlen* m_quic_h1;
+	quic_scidlen* m_quic_h2;
 
-	const uint8_t* salt;
+	const uint8_t* m_salt;
 
-	uint8_t* header;
-	const uint8_t* payload;
+	uint8_t* m_header;
+	const uint8_t* m_payload;
 
-	uint16_t header_len;
-	uint64_t payload_len;
+	uint16_t m_header_len;
+	uint64_t m_payload_len;
 
-	const uint8_t* dcid;
-	const uint8_t* pkn;
-	const uint8_t* sample;
-	uint32_t version;
+	const uint8_t* m_dcid;
+	const uint8_t* m_pkn;
+	const uint8_t* m_sample;
+	uint32_t m_version;
 
-	uint8_t decrypted_payload[CURRENT_BUFFER_SIZE];
-	uint8_t assembled_payload[CURRENT_BUFFER_SIZE];
-	uint8_t tmp_header_mem[MAX_HEADER_LEN];
-	uint8_t* final_payload;
-	int parsed_initial;
+	uint8_t m_decrypted_payload[CURRENT_BUFFER_SIZE];
+	uint8_t m_assembled_payload[CURRENT_BUFFER_SIZE];
+	uint8_t m_tmp_header_mem[MAX_HEADER_LEN];
+	uint8_t* m_final_payload;
+	int m_parsed_initial;
 
-	bool is_version2;
+	bool m_is_version2;
 
-	char sni[BUFF_SIZE] = {0};
-	char user_agent[BUFF_SIZE] = {0};
+	char m_sni[BUFF_SIZE] = {0};
+	char m_user_agent[BUFF_SIZE] = {0};
 
-	uint16_t quic_crypto_start;
-	uint16_t quic_crypto_len;
-	TLSParser tls_parser;
+	uint16_t m_quic_crypto_start;
+	uint16_t m_quic_crypto_len;
+	TLSParser m_tls_parser;
 
 public:
 	QUICParser();
-	bool quic_start(const Packet&);
-	void quic_get_sni(char* in);
-	void quic_get_user_agent(char* in);
-	void quic_get_version(uint32_t&);
+	bool quicStart(const Packet&);
+	void quicGetSni(char* in);
+	void quicGetUserAgent(char* in);
+	void quicGetVersion(uint32_t&);
 };
 } // namespace ipxp
 

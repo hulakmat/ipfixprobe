@@ -63,220 +63,220 @@
 #include <ipfixprobe/storage.hpp>
 #include <ipfixprobe/utils.hpp>
 
-namespace ipxp {
+namespace Ipxp {
 
-extern const uint32_t DEFAULT_IQUEUE_SIZE;
-extern const uint32_t DEFAULT_OQUEUE_SIZE;
-extern const uint32_t DEFAULT_FPS;
+extern const uint32_t g_DEFAULT_IQUEUE_SIZE;
+extern const uint32_t g_DEFAULT_OQUEUE_SIZE;
+extern const uint32_t g_DEFAULT_FPS;
 
 // global termination variable
-extern volatile sig_atomic_t terminate_export;
-extern volatile sig_atomic_t terminate_input;
+extern volatile sig_atomic_t g_terminate_export;
+extern volatile sig_atomic_t g_terminate_input;
 
 class IpfixprobeOptParser;
 struct ipxp_conf_t;
 
-void signal_handler(int sig);
-void register_handlers();
+void signalHandler(int sig);
+void registerHandlers();
 void error(std::string msg);
-void print_help(ipxp_conf_t& conf, const std::string& arg);
-void init_packets(ipxp_conf_t& conf);
-bool process_plugin_args(ipxp_conf_t& conf, IpfixprobeOptParser& parser);
-void main_loop(ipxp_conf_t& conf);
+void printHelp(ipxp_conf_t& conf, const std::string& arg);
+void initPackets(ipxp_conf_t& conf);
+bool processPluginArgs(ipxp_conf_t& conf, IpfixprobeOptParser& parser);
+void mainLoop(ipxp_conf_t& conf);
 int run(int argc, char* argv[]);
 
 class IpfixprobeOptParser : public OptionsParser {
 public:
-	std::vector<std::string> m_input;
-	std::vector<std::string> m_storage;
-	std::vector<std::string> m_output;
-	std::vector<std::string> m_process;
-	std::string m_pid;
-	bool m_daemon;
-	uint32_t m_iqueue;
-	uint32_t m_oqueue;
-	uint32_t m_fps;
-	uint32_t m_pkt_bufsize;
-	uint32_t m_max_pkts;
-	bool m_help;
-	std::string m_help_str;
-	bool m_version;
+	std::vector<std::string> mInput;
+	std::vector<std::string> mStorage;
+	std::vector<std::string> mOutput;
+	std::vector<std::string> mProcess;
+	std::string mPid;
+	bool mDaemon;
+	uint32_t mIqueue;
+	uint32_t mOqueue;
+	uint32_t mFps;
+	uint32_t mPktBufsize;
+	uint32_t mMaxPkts;
+	bool mHelp;
+	std::string mHelpStr;
+	bool mVersion;
 
 	IpfixprobeOptParser()
 		: OptionsParser("ipfixprobe", "flow exporter supporting various custom IPFIX elements")
-		, m_pid("")
-		, m_daemon(false)
-		, m_iqueue(DEFAULT_IQUEUE_SIZE)
-		, m_oqueue(DEFAULT_OQUEUE_SIZE)
-		, m_fps(DEFAULT_FPS)
-		, m_pkt_bufsize(1600)
-		, m_max_pkts(0)
-		, m_help(false)
-		, m_help_str("")
-		, m_version(false)
+		, mPid("")
+		, mDaemon(false)
+		, mIqueue(g_DEFAULT_IQUEUE_SIZE)
+		, mOqueue(g_DEFAULT_OQUEUE_SIZE)
+		, mFps(g_DEFAULT_FPS)
+		, mPktBufsize(1600)
+		, mMaxPkts(0)
+		, mHelp(false)
+		, mHelpStr("")
+		, mVersion(false)
 	{
-		m_delim = ' ';
+		mDelim = ' ';
 
-		register_option(
+		registerOption(
 			"-i",
 			"--input",
 			"ARGS",
 			"Activate input plugin (-h input for help)",
 			[this](const char* arg) {
-				m_input.push_back(arg);
+				mInput.push_back(arg);
 				return true;
 			},
-			OptionFlags::RequiredArgument);
-		register_option(
+			OptionFlags::REQUIRED_ARGUMENT);
+		registerOption(
 			"-s",
 			"--storage",
 			"ARGS",
 			"Activate storage plugin (-h storage for help)",
 			[this](const char* arg) {
-				m_storage.push_back(arg);
+				mStorage.push_back(arg);
 				return true;
 			},
-			OptionFlags::RequiredArgument);
-		register_option(
+			OptionFlags::REQUIRED_ARGUMENT);
+		registerOption(
 			"-o",
 			"--output",
 			"ARGS",
 			"Activate output plugin (-h output for help)",
 			[this](const char* arg) {
-				m_output.push_back(arg);
+				mOutput.push_back(arg);
 				return true;
 			},
-			OptionFlags::RequiredArgument);
-		register_option(
+			OptionFlags::REQUIRED_ARGUMENT);
+		registerOption(
 			"-p",
 			"--process",
 			"ARGS",
 			"Activate processing plugin (-h process for help)",
 			[this](const char* arg) {
-				m_process.push_back(arg);
+				mProcess.push_back(arg);
 				return true;
 			},
-			OptionFlags::RequiredArgument);
-		register_option(
+			OptionFlags::REQUIRED_ARGUMENT);
+		registerOption(
 			"-q",
 			"--iqueue",
 			"SIZE",
 			"Size of queue between input and storage plugins",
 			[this](const char* arg) {
 				try {
-					m_iqueue = str2num<decltype(m_iqueue)>(arg);
+					mIqueue = str2num<decltype(mIqueue)>(arg);
 				} catch (std::invalid_argument& e) {
 					return false;
 				}
 				return true;
 			},
-			OptionFlags::RequiredArgument);
-		register_option(
+			OptionFlags::REQUIRED_ARGUMENT);
+		registerOption(
 			"-Q",
 			"--oqueue",
 			"SIZE",
 			"Size of queue between storage and output plugins",
 			[this](const char* arg) {
 				try {
-					m_oqueue = str2num<decltype(m_oqueue)>(arg);
+					mOqueue = str2num<decltype(mOqueue)>(arg);
 				} catch (std::invalid_argument& e) {
 					return false;
 				}
 				return true;
 			},
-			OptionFlags::RequiredArgument);
-		register_option(
+			OptionFlags::REQUIRED_ARGUMENT);
+		registerOption(
 			"-B",
 			"--pbuf",
 			"SIZE",
 			"Size of packet buffer",
 			[this](const char* arg) {
 				try {
-					m_pkt_bufsize = str2num<decltype(m_pkt_bufsize)>(arg);
+					mPktBufsize = str2num<decltype(mPktBufsize)>(arg);
 				} catch (std::invalid_argument& e) {
 					return false;
 				}
 				return true;
 			},
-			OptionFlags::RequiredArgument);
-		register_option(
+			OptionFlags::REQUIRED_ARGUMENT);
+		registerOption(
 			"-f",
 			"--fps",
 			"NUM",
 			"Export max flows per second",
 			[this](const char* arg) {
 				try {
-					m_fps = str2num<decltype(m_fps)>(arg);
+					mFps = str2num<decltype(mFps)>(arg);
 				} catch (std::invalid_argument& e) {
 					return false;
 				}
 				return true;
 			},
-			OptionFlags::RequiredArgument);
-		register_option(
+			OptionFlags::REQUIRED_ARGUMENT);
+		registerOption(
 			"-c",
 			"--count",
 			"SIZE",
 			"Quit after number of packets are processed on each interface",
 			[this](const char* arg) {
 				try {
-					m_max_pkts = str2num<decltype(m_max_pkts)>(arg);
+					mMaxPkts = str2num<decltype(mMaxPkts)>(arg);
 				} catch (std::invalid_argument& e) {
 					return false;
 				}
 				return true;
 			},
-			OptionFlags::RequiredArgument);
-		register_option(
+			OptionFlags::REQUIRED_ARGUMENT);
+		registerOption(
 			"-P",
 			"--pid",
 			"FILE",
 			"Create pid file",
 			[this](const char* arg) {
-				m_pid = arg;
-				return m_pid != "";
+				mPid = arg;
+				return mPid != "";
 			},
-			OptionFlags::RequiredArgument);
-		register_option(
+			OptionFlags::REQUIRED_ARGUMENT);
+		registerOption(
 			"-d",
 			"--daemon",
 			"",
 			"Run as a standalone process",
 			[this](const char* arg) {
-				m_daemon = true;
+				mDaemon = true;
 				return true;
 			},
-			OptionFlags::NoArgument);
-		register_option(
+			OptionFlags::NO_ARGUMENT);
+		registerOption(
 			"-h",
 			"--help",
 			"PLUGIN",
 			"Print help text. Supported help for input, storage, output and process plugins",
 			[this](const char* arg) {
-				m_help = true;
-				m_help_str = arg ? arg : "";
+				mHelp = true;
+				mHelpStr = arg ? arg : "";
 				return true;
 			},
-			OptionFlags::OptionalArgument);
-		register_option(
+			OptionFlags::OPTIONAL_ARGUMENT);
+		registerOption(
 			"-V",
 			"--version",
 			"",
 			"Show version and exit",
 			[this](const char* arg) {
-				m_version = true;
+				mVersion = true;
 				return true;
 			},
-			OptionFlags::NoArgument);
+			OptionFlags::NO_ARGUMENT);
 	}
 };
 
 struct ipxp_conf_t {
-	uint32_t iqueue_size;
-	uint32_t oqueue_size;
-	uint32_t worker_cnt;
+	uint32_t iqueueSize;
+	uint32_t oqueueSize;
+	uint32_t workerCnt;
 	uint32_t fps;
-	uint32_t max_pkts;
+	uint32_t maxPkts;
 
 	PluginManager mgr;
 	struct Plugins {
@@ -290,40 +290,40 @@ struct ipxp_conf_t {
 	std::vector<WorkPipeline> pipelines;
 	std::vector<OutputWorker> outputs;
 
-	std::vector<std::atomic<InputStats>*> input_stats;
-	std::vector<std::atomic<OutputStats>*> output_stats;
+	std::vector<std::atomic<InputStats>*> inputStats;
+	std::vector<std::atomic<OutputStats>*> outputStats;
 
-	std::vector<std::shared_future<WorkerResult>> input_fut;
-	std::vector<std::future<WorkerResult>> output_fut;
+	std::vector<std::shared_future<WorkerResult>> inputFut;
+	std::vector<std::future<WorkerResult>> outputFut;
 
-	size_t pkt_bufsize;
-	size_t blocks_cnt;
-	size_t pkts_cnt;
-	size_t pkt_data_cnt;
+	size_t pktBufsize;
+	size_t blocksCnt;
+	size_t pktsCnt;
+	size_t pktDataCnt;
 
 	PacketBlock* blocks;
 	Packet* pkts;
-	uint8_t* pkt_data;
+	uint8_t* pktData;
 
 	ipxp_conf_t()
-		: iqueue_size(DEFAULT_IQUEUE_SIZE)
-		, oqueue_size(DEFAULT_OQUEUE_SIZE)
-		, worker_cnt(0)
+		: iqueueSize(g_DEFAULT_IQUEUE_SIZE)
+		, oqueueSize(g_DEFAULT_OQUEUE_SIZE)
+		, workerCnt(0)
 		, fps(0)
-		, max_pkts(0)
-		, pkt_bufsize(1600)
-		, blocks_cnt(0)
-		, pkts_cnt(0)
-		, pkt_data_cnt(0)
+		, maxPkts(0)
+		, pktBufsize(1600)
+		, blocksCnt(0)
+		, pktsCnt(0)
+		, pktDataCnt(0)
 		, blocks(nullptr)
 		, pkts(nullptr)
-		, pkt_data(nullptr)
+		, pktData(nullptr)
 	{
 	}
 
 	~ipxp_conf_t()
 	{
-		terminate_input = 1;
+		g_terminate_input = 1;
 		for (auto& it : pipelines) {
 			if (it.input.thread->joinable()) {
 				it.input.thread->join();
@@ -343,7 +343,7 @@ struct ipxp_conf_t {
 			}
 		}
 
-		terminate_export = 1;
+		g_terminate_export = 1;
 		for (auto& it : outputs) {
 			if (it.thread->joinable()) {
 				it.thread->join();
@@ -351,13 +351,13 @@ struct ipxp_conf_t {
 			delete it.thread;
 			delete it.promise;
 			delete it.plugin;
-			ipx_ring_destroy(it.queue);
+			ipxRingDestroy(it.queue);
 		}
 
-		for (auto& it : input_stats) {
+		for (auto& it : inputStats) {
 			delete it;
 		}
-		for (auto& it : output_stats) {
+		for (auto& it : outputStats) {
 			delete it;
 		}
 	}

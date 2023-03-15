@@ -45,34 +45,34 @@
 
 #include "pluginmgr.hpp"
 
-namespace ipxp {
+namespace Ipxp {
 
-static PluginRecord* ipxp_plugins = nullptr;
-static int ipxp_ext_cnt = 0;
+static PluginRecord* g_ipxp_plugins = nullptr;
+static int g_ipxp_ext_cnt = 0;
 
-void register_plugin(PluginRecord* rec)
+void registerPlugin(PluginRecord* rec)
 {
-	PluginRecord** tmp = &ipxp_plugins;
+	PluginRecord** tmp = &g_ipxp_plugins;
 	while (*tmp) {
-		tmp = &(*tmp)->m_next;
+		tmp = &(*tmp)->mNext;
 	}
 	*tmp = rec;
 }
 
-int register_extension()
+int registerExtension()
 {
-	return ipxp_ext_cnt++;
+	return g_ipxp_ext_cnt++;
 }
 
-int get_extension_cnt()
+int getExtensionCnt()
 {
-	return ipxp_ext_cnt;
+	return g_ipxp_ext_cnt;
 }
 
 PluginManager::PluginManager()
 	: m_last_rec(nullptr)
 {
-	register_loaded_plugins();
+	registerLoadedPlugins();
 }
 
 PluginManager::~PluginManager()
@@ -82,7 +82,7 @@ PluginManager::~PluginManager()
 	unload();
 }
 
-void PluginManager::register_plugin(const std::string& name, PluginGetter g)
+void PluginManager::registerPlugin(const std::string& name, PluginGetter g)
 {
 	auto it = m_getters.find(name);
 	if (it != m_getters.end()) {
@@ -116,33 +116,33 @@ Plugin* PluginManager::load(const std::string& name)
 	if (handle == nullptr) {
 		return nullptr;
 	}
-	if (m_last_rec == nullptr || m_last_rec->m_next == nullptr) {
+	if (m_last_rec == nullptr || m_last_rec->mNext == nullptr) {
 		dlclose(handle);
 		return nullptr;
 	}
 
 	PluginRecord* rec = m_last_rec;
 	if (rec == nullptr) {
-		rec = ipxp_plugins;
+		rec = g_ipxp_plugins;
 	} else {
-		rec = rec->m_next;
+		rec = rec->mNext;
 	}
 	if (rec) {
 		try {
 			// Register plugin name from .so
-			this->register_plugin(rec->m_name, rec->m_getter);
+			this->registerPlugin(rec->mName, rec->mGetter);
 		} catch (PluginManagerError& e) {
 			throw PluginManagerError(
-				"plugin " + rec->m_name + " from " + name + " library already registered");
+				"plugin " + rec->mName + " from " + name + " library already registered");
 		}
-		if (rec->m_name != name) {
+		if (rec->mName != name) {
 			// Register .so name
-			this->register_plugin(name, rec->m_getter);
+			this->registerPlugin(name, rec->mGetter);
 		}
 		m_last_rec = rec;
-		rec = rec->m_next;
+		rec = rec->mNext;
 	}
-	if (m_last_rec && m_last_rec->m_next) {
+	if (m_last_rec && m_last_rec->mNext) {
 		dlclose(handle);
 		throw PluginManagerError("encountered shared library file with more than 1 plugin");
 	}
@@ -154,26 +154,26 @@ Plugin* PluginManager::load(const std::string& name)
 void PluginManager::unload()
 {
 	for (auto& it : m_loaded_so) {
-		dlclose(it.m_handle);
+		dlclose(it.mHandle);
 	}
 	m_loaded_so.clear();
 }
 
-void PluginManager::register_loaded_plugins()
+void PluginManager::registerLoadedPlugins()
 {
 	PluginRecord* rec = m_last_rec;
 	if (rec == nullptr) {
-		rec = ipxp_plugins;
+		rec = g_ipxp_plugins;
 	}
 	while (rec) {
 		try {
-			this->register_plugin(rec->m_name, rec->m_getter);
+			this->registerPlugin(rec->mName, rec->mGetter);
 		} catch (PluginManagerError& e) {
 			std::cerr << "Error: loading of internal plugins failed: " << e.what() << std::endl;
 			exit(EXIT_FAILURE);
 		}
 		m_last_rec = rec;
-		rec = rec->m_next;
+		rec = rec->mNext;
 	}
 }
 

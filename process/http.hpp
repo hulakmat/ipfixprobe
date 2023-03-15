@@ -61,7 +61,7 @@
 #include <ipfixprobe/process.hpp>
 #include <ipfixprobe/utils.hpp>
 
-namespace ipxp {
+namespace Ipxp {
 
 #define HTTP_UNIREC_TEMPLATE                                                                       \
 	"HTTP_REQUEST_METHOD,HTTP_REQUEST_HOST,HTTP_REQUEST_URL,HTTP_REQUEST_AGENT,HTTP_REQUEST_"      \
@@ -77,13 +77,13 @@ UR_FIELDS(
 	uint16 HTTP_RESPONSE_STATUS_CODE,
 	string HTTP_RESPONSE_CONTENT_TYPE)
 
-void copy_str(char* dst, ssize_t size, const char* begin, const char* end);
+void copyStr(char* dst, ssize_t size, const char* begin, const char* end);
 
 /**
  * \brief Flow record extension header for storing HTTP requests.
  */
 struct RecordExtHTTP : public RecordExt {
-	static int REGISTERED_ID;
+	static int s_registeredId;
 
 	bool req;
 	bool resp;
@@ -91,110 +91,110 @@ struct RecordExtHTTP : public RecordExt {
 	char method[10];
 	char host[64];
 	char uri[128];
-	char user_agent[128];
+	char userAgent[128];
 	char referer[128];
 
 	uint16_t code;
-	char content_type[32];
+	char contentType[32];
 
 	/**
 	 * \brief Constructor.
 	 */
 	RecordExtHTTP()
-		: RecordExt(REGISTERED_ID)
+		: RecordExt(s_registeredId)
 	{
 		req = false;
 		resp = false;
 		method[0] = 0;
 		host[0] = 0;
 		uri[0] = 0;
-		user_agent[0] = 0;
+		userAgent[0] = 0;
 		referer[0] = 0;
 		code = 0;
-		content_type[0] = 0;
+		contentType[0] = 0;
 	}
 
 #ifdef WITH_NEMEA
-	virtual void fill_unirec(ur_template_t* tmplt, void* record)
+	virtual void fillUnirec(ur_template_t* tmplt, void* record)
 	{
 		ur_set_string(tmplt, record, F_HTTP_REQUEST_METHOD, method);
 		ur_set_string(tmplt, record, F_HTTP_REQUEST_HOST, host);
 		ur_set_string(tmplt, record, F_HTTP_REQUEST_URL, uri);
-		ur_set_string(tmplt, record, F_HTTP_REQUEST_AGENT, user_agent);
+		ur_set_string(tmplt, record, F_HTTP_REQUEST_AGENT, userAgent);
 		ur_set_string(tmplt, record, F_HTTP_REQUEST_REFERER, referer);
-		ur_set_string(tmplt, record, F_HTTP_RESPONSE_CONTENT_TYPE, content_type);
+		ur_set_string(tmplt, record, F_HTTP_RESPONSE_CONTENT_TYPE, contentType);
 		ur_set(tmplt, record, F_HTTP_RESPONSE_STATUS_CODE, code);
 	}
 
-	const char* get_unirec_tmplt() const
+	const char* getUnirecTmplt() const
 	{
 		return HTTP_UNIREC_TEMPLATE;
 	}
 #endif
 
-	virtual int fill_ipfix(uint8_t* buffer, int size)
+	virtual int fillIpfix(uint8_t* buffer, int size)
 	{
 		uint16_t length = 0;
-		uint32_t total_length = 0;
+		uint32_t totalLength = 0;
 
-		length = strlen(user_agent);
+		length = strlen(userAgent);
 		if ((uint32_t) (length + 3) > (uint32_t) size) {
 			return -1;
 		}
-		total_length += variable2ipfix_buffer(buffer + total_length, (uint8_t*) user_agent, length);
+		totalLength += variable2ipfixBuffer(buffer + totalLength, (uint8_t*) userAgent, length);
 
 		length = strlen(method);
-		if (total_length + length + 3 > (uint32_t) size) {
+		if (totalLength + length + 3 > (uint32_t) size) {
 			return -1;
 		}
-		total_length += variable2ipfix_buffer(buffer + total_length, (uint8_t*) method, length);
+		totalLength += variable2ipfixBuffer(buffer + totalLength, (uint8_t*) method, length);
 
 		length = strlen(host);
-		if (total_length + length + 3 > (uint32_t) size) {
+		if (totalLength + length + 3 > (uint32_t) size) {
 			return -1;
 		}
-		total_length += variable2ipfix_buffer(buffer + total_length, (uint8_t*) host, length);
+		totalLength += variable2ipfixBuffer(buffer + totalLength, (uint8_t*) host, length);
 
 		length = strlen(referer);
-		if (total_length + length + 3 > (uint32_t) size) {
+		if (totalLength + length + 3 > (uint32_t) size) {
 			return -1;
 		}
-		total_length += variable2ipfix_buffer(buffer + total_length, (uint8_t*) referer, length);
+		totalLength += variable2ipfixBuffer(buffer + totalLength, (uint8_t*) referer, length);
 
 		length = strlen(uri);
-		if (total_length + length + 3 > (uint32_t) size) {
+		if (totalLength + length + 3 > (uint32_t) size) {
 			return -1;
 		}
-		total_length += variable2ipfix_buffer(buffer + total_length, (uint8_t*) uri, length);
+		totalLength += variable2ipfixBuffer(buffer + totalLength, (uint8_t*) uri, length);
 
-		length = strlen(content_type);
-		if (total_length + length + 3 > (uint32_t) size) {
+		length = strlen(contentType);
+		if (totalLength + length + 3 > (uint32_t) size) {
 			return -1;
 		}
-		total_length
-			+= variable2ipfix_buffer(buffer + total_length, (uint8_t*) content_type, length);
+		totalLength
+			+= variable2ipfixBuffer(buffer + totalLength, (uint8_t*) contentType, length);
 
-		*(uint16_t*) (buffer + total_length) = ntohs(code);
-		total_length += 2;
+		*(uint16_t*) (buffer + totalLength) = ntohs(code);
+		totalLength += 2;
 
-		return total_length;
+		return totalLength;
 	}
 
-	const char** get_ipfix_tmplt() const
+	const char** getIpfixTmplt() const
 	{
-		static const char* ipfix_template[] = {IPFIX_HTTP_TEMPLATE(IPFIX_FIELD_NAMES) nullptr};
-		return ipfix_template;
+		static const char* ipfixTemplate[] = {IPFIX_HTTP_TEMPLATE(IPFIX_FIELD_NAMES) nullptr};
+		return ipfixTemplate;
 	}
 
-	std::string get_text() const
+	std::string getText() const
 	{
 		std::ostringstream out;
 		out << "method=\"" << method << "\""
 			<< ",host=\"" << host << "\""
 			<< ",uri=\"" << uri << "\""
-			<< ",agent=\"" << user_agent << "\""
+			<< ",agent=\"" << userAgent << "\""
 			<< ",referer=\"" << referer << "\""
-			<< ",content=\"" << content_type << "\""
+			<< ",content=\"" << contentType << "\""
 			<< ",status=" << code;
 		return out.str();
 	}
@@ -209,29 +209,29 @@ public:
 	~HTTPPlugin();
 	void init(const char* params);
 	void close();
-	RecordExt* get_ext() const { return new RecordExtHTTP(); }
-	OptionsParser* get_parser() const { return new OptionsParser("http", "Parse HTTP traffic"); }
-	std::string get_name() const { return "http"; }
+	RecordExt* getExt() const { return new RecordExtHTTP(); }
+	OptionsParser* getParser() const { return new OptionsParser("http", "Parse HTTP traffic"); }
+	std::string getName() const { return "http"; }
 	ProcessPlugin* copy();
 
-	int post_create(Flow& rec, const Packet& pkt);
-	int pre_update(Flow& rec, Packet& pkt);
-	void finish(bool print_stats);
+	int postCreate(Flow& rec, const Packet& pkt);
+	int preUpdate(Flow& rec, Packet& pkt);
+	void finish(bool printStats);
 
 private:
-	bool is_response(const char* data, int payload_len);
-	bool is_request(const char* data, int payload_len);
-	bool parse_http_request(const char* data, int payload_len, RecordExtHTTP* rec);
-	bool parse_http_response(const char* data, int payload_len, RecordExtHTTP* rec);
-	void add_ext_http_request(const char* data, int payload_len, Flow& flow);
-	void add_ext_http_response(const char* data, int payload_len, Flow& flow);
-	bool valid_http_method(const char* method) const;
+	bool isResponse(const char* data, int payloadLen);
+	bool isRequest(const char* data, int payloadLen);
+	bool parseHttpRequest(const char* data, int payloadLen, RecordExtHTTP* rec);
+	bool parseHttpResponse(const char* data, int payloadLen, RecordExtHTTP* rec);
+	void addExtHttpRequest(const char* data, int payloadLen, Flow& flow);
+	void addExtHttpResponse(const char* data, int payloadLen, Flow& flow);
+	bool validHttpMethod(const char* method) const;
 
-	RecordExtHTTP* recPrealloc; /**< Preallocated extension. */
-	bool flow_flush; /**< Tell storage plugin to flush current Flow. */
-	uint32_t requests; /**< Total number of parsed HTTP requests. */
-	uint32_t responses; /**< Total number of parsed HTTP responses. */
-	uint32_t total; /**< Total number of parsed HTTP packets. */
+	RecordExtHTTP* m_recPrealloc; /**< Preallocated extension. */
+	bool m_flow_flush; /**< Tell storage plugin to flush current Flow. */
+	uint32_t m_requests; /**< Total number of parsed HTTP requests. */
+	uint32_t m_responses; /**< Total number of parsed HTTP responses. */
+	uint32_t m_total; /**< Total number of parsed HTTP packets. */
 };
 
 } // namespace ipxp

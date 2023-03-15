@@ -48,36 +48,36 @@
 #include <ipfixprobe/options.hpp>
 #include <ipfixprobe/utils.hpp>
 
-namespace ipxp {
+namespace Ipxp {
 
 OptionsParser::OptionsParser()
-	: m_name("")
-	, m_info("")
-	, m_delim(OptionsParser::DELIM)
+	: mName("")
+	, mInfo("")
+	, mDelim(OptionsParser::DELIM)
 {
 }
 
 OptionsParser::OptionsParser(const std::string& name, const std::string& info)
-	: m_name(name)
-	, m_info(info)
-	, m_delim(OptionsParser::DELIM)
+	: mName(name)
+	, mInfo(info)
+	, mDelim(OptionsParser::DELIM)
 {
 }
 
 OptionsParser::~OptionsParser()
 {
-	for (const auto& it : m_options) {
+	for (const auto& it : mOptions) {
 		delete it;
 	}
-	m_options.clear();
-	m_short.clear();
-	m_long.clear();
+	mOptions.clear();
+	mShort.clear();
+	mLong.clear();
 }
 
 void OptionsParser::parse(const char* args) const
 {
 	std::vector<std::string> tokens;
-	std::vector<const char*> token_ptrs;
+	std::vector<const char*> tokenPtrs;
 	size_t first = 0;
 	size_t last = 0;
 	if (args == nullptr || args[0] == 0) {
@@ -85,7 +85,7 @@ void OptionsParser::parse(const char* args) const
 		return;
 	}
 	while (1) {
-		if (args[last] == m_delim || !args[last]) {
+		if (args[last] == mDelim || !args[last]) {
 			std::string token = std::string(args, first, last - first);
 			size_t pos = token.find("=");
 			std::string name = token.substr(0, pos);
@@ -104,9 +104,9 @@ void OptionsParser::parse(const char* args) const
 		last += 1;
 	}
 	for (const auto& it : tokens) {
-		token_ptrs.push_back(it.c_str());
+		tokenPtrs.push_back(it.c_str());
 	}
-	parse(token_ptrs.size(), token_ptrs.data());
+	parse(tokenPtrs.size(), tokenPtrs.data());
 }
 
 void OptionsParser::parse(int argc, const char** argv) const
@@ -115,30 +115,30 @@ void OptionsParser::parse(int argc, const char** argv) const
 		throw std::runtime_error("invalid arguments passed");
 	}
 	for (int i = 0; i < argc; i++) {
-		Option* opt_spec = nullptr;
+		Option* optSpec = nullptr;
 		std::string opt = argv[i];
-		std::string eq_param;
+		std::string eqParam;
 		const char* arg = nullptr;
-		size_t eq_pos = opt.find("=");
+		size_t eqPos = opt.find("=");
 		if (opt.empty()) {
 			continue;
 		}
-		if (eq_pos != std::string::npos) {
-			eq_param = opt.substr(eq_pos + 1);
-			opt = opt.erase(eq_pos);
+		if (eqPos != std::string::npos) {
+			eqParam = opt.substr(eqPos + 1);
+			opt = opt.erase(eqPos);
 		}
 
-		if (m_long.find(opt) != m_long.end()) {
-			opt_spec = m_long.at(opt);
-		} else if (m_short.find(opt) != m_short.end()) {
-			opt_spec = m_short.at(opt);
+		if (mLong.find(opt) != mLong.end()) {
+			optSpec = mLong.at(opt);
+		} else if (mShort.find(opt) != mShort.end()) {
+			optSpec = mShort.at(opt);
 		} else {
 			throw ParserError("invalid option " + opt);
 		}
 
-		if (opt_spec->m_flags & OptionFlags::RequiredArgument) {
-			if (eq_pos != std::string::npos) {
-				arg = eq_param.c_str();
+		if (optSpec->mFlags & OptionFlags::REQUIRED_ARGUMENT) {
+			if (eqPos != std::string::npos) {
+				arg = eqParam.c_str();
 			} else {
 				if (i + 1 == argc) {
 					throw ParserError("missing argument for option " + opt);
@@ -146,102 +146,102 @@ void OptionsParser::parse(int argc, const char** argv) const
 				arg = argv[i + 1];
 				i++;
 			}
-		} else if (opt_spec->m_flags & OptionFlags::OptionalArgument) {
-			if (eq_pos != std::string::npos) {
-				arg = eq_param.c_str();
+		} else if (optSpec->mFlags & OptionFlags::OPTIONAL_ARGUMENT) {
+			if (eqPos != std::string::npos) {
+				arg = eqParam.c_str();
 			} else {
-				if (i + 1 < argc && m_long.find(argv[i + 1]) == m_long.end()
-					&& m_short.find(argv[i + 1]) == m_short.end()) {
+				if (i + 1 < argc && mLong.find(argv[i + 1]) == mLong.end()
+					&& mShort.find(argv[i + 1]) == mShort.end()) {
 					arg = argv[i + 1];
 					i++;
 				}
 			}
 		}
 
-		if (!opt_spec->m_parser(arg)) {
+		if (!optSpec->mParser(arg)) {
 			throw ParserError("invalid argument for option " + opt);
 		}
 	}
 }
 
-void OptionsParser::register_option(
-	std::string arg_short,
-	std::string arg_long,
-	std::string arg_hint,
+void OptionsParser::registerOption(
+	std::string argShort,
+	std::string argLong,
+	std::string argHint,
 	std::string description,
 	OptionParserFunc parser,
 	OptionsParser::OptionFlags flags)
 {
-	if (arg_short.empty() || arg_long.empty() || description.empty()) {
+	if (argShort.empty() || argLong.empty() || description.empty()) {
 		throw std::runtime_error(
 			"invalid option registration: short, long or description string is missing");
 	}
 
-	if (m_short.find(arg_short) != m_short.end() || m_long.find(arg_long) != m_long.end()) {
+	if (mShort.find(argShort) != mShort.end() || mLong.find(argLong) != mLong.end()) {
 		throw std::runtime_error(
-			"invalid option registration: option " + arg_short + " " + arg_long
+			"invalid option registration: option " + argShort + " " + argLong
 			+ " already exists");
 	}
 
 	Option* opt = new Option();
-	opt->m_short = arg_short;
-	opt->m_long = arg_long;
-	opt->m_hint = arg_hint;
-	opt->m_description = description;
-	opt->m_parser = parser;
-	opt->m_flags = flags;
+	opt->mShort = argShort;
+	opt->mLong = argLong;
+	opt->mHint = argHint;
+	opt->mDescription = description;
+	opt->mParser = parser;
+	opt->mFlags = flags;
 
-	m_options.push_back(opt);
-	m_short[arg_short] = opt;
-	m_long[arg_long] = opt;
+	mOptions.push_back(opt);
+	mShort[argShort] = opt;
+	mLong[argLong] = opt;
 }
 
-void OptionsParser::usage(std::ostream& os, int indentation, std::string mod_name) const
+void OptionsParser::usage(std::ostream& os, int indentation, std::string modName) const
 {
-	std::string indent_str = std::string(indentation, ' ');
-	size_t max_long = 0;
-	size_t max_short = 0;
-	size_t max_req_arg = 0;
-	for (const auto& it : m_options) {
-		size_t arg_len = it->m_flags & OptionFlags::RequiredArgument ? it->m_hint.size() : 0;
-		arg_len = it->m_flags & OptionFlags::OptionalArgument ? it->m_hint.size() + 2 : arg_len;
+	std::string indentStr = std::string(indentation, ' ');
+	size_t maxLong = 0;
+	size_t maxShort = 0;
+	size_t maxReqArg = 0;
+	for (const auto& it : mOptions) {
+		size_t argLen = it->mFlags & OptionFlags::REQUIRED_ARGUMENT ? it->mHint.size() : 0;
+		argLen = it->mFlags & OptionFlags::OPTIONAL_ARGUMENT ? it->mHint.size() + 2 : argLen;
 
-		max_short = max(max_short, it->m_short.size());
-		max_long = max(max_long, it->m_long.size());
-		max_req_arg = max(max_req_arg, arg_len);
+		maxShort = max(maxShort, it->mShort.size());
+		maxLong = max(maxLong, it->mLong.size());
+		maxReqArg = max(maxReqArg, argLen);
 	}
 
-	std::string name = (mod_name.empty() ? m_name : mod_name);
-	std::string usage_str = "Usage: ";
-	os << indent_str << name << std::endl;
-	os << indent_str << m_info << std::endl;
-	os << indent_str << usage_str << name;
-	for (const auto& it : m_options) {
-		std::string arg_str = it->m_flags & OptionFlags::RequiredArgument ? "=" + it->m_hint : "";
-		arg_str = it->m_flags & OptionFlags::OptionalArgument ? "[=" + it->m_hint + "]" : arg_str;
-		os << m_delim << it->m_long << arg_str;
+	std::string name = (modName.empty() ? mName : modName);
+	std::string usageStr = "Usage: ";
+	os << indentStr << name << std::endl;
+	os << indentStr << mInfo << std::endl;
+	os << indentStr << usageStr << name;
+	for (const auto& it : mOptions) {
+		std::string argStr = it->mFlags & OptionFlags::REQUIRED_ARGUMENT ? "=" + it->mHint : "";
+		argStr = it->mFlags & OptionFlags::OPTIONAL_ARGUMENT ? "[=" + it->mHint + "]" : argStr;
+		os << mDelim << it->mLong << argStr;
 	}
 	os << std::endl;
-	if (!m_options.empty()) {
-		os << indent_str << std::string(usage_str.size(), ' ') << name;
-		for (const auto& it : m_options) {
-			std::string arg_str
-				= it->m_flags & OptionFlags::RequiredArgument ? "=" + it->m_hint : "";
-			arg_str
-				= it->m_flags & OptionFlags::OptionalArgument ? "[=" + it->m_hint + "]" : arg_str;
-			os << m_delim << it->m_short << arg_str;
+	if (!mOptions.empty()) {
+		os << indentStr << std::string(usageStr.size(), ' ') << name;
+		for (const auto& it : mOptions) {
+			std::string argStr
+				= it->mFlags & OptionFlags::REQUIRED_ARGUMENT ? "=" + it->mHint : "";
+			argStr
+				= it->mFlags & OptionFlags::OPTIONAL_ARGUMENT ? "[=" + it->mHint + "]" : argStr;
+			os << mDelim << it->mShort << argStr;
 		}
 		os << std::endl;
 		os << "Params:" << std::endl;
 	}
-	indent_str += "  ";
-	for (const auto& it : m_options) {
-		std::string arg_str = it->m_flags & OptionFlags::RequiredArgument ? it->m_hint : "";
-		arg_str = it->m_flags & OptionFlags::OptionalArgument ? "[" + it->m_hint + "]" : arg_str;
+	indentStr += "  ";
+	for (const auto& it : mOptions) {
+		std::string argStr = it->mFlags & OptionFlags::REQUIRED_ARGUMENT ? it->mHint : "";
+		argStr = it->mFlags & OptionFlags::OPTIONAL_ARGUMENT ? "[" + it->mHint + "]" : argStr;
 
-		os << indent_str << std::setw(max_short + 1) << std::left << it->m_short
-		   << std::setw(max_long + 1) << std::left << it->m_long << std::setw(max_req_arg + 2)
-		   << std::left << arg_str << " " + it->m_description << std::endl;
+		os << indentStr << std::setw(maxShort + 1) << std::left << it->mShort
+		   << std::setw(maxLong + 1) << std::left << it->mLong << std::setw(maxReqArg + 2)
+		   << std::left << argStr << " " + it->mDescription << std::endl;
 	}
 }
 

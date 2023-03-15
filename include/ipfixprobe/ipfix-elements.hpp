@@ -45,7 +45,7 @@
 #ifndef IPXP_IPFIX_ELEMENTS_HPP
 #define IPXP_IPFIX_ELEMENTS_HPP
 
-namespace ipxp {
+namespace Ipxp {
 
 /**
  * Each IPFIX element is defined as a C-preprocessor macro expecting
@@ -84,10 +84,10 @@ namespace ipxp {
 #define FIELD(EN, ID, LEN, SRC) EN, ID, LEN, SRC
 
 /* The list of known IPFIX elements: */
-#define BYTES(F) F(0, 1, 8, &flow.src_bytes)
-#define BYTES_REV(F) F(29305, 1, 8, &flow.dst_bytes)
-#define PACKETS(F) F(0, 2, 8, (temp = (uint64_t) flow.src_packets, &temp))
-#define PACKETS_REV(F) F(29305, 2, 8, (temp = (uint64_t) flow.dst_packets, &temp))
+#define BYTES(F) F(0, 1, 8, &flow.srcBytes)
+#define BYTES_REV(F) F(29305, 1, 8, &flow.dstBytes)
+#define PACKETS(F) F(0, 2, 8, (temp = (uint64_t) flow.srcPackets, &temp))
+#define PACKETS_REV(F) F(29305, 2, 8, (temp = (uint64_t) flow.dstPackets, &temp))
 #define FLOW_START_MSEC(F)                                                                         \
 	F(0,                                                                                           \
 	  152,                                                                                         \
@@ -99,24 +99,24 @@ namespace ipxp {
 	  153,                                                                                         \
 	  8,                                                                                           \
 	  (temp = ((uint64_t) flow.time_last.tv_sec) * 1000 + (flow.time_last.tv_usec / 1000), &temp))
-#define FLOW_START_USEC(F) F(0, 154, 8, (temp = MK_NTP_TS(flow.time_first), &temp))
-#define FLOW_END_USEC(F) F(0, 155, 8, (temp = MK_NTP_TS(flow.time_last), &temp))
+#define FLOW_START_USEC(F) F(0, 154, 8, (temp = MK_NTP_TS(flow.timeFirst), &temp))
+#define FLOW_END_USEC(F) F(0, 155, 8, (temp = MK_NTP_TS(flow.timeLast), &temp))
 #define OBSERVATION_MSEC(F) F(0, 323, 8, nullptr)
-#define INPUT_INTERFACE(F) F(0, 10, 4, &this->dir_bit_field)
+#define INPUT_INTERFACE(F) F(0, 10, 4, &this->m_dir_bit_field)
 #define OUTPUT_INTERFACE(F) F(0, 14, 2, nullptr)
-#define FLOW_END_REASON(F) F(0, 136, 1, &flow.end_reason)
+#define FLOW_END_REASON(F) F(0, 136, 1, &flow.endReason)
 
 #define ETHERTYPE(F) F(0, 256, 2, nullptr)
 
-#define L2_SRC_MAC(F) F(0, 56, 6, flow.src_mac)
-#define L2_DST_MAC(F) F(0, 80, 6, flow.dst_mac)
+#define L2_SRC_MAC(F) F(0, 56, 6, flow.srcMac)
+#define L2_DST_MAC(F) F(0, 80, 6, flow.dstMac)
 
-#define L3_PROTO(F) F(0, 60, 1, &flow.ip_version)
-#define L3_IPV4_ADDR_SRC(F) F(0, 8, 4, &flow.src_ip.v4)
-#define L3_IPV4_ADDR_DST(F) F(0, 12, 4, &flow.dst_ip.v4)
+#define L3_PROTO(F) F(0, 60, 1, &flow.ipVersion)
+#define L3_IPV4_ADDR_SRC(F) F(0, 8, 4, &flow.srcIp.v4)
+#define L3_IPV4_ADDR_DST(F) F(0, 12, 4, &flow.dstIp.v4)
 #define L3_IPV4_TOS(F) F(0, 5, 1, nullptr)
-#define L3_IPV6_ADDR_SRC(F) F(0, 27, 16, &flow.src_ip.v6)
-#define L3_IPV6_ADDR_DST(F) F(0, 28, 16, &flow.dst_ip.v6)
+#define L3_IPV6_ADDR_SRC(F) F(0, 27, 16, &flow.srcIp.v6)
+#define L3_IPV6_ADDR_DST(F) F(0, 28, 16, &flow.dstIp.v6)
 #define L3_IPV4_IDENTIFICATION(F) F(0, 54, 2, nullptr)
 #define L3_IPV4_FRAGMENT(F) F(0, 88, 2, nullptr)
 #define L3_IPV4_TTL(F) F(0, 192, 1, nullptr)
@@ -126,11 +126,11 @@ namespace ipxp {
 #define L3_FLAGS(F) F(0, 197, 1, nullptr)
 #define L3_FLAGS_REV(F) F(29305, 197, 1, nullptr)
 
-#define L4_PROTO(F) F(0, 4, 1, &flow.ip_proto)
-#define L4_TCP_FLAGS(F) F(0, 6, 1, &flow.src_tcp_flags)
-#define L4_TCP_FLAGS_REV(F) F(29305, 6, 1, &flow.dst_tcp_flags)
-#define L4_PORT_SRC(F) F(0, 7, 2, &flow.src_port)
-#define L4_PORT_DST(F) F(0, 11, 2, &flow.dst_port)
+#define L4_PROTO(F) F(0, 4, 1, &flow.ipProto)
+#define L4_TCP_FLAGS(F) F(0, 6, 1, &flow.srcTcpFlags)
+#define L4_TCP_FLAGS_REV(F) F(29305, 6, 1, &flow.dstTcpFlags)
+#define L4_PORT_SRC(F) F(0, 7, 2, &flow.srcPort)
+#define L4_PORT_DST(F) F(0, 11, 2, &flow.dstPort)
 #define L4_ICMP_TYPE_CODE(F) F(0, 32, 2, nullptr)
 #define L4_TCP_WIN(F) F(0, 186, 2, nullptr)
 #define L4_TCP_WIN_REV(F) F(29305, 186, 2, nullptr)

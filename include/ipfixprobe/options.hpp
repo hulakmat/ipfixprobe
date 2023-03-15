@@ -51,13 +51,13 @@
 #include <string>
 #include <vector>
 
-namespace ipxp {
+namespace Ipxp {
 
 class OptionsParser {
 public:
 	static const char DELIM = ';';
 	typedef std::function<bool(const char* opt)> OptionParserFunc;
-	enum OptionFlags : uint32_t { RequiredArgument = 1, OptionalArgument = 2, NoArgument = 4 };
+	enum OptionFlags : uint32_t { REQUIRED_ARGUMENT = 1, OPTIONAL_ARGUMENT = 2, NO_ARGUMENT = 4 };
 
 	OptionsParser();
 	OptionsParser(const std::string& name, const std::string& info);
@@ -68,31 +68,31 @@ public:
 	void operator=(OptionsParser&& p) = delete;
 	void parse(const char* args) const;
 	void parse(int argc, const char** argv) const;
-	void usage(std::ostream& os, int indentation = 0, std::string mod_name = "") const;
+	void usage(std::ostream& os, int indentation = 0, std::string modName = "") const;
 
 protected:
-	std::string m_name;
-	std::string m_info;
-	char m_delim;
+	std::string mName;
+	std::string mInfo;
+	char mDelim;
 	struct Option {
-		std::string m_short;
-		std::string m_long;
-		std::string m_hint;
-		std::string m_description;
-		OptionParserFunc m_parser;
-		OptionFlags m_flags;
+		std::string mShort;
+		std::string mLong;
+		std::string mHint;
+		std::string mDescription;
+		OptionParserFunc mParser;
+		OptionFlags mFlags;
 	};
-	std::vector<Option*> m_options;
-	std::map<std::string, Option*> m_long;
-	std::map<std::string, Option*> m_short;
+	std::vector<Option*> mOptions;
+	std::map<std::string, Option*> mLong;
+	std::map<std::string, Option*> mShort;
 
-	void register_option(
-		std::string arg_short,
-		std::string arg_long,
-		std::string arg_hint,
+	void registerOption(
+		std::string argShort,
+		std::string argLong,
+		std::string argHint,
 		std::string description,
 		OptionParserFunc parser,
-		OptionFlags flags = OptionFlags::RequiredArgument);
+		OptionFlags flags = OptionFlags::REQUIRED_ARGUMENT);
 };
 
 class ParserError : public std::runtime_error {

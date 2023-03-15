@@ -65,27 +65,27 @@
 #include "ipaddr.hpp"
 #include <arpa/inet.h>
 
-namespace ipxp {
+namespace Ipxp {
 
 #define BASIC_PLUGIN_NAME "basic"
 
-int register_extension();
-int get_extension_cnt();
+int registerExtension();
+int getExtensionCnt();
 
 /**
  * \brief Flow record extension base struct.
  */
 struct RecordExt {
-	RecordExt* m_next; /**< Pointer to next extension */
-	int m_ext_id; /**< Identifier of extension. */
+	RecordExt* mNext; /**< Pointer to next extension */
+	int mExtId; /**< Identifier of extension. */
 
 	/**
 	 * \brief Constructor.
 	 * \param [in] id ID of extension.
 	 */
 	RecordExt(int id)
-		: m_next(nullptr)
-		, m_ext_id(id)
+		: mNext(nullptr)
+		, mExtId(id)
 	{
 	}
 
@@ -95,13 +95,13 @@ struct RecordExt {
 	 * \param [in] tmplt Unirec template.
 	 * \param [out] record Pointer to the unirec record.
 	 */
-	virtual void fill_unirec(ur_template_t* tmplt, void* record) {}
+	virtual void fillUnirec(ur_template_t* tmplt, void* record) {}
 
 	/**
 	 * \brief Get unirec template string.
 	 * \return Unirec template string.
 	 */
-	virtual const char* get_unirec_tmplt() const
+	virtual const char* getUnirecTmplt() const
 	{
 		return "";
 	}
@@ -113,7 +113,7 @@ struct RecordExt {
 	 * \param [in] size IPFIX template record buffer size.
 	 * \return Number of bytes written to buffer or -1 if data cannot be written.
 	 */
-	virtual int fill_ipfix(uint8_t* buffer, int size)
+	virtual int fillIpfix(uint8_t* buffer, int size)
 	{
 		return 0;
 	}
@@ -122,7 +122,7 @@ struct RecordExt {
 	 * \brief Get ipfix string fields.
 	 * \return Return ipfix fields array.
 	 */
-	virtual const char** get_ipfix_tmplt() const
+	virtual const char** getIpfixTmplt() const
 	{
 		return nullptr;
 	}
@@ -131,7 +131,7 @@ struct RecordExt {
 	 * \brief Get text representation of exported elements
 	 * \return Return fields converted to text
 	 */
-	virtual std::string get_text() const
+	virtual std::string getText() const
 	{
 		return "";
 	}
@@ -140,11 +140,11 @@ struct RecordExt {
 	 * \brief Add extension at the end of linked list.
 	 * \param [in] ext Extension to add.
 	 */
-	void add_extension(RecordExt* ext)
+	void addExtension(RecordExt* ext)
 	{
-		RecordExt** tmp = &m_next;
+		RecordExt** tmp = &mNext;
 		while (*tmp) {
-			tmp = &(*tmp)->m_next;
+			tmp = &(*tmp)->mNext;
 		}
 		*tmp = ext;
 	}
@@ -154,29 +154,29 @@ struct RecordExt {
 	 */
 	virtual ~RecordExt()
 	{
-		if (m_next != nullptr) {
-			delete m_next;
+		if (mNext != nullptr) {
+			delete mNext;
 		}
 	}
 };
 
 struct Record {
-	RecordExt* m_exts; /**< Extension headers. */
+	RecordExt* mExts; /**< Extension headers. */
 
 	/**
 	 * \brief Add new extension header.
 	 * \param [in] ext Pointer to the extension header.
 	 */
-	void add_extension(RecordExt* ext)
+	void addExtension(RecordExt* ext)
 	{
-		if (m_exts == nullptr) {
-			m_exts = ext;
+		if (mExts == nullptr) {
+			mExts = ext;
 		} else {
-			RecordExt* ext_ptr = m_exts;
-			while (ext_ptr->m_next != nullptr) {
-				ext_ptr = ext_ptr->m_next;
+			RecordExt* extPtr = mExts;
+			while (extPtr->mNext != nullptr) {
+				extPtr = extPtr->mNext;
 			}
-			ext_ptr->m_next = ext;
+			extPtr->mNext = ext;
 		}
 	}
 
@@ -185,14 +185,14 @@ struct Record {
 	 * \param [in] id Type of extension.
 	 * \return Pointer to the requested extension or nullptr if extension is not present.
 	 */
-	RecordExt* get_extension(int id) const
+	RecordExt* getExtension(int id) const
 	{
-		RecordExt* ext = m_exts;
+		RecordExt* ext = mExts;
 		while (ext != nullptr) {
-			if (ext->m_ext_id == id) {
+			if (ext->mExtId == id) {
 				return ext;
 			}
-			ext = ext->m_next;
+			ext = ext->mNext;
 		}
 		return nullptr;
 	}
@@ -201,26 +201,26 @@ struct Record {
 	 * \param [in] id Type of extension.
 	 * \return True when successfully removed
 	 */
-	bool remove_extension(int id)
+	bool removeExtension(int id)
 	{
-		RecordExt* ext = m_exts;
-		RecordExt* prev_ext = nullptr;
+		RecordExt* ext = mExts;
+		RecordExt* prevExt = nullptr;
 
 		while (ext != nullptr) {
-			if (ext->m_ext_id == id) {
-				if (prev_ext == nullptr) { // at beginning
-					m_exts = ext->m_next;
-				} else if (ext->m_next == nullptr) { // at end
-					prev_ext->m_next = nullptr;
+			if (ext->mExtId == id) {
+				if (prevExt == nullptr) { // at beginning
+					mExts = ext->mNext;
+				} else if (ext->mNext == nullptr) { // at end
+					prevExt->mNext = nullptr;
 				} else { // in middle
-					prev_ext->m_next = ext->m_next;
+					prevExt->mNext = ext->mNext;
 				}
-				ext->m_next = nullptr;
+				ext->mNext = nullptr;
 				delete ext;
 				return true;
 			}
-			prev_ext = ext;
-			ext = ext->m_next;
+			prevExt = ext;
+			ext = ext->mNext;
 		}
 		return false;
 	}
@@ -228,11 +228,11 @@ struct Record {
 	/**
 	 * \brief Remove extension headers.
 	 */
-	void remove_extensions()
+	void removeExtensions()
 	{
-		if (m_exts != nullptr) {
-			delete m_exts;
-			m_exts = nullptr;
+		if (mExts != nullptr) {
+			delete mExts;
+			mExts = nullptr;
 		}
 	}
 
@@ -240,14 +240,14 @@ struct Record {
 	 * \brief Constructor.
 	 */
 	Record()
-		: m_exts(nullptr)
+		: mExts(nullptr)
 	{
 	}
 
 	/**
 	 * \brief Destructor.
 	 */
-	virtual ~Record() { remove_extensions(); }
+	virtual ~Record() { removeExtensions(); }
 };
 
 #define FLOW_END_INACTIVE 0x01
@@ -260,26 +260,26 @@ struct Record {
  * \brief Flow record struct constaining basic flow record data and extension headers.
  */
 struct Flow : public Record {
-	struct timeval time_first;
-	struct timeval time_last;
-	uint64_t src_bytes;
-	uint64_t dst_bytes;
-	uint32_t src_packets;
-	uint32_t dst_packets;
-	uint8_t src_tcp_flags;
-	uint8_t dst_tcp_flags;
+	struct timeval timeFirst;
+	struct timeval timeLast;
+	uint64_t srcBytes;
+	uint64_t dstBytes;
+	uint32_t srcPackets;
+	uint32_t dstPackets;
+	uint8_t srcTcpFlags;
+	uint8_t dstTcpFlags;
 
-	uint8_t ip_version;
+	uint8_t ipVersion;
 
-	uint8_t ip_proto;
-	uint16_t src_port;
-	uint16_t dst_port;
-	ipaddr_t src_ip;
-	ipaddr_t dst_ip;
+	uint8_t ipProto;
+	uint16_t srcPort;
+	uint16_t dstPort;
+	ipaddr_t srcIp;
+	ipaddr_t dstIp;
 
-	uint8_t src_mac[6];
-	uint8_t dst_mac[6];
-	uint8_t end_reason;
+	uint8_t srcMac[6];
+	uint8_t dstMac[6];
+	uint8_t endReason;
 };
 
 } // namespace ipxp

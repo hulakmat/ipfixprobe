@@ -46,7 +46,7 @@
 int main(int argc, char* argv[])
 {
 	try {
-		return ipxp::run(argc, argv);
+		return Ipxp::run(argc, argv);
 	} catch (std::runtime_error& e) {
 		std::cerr << "Error: " << e.what() << std::endl;
 	}

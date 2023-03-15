@@ -59,7 +59,7 @@
 #include <ipfixprobe/packet.hpp>
 #include <ipfixprobe/process.hpp>
 
-namespace ipxp {
+namespace Ipxp {
 
 #define DNS_UNIREC_TEMPLATE                                                                        \
 	"DNS_ID,DNS_ANSWERS,DNS_RCODE,DNS_NAME,DNS_QTYPE,DNS_CLASS,DNS_RR_TTL,DNS_RLENGTH,DNS_RDATA,"  \
@@ -83,7 +83,7 @@ UR_FIELDS(
  * \brief Flow record extension header for storing parsed DNS packets.
  */
 struct RecordExtDNS : public RecordExt {
-	static int REGISTERED_ID;
+	static int s_registeredId;
 
 	uint16_t id;
 	uint16_t answers;
@@ -91,17 +91,17 @@ struct RecordExtDNS : public RecordExt {
 	char qname[128];
 	uint16_t qtype;
 	uint16_t qclass;
-	uint32_t rr_ttl;
+	uint32_t rrTtl;
 	uint16_t rlength;
 	char data[160];
 	uint16_t psize;
-	uint8_t dns_do;
+	uint8_t dnsDo;
 
 	/**
 	 * \brief Constructor.
 	 */
 	RecordExtDNS()
-		: RecordExt(REGISTERED_ID)
+		: RecordExt(s_registeredId)
 	{
 		id = 0;
 		answers = 0;
@@ -109,15 +109,15 @@ struct RecordExtDNS : public RecordExt {
 		qname[0] = 0;
 		qtype = 0;
 		qclass = 0;
-		rr_ttl = 0;
+		rrTtl = 0;
 		rlength = 0;
 		data[0] = 0;
 		psize = 0;
-		dns_do = 0;
+		dnsDo = 0;
 	}
 
 #ifdef WITH_NEMEA
-	virtual void fill_unirec(ur_template_t* tmplt, void* record)
+	virtual void fillUnirec(ur_template_t* tmplt, void* record)
 	{
 		ur_set(tmplt, record, F_DNS_ID, id);
 		ur_set(tmplt, record, F_DNS_ANSWERS, answers);
@@ -125,20 +125,20 @@ struct RecordExtDNS : public RecordExt {
 		ur_set_string(tmplt, record, F_DNS_NAME, qname);
 		ur_set(tmplt, record, F_DNS_QTYPE, qtype);
 		ur_set(tmplt, record, F_DNS_CLASS, qclass);
-		ur_set(tmplt, record, F_DNS_RR_TTL, rr_ttl);
+		ur_set(tmplt, record, F_DNS_RR_TTL, rrTtl);
 		ur_set(tmplt, record, F_DNS_RLENGTH, rlength);
 		ur_set_var(tmplt, record, F_DNS_RDATA, data, rlength);
 		ur_set(tmplt, record, F_DNS_PSIZE, psize);
-		ur_set(tmplt, record, F_DNS_DO, dns_do);
+		ur_set(tmplt, record, F_DNS_DO, dnsDo);
 	}
 
-	const char* get_unirec_tmplt() const
+	const char* getUnirecTmplt() const
 	{
 		return DNS_UNIREC_TEMPLATE;
 	}
 #endif
 
-	virtual int fill_ipfix(uint8_t* buffer, int size)
+	virtual int fillIpfix(uint8_t* buffer, int size)
 	{
 		int length;
 
@@ -150,10 +150,10 @@ struct RecordExtDNS : public RecordExt {
 		*(uint8_t*) (buffer + 2) = rcode;
 		*(uint16_t*) (buffer + 3) = ntohs(qtype);
 		*(uint16_t*) (buffer + 5) = ntohs(qclass);
-		*(uint32_t*) (buffer + 7) = ntohl(rr_ttl);
+		*(uint32_t*) (buffer + 7) = ntohl(rrTtl);
 		*(uint16_t*) (buffer + 11) = ntohs(rlength);
 		*(uint16_t*) (buffer + 13) = ntohs(psize);
-		*(uint8_t*) (buffer + 15) = dns_do;
+		*(uint8_t*) (buffer + 15) = dnsDo;
 		*(uint16_t*) (buffer + 16) = ntohs(id);
 		buffer[18] = length;
 		memcpy(buffer + 19, qname, length);
@@ -163,20 +163,20 @@ struct RecordExtDNS : public RecordExt {
 		return 20 + rlength + length;
 	}
 
-	const char** get_ipfix_tmplt() const
+	const char** getIpfixTmplt() const
 	{
-		static const char* ipfix_tmplt[] = {IPFIX_DNS_TEMPLATE(IPFIX_FIELD_NAMES) nullptr};
-		return ipfix_tmplt;
+		static const char* ipfixTmplt[] = {IPFIX_DNS_TEMPLATE(IPFIX_FIELD_NAMES) nullptr};
+		return ipfixTmplt;
 	}
 
-	std::string get_text() const
+	std::string getText() const
 	{
 		std::ostringstream out;
 		out << "dnsid=" << id << ",answers=" << answers << ",rcode=" << rcode << ",qname=\""
 			<< qname << "\""
-			<< ",qtype=" << qtype << ",qclass=" << qclass << ",rrttl=" << rr_ttl
+			<< ",qtype=" << qtype << ",qclass=" << qclass << ",rrttl=" << rrTtl
 			<< ",rlength=" << rlength << ",data=\"" << data << "\""
-			<< ",psize=" << psize << ",dnsdo=" << dns_do;
+			<< ",psize=" << psize << ",dnsdo=" << dnsDo;
 		return out.str();
 	}
 };
@@ -190,35 +190,35 @@ public:
 	~DNSPlugin();
 	void init(const char* params);
 	void close();
-	OptionsParser* get_parser() const { return new OptionsParser("dns", "Parse DNS packets"); }
-	std::string get_name() const { return "dns"; }
-	RecordExt* get_ext() const { return new RecordExtDNS(); }
+	OptionsParser* getParser() const { return new OptionsParser("dns", "Parse DNS packets"); }
+	std::string getName() const { return "dns"; }
+	RecordExt* getExt() const { return new RecordExtDNS(); }
 	ProcessPlugin* copy();
 
-	int post_create(Flow& rec, const Packet& pkt);
-	int post_update(Flow& rec, const Packet& pkt);
-	void finish(bool print_stats);
+	int postCreate(Flow& rec, const Packet& pkt);
+	int postUpdate(Flow& rec, const Packet& pkt);
+	void finish(bool printStats);
 
 private:
-	uint32_t queries; /**< Total number of parsed DNS queries. */
-	uint32_t responses; /**< Total number of parsed DNS responses. */
-	uint32_t total; /**< Total number of parsed DNS packets. */
+	uint32_t m_queries; /**< Total number of parsed DNS queries. */
+	uint32_t m_responses; /**< Total number of parsed DNS responses. */
+	uint32_t m_total; /**< Total number of parsed DNS packets. */
 
-	const char* data_begin; /**< Pointer to begin of payload. */
-	uint32_t data_len; /**< Length of packet payload. */
+	const char* m_data_begin; /**< Pointer to begin of payload. */
+	uint32_t m_data_len; /**< Length of packet payload. */
 
-	bool parse_dns(const char* data, unsigned int payload_len, bool tcp, RecordExtDNS* rec);
-	int add_ext_dns(const char* data, unsigned int payload_len, bool tcp, Flow& rec);
-	void process_srv(std::string& str) const;
-	void process_rdata(
-		const char* record_begin,
+	bool parseDns(const char* data, unsigned int payloadLen, bool tcp, RecordExtDNS* rec);
+	int addExtDns(const char* data, unsigned int payloadLen, bool tcp, Flow& rec);
+	void processSrv(std::string& str) const;
+	void processRdata(
+		const char* recordBegin,
 		const char* data,
 		std::ostringstream& rdata,
 		uint16_t type,
 		size_t length) const;
 
 	std::string get_name(const char* data) const;
-	size_t get_name_length(const char* data) const;
+	size_t getNameLength(const char* data) const;
 };
 
 } // namespace ipxp

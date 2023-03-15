@@ -49,19 +49,19 @@
 
 #include "netbios.hpp"
 
-namespace ipxp {
+namespace Ipxp {
 
-int RecordExtNETBIOS::REGISTERED_ID = -1;
+int RecordExtNETBIOS::s_registeredId = -1;
 
-__attribute__((constructor)) static void register_this_plugin()
+__attribute__((constructor)) static void registerThisPlugin()
 {
 	static PluginRecord rec = PluginRecord("netbios", []() { return new NETBIOSPlugin(); });
-	register_plugin(&rec);
-	RecordExtNETBIOS::REGISTERED_ID = register_extension();
+	registerPlugin(&rec);
+	RecordExtNETBIOS::s_registeredId = registerExtension();
 }
 
 NETBIOSPlugin::NETBIOSPlugin()
-	: total_netbios_packets(0)
+	: m_total_netbios_packets(0)
 {
 }
 
@@ -79,30 +79,30 @@ ProcessPlugin* NETBIOSPlugin::copy()
 	return new NETBIOSPlugin(*this);
 }
 
-int NETBIOSPlugin::post_create(Flow& rec, const Packet& pkt)
+int NETBIOSPlugin::postCreate(Flow& rec, const Packet& pkt)
 {
-	if (pkt.dst_port == 137 || pkt.src_port == 137) {
-		return add_netbios_ext(rec, pkt);
+	if (pkt.dstPort == 137 || pkt.srcPort == 137) {
+		return addNetbiosExt(rec, pkt);
 	}
 
 	return 0;
 }
 
-int NETBIOSPlugin::post_update(Flow& rec, const Packet& pkt)
+int NETBIOSPlugin::postUpdate(Flow& rec, const Packet& pkt)
 {
-	if (pkt.dst_port == 137 || pkt.src_port == 137) {
-		return add_netbios_ext(rec, pkt);
+	if (pkt.dstPort == 137 || pkt.srcPort == 137) {
+		return addNetbiosExt(rec, pkt);
 	}
 
 	return 0;
 }
 
-int NETBIOSPlugin::add_netbios_ext(Flow& rec, const Packet& pkt)
+int NETBIOSPlugin::addNetbiosExt(Flow& rec, const Packet& pkt)
 {
 	RecordExtNETBIOS* ext = new RecordExtNETBIOS();
-	if (parse_nbns(ext, pkt)) {
-		total_netbios_packets++;
-		rec.add_extension(ext);
+	if (parseNbns(ext, pkt)) {
+		m_total_netbios_packets++;
+		rec.addExtension(ext);
 	} else {
 		delete ext;
 	}
@@ -110,62 +110,62 @@ int NETBIOSPlugin::add_netbios_ext(Flow& rec, const Packet& pkt)
 	return 0;
 }
 
-bool NETBIOSPlugin::parse_nbns(RecordExtNETBIOS* rec, const Packet& pkt)
+bool NETBIOSPlugin::parseNbns(RecordExtNETBIOS* rec, const Packet& pkt)
 {
 	const char* payload = reinterpret_cast<const char*>(pkt.payload);
 
-	int qry_cnt = get_query_count(payload, pkt.payload_len);
-	payload += sizeof(struct dns_hdr);
-	if (qry_cnt < 1) {
+	int qryCnt = getQueryCount(payload, pkt.payloadLen);
+	payload += sizeof(struct DnsHdr);
+	if (qryCnt < 1) {
 		return false;
 	}
 
-	return store_first_query(payload, rec);
+	return storeFirstQuery(payload, rec);
 }
 
-int NETBIOSPlugin::get_query_count(const char* payload, uint16_t payload_length)
+int NETBIOSPlugin::getQueryCount(const char* payload, uint16_t payloadLength)
 {
-	if (payload_length < sizeof(struct dns_hdr)) {
+	if (payloadLength < sizeof(struct DnsHdr)) {
 		return -1;
 	}
 
-	struct dns_hdr* hdr = (struct dns_hdr*) payload;
-	return ntohs(hdr->question_rec_cnt);
+	struct DnsHdr* hdr = (struct DnsHdr*) payload;
+	return ntohs(hdr->questionRecCnt);
 }
 
-bool NETBIOSPlugin::store_first_query(const char* payload, RecordExtNETBIOS* rec)
+bool NETBIOSPlugin::storeFirstQuery(const char* payload, RecordExtNETBIOS* rec)
 {
-	uint8_t nb_name_length = *payload++;
-	if (nb_name_length != 32) {
+	uint8_t nbNameLength = *payload++;
+	if (nbNameLength != 32) {
 		return false;
 	}
 
-	rec->netbios_name = "";
-	for (int i = 0; i < nb_name_length; i += 2, payload += 2) {
+	rec->netbiosName = "";
+	for (int i = 0; i < nbNameLength; i += 2, payload += 2) {
 		if (i != 30) {
-			rec->netbios_name += compress_nbns_name_char(payload);
+			rec->netbiosName += compressNbnsNameChar(payload);
 		} else {
-			rec->netbios_suffix = get_nbns_suffix(payload);
+			rec->netbiosSuffix = getNbnsSuffix(payload);
 		}
 	}
 	return true;
 }
 
-char NETBIOSPlugin::compress_nbns_name_char(const char* uncompressed)
+char NETBIOSPlugin::compressNbnsNameChar(const char* uncompressed)
 {
 	return (((uncompressed[0] - 'A') << 4) | (uncompressed[1] - 'A'));
 }
 
-uint8_t NETBIOSPlugin::get_nbns_suffix(const char* uncompressed)
+uint8_t NETBIOSPlugin::getNbnsSuffix(const char* uncompressed)
 {
-	return compress_nbns_name_char(uncompressed);
+	return compressNbnsNameChar(uncompressed);
 }
 
-void NETBIOSPlugin::finish(bool print_stats)
+void NETBIOSPlugin::finish(bool printStats)
 {
-	if (print_stats) {
+	if (printStats) {
 		std::cout << "NETBIOS plugin stats:" << std::endl;
-		std::cout << "   Parsed NBNS packets in total: " << total_netbios_packets << std::endl;
+		std::cout << "   Parsed NBNS packets in total: " << m_total_netbios_packets << std::endl;
 	}
 }
 

@@ -71,16 +71,16 @@
 #define ETH_P_TRILL 0x22F3 /* TRILL protocol */
 #endif
 
-namespace ipxp {
+namespace Ipxp {
 
-typedef struct parser_opt_s {
+typedef struct ParserOptS {
 	PacketBlock* pblock;
-	bool packet_valid;
-	bool parse_all;
+	bool packetValid;
+	bool parseAll;
 	int datalink;
 } parser_opt_t;
 
-void parse_packet(
+void parsePacket(
 	parser_opt_t* opt,
 	struct timeval ts,
 	const uint8_t* data,

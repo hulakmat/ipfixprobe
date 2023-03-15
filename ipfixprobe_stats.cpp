@@ -53,63 +53,63 @@
 
 #include "stats.hpp"
 
-using namespace ipxp;
+using namespace Ipxp;
 
-volatile sig_atomic_t stop = 0;
+volatile sig_atomic_t g_stop = 0;
 
-void signal_handler(int sig)
+void signalHandler(int sig)
 {
-	stop = 1;
+	g_stop = 1;
 }
 
 class IpfixStatsParser : public OptionsParser {
 public:
-	pid_t m_pid;
-	bool m_one;
-	bool m_help;
+	pid_t mPid;
+	bool mOne;
+	bool mHelp;
 
 	IpfixStatsParser()
 		: OptionsParser("ipfixprobe_stats", "Read statistics from running ipfixprobe exporter")
-		, m_pid(0)
-		, m_one(false)
-		, m_help(false)
+		, mPid(0)
+		, mOne(false)
+		, mHelp(false)
 	{
-		m_delim = ' ';
+		mDelim = ' ';
 
-		register_option(
+		registerOption(
 			"-p",
 			"--pid",
 			"NUM",
 			"ipfixprobe exporter PID number",
 			[this](const char* arg) {
 				try {
-					m_pid = str2num<decltype(m_pid)>(arg);
+					mPid = str2num<decltype(mPid)>(arg);
 				} catch (std::invalid_argument& e) {
 					return false;
 				}
 				return true;
 			},
-			OptionFlags::RequiredArgument);
-		register_option(
+			OptionFlags::REQUIRED_ARGUMENT);
+		registerOption(
 			"-1",
 			"--one",
 			"",
 			"Print stats and exit",
 			[this](const char* arg) {
-				m_one = true;
+				mOne = true;
 				return true;
 			},
-			OptionFlags::NoArgument);
-		register_option(
+			OptionFlags::NO_ARGUMENT);
+		registerOption(
 			"-h",
 			"--help",
 			"",
 			"Print help",
 			[this](const char* arg) {
-				m_help = true;
+				mHelp = true;
 				return true;
 			},
-			OptionFlags::NoArgument);
+			OptionFlags::NO_ARGUMENT);
 	}
 };
 
@@ -120,7 +120,7 @@ static void error(const std::string& msg)
 
 int main(int argc, char* argv[])
 {
-	size_t lines_written = 0;
+	size_t linesWritten = 0;
 	int fd = -1;
 	int status = EXIT_SUCCESS;
 	uint8_t buffer[100000];
@@ -128,18 +128,18 @@ int main(int argc, char* argv[])
 	std::string path;
 	IpfixStatsParser parser;
 
-	signal(SIGTERM, signal_handler);
-	signal(SIGINT, signal_handler);
+	signal(SIGTERM, signalHandler);
+	signal(SIGINT, signalHandler);
 	try {
 		parser.parse(argc - 1, const_cast<const char**>(argv) + 1);
 
-		if (parser.m_help) {
+		if (parser.mHelp) {
 			parser.usage(std::cout, 0);
 			goto EXIT;
 		}
 
-		path = DEFAULTSOCKETDIR "/ipfixprobe_" + std::to_string(parser.m_pid) + ".sock";
-		fd = connect_to_exporter(path.c_str());
+		path = DEFAULTSOCKETDIR "/ipfixprobe_" + std::to_string(parser.mPid) + ".sock";
+		fd = connectToExporter(path.c_str());
 		if (fd == -1) {
 			error("connecting to exporter");
 			goto EXIT;
@@ -150,16 +150,16 @@ int main(int argc, char* argv[])
 		goto EXIT;
 	}
 
-	while (!stop) {
+	while (!g_stop) {
 		*(uint32_t*) buffer = MSG_MAGIC;
 		// Send stats data request
-		if (send_data(fd, sizeof(uint32_t), buffer)) {
+		if (sendData(fd, sizeof(uint32_t), buffer)) {
 			status = EXIT_FAILURE;
 			break;
 		}
 
 		// Receive message header
-		if (recv_data(fd, sizeof(msg_header_t), buffer)) {
+		if (recvData(fd, sizeof(msg_header_t), buffer)) {
 			status = EXIT_FAILURE;
 			break;
 		}
@@ -172,13 +172,13 @@ int main(int argc, char* argv[])
 		}
 
 		// Receive array of various stats from exporter
-		if (recv_data(fd, hdr->size, (buffer + sizeof(msg_header_t)))) {
+		if (recvData(fd, hdr->size, (buffer + sizeof(msg_header_t)))) {
 			status = EXIT_FAILURE;
 			break;
 		}
 
 		// Erase previous stats output lines
-		for (size_t i = 0; i < lines_written; i++) {
+		for (size_t i = 0; i < linesWritten; i++) {
 			std::cout << "\033[A\33[2K\r";
 		}
 
@@ -212,11 +212,11 @@ int main(int argc, char* argv[])
 					  << " " << std::setw(9) << stats->dropped << " " << std::endl;
 		}
 
-		if (parser.m_one) {
+		if (parser.mOne) {
 			break;
 		}
 
-		lines_written = hdr->inputs + hdr->outputs + 4;
+		linesWritten = hdr->inputs + hdr->outputs + 4;
 		usleep(1000000);
 	}
 EXIT:

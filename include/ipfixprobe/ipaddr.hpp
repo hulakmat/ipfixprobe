@@ -44,9 +44,9 @@
 #ifndef IPXP_IPADDR_HPP
 #define IPXP_IPADDR_HPP
 
-namespace ipxp {
+namespace Ipxp {
 
-enum IP : uint8_t { v4 = 4, v6 = 6 };
+enum IP : uint8_t { V4 = 4, V6 = 6 };
 
 /**
  * \brief Store IPv4 or IPv6 address.

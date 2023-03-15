@@ -50,7 +50,7 @@
 #include "packet.hpp"
 #include "plugin.hpp"
 
-namespace ipxp {
+namespace Ipxp {
 
 /**
  * \brief Base class for packet receivers.
@@ -59,14 +59,14 @@ class InputPlugin : public Plugin {
 public:
 	enum class Result { TIMEOUT = 0, PARSED, NOT_PARSED, END_OF_FILE, ERROR };
 
-	uint64_t m_seen;
-	uint64_t m_parsed;
-	uint64_t m_dropped;
+	uint64_t mSeen;
+	uint64_t mParsed;
+	uint64_t mDropped;
 
 	InputPlugin()
-		: m_seen(0)
-		, m_parsed(0)
-		, m_dropped(0)
+		: mSeen(0)
+		, mParsed(0)
+		, mDropped(0)
 	{
 	}
 	virtual ~InputPlugin() {}

@@ -56,7 +56,7 @@
 
 #include "stats.hpp"
 
-namespace ipxp {
+namespace Ipxp {
 
 #define MICRO_SEC 1000000L
 
@@ -86,18 +86,18 @@ struct OutputWorker {
 	ipx_ring_t* queue;
 };
 
-void input_storage_worker(
+void inputStorageWorker(
 	InputPlugin* plugin,
 	StoragePlugin* cache,
-	size_t queue_size,
-	uint64_t pkt_limit,
+	size_t queueSize,
+	uint64_t pktLimit,
 	std::promise<WorkerResult>* out,
-	std::atomic<InputStats>* out_stats);
-void output_worker(
+	std::atomic<InputStats>* outStats);
+void outputWorker(
 	OutputPlugin* exp,
 	ipx_ring_t* queue,
 	std::promise<WorkerResult>* out,
-	std::atomic<OutputStats>* out_stats,
+	std::atomic<OutputStats>* outStats,
 	uint32_t fps);
 
 } // namespace ipxp

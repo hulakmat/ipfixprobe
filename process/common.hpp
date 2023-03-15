@@ -46,11 +46,11 @@
 
 #include <cstring>
 
-namespace ipxp {
+namespace Ipxp {
 
-static inline bool check_payload_len(size_t payload_len, size_t required_len) noexcept
+static inline bool checkPayloadLen(size_t payloadLen, size_t requiredLen) noexcept
 {
-	return payload_len < required_len;
+	return payloadLen < requiredLen;
 }
 
 /**

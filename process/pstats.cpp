@@ -51,15 +51,15 @@
 
 #include "pstats.hpp"
 
-namespace ipxp {
+namespace Ipxp {
 
-int RecordExtPSTATS::REGISTERED_ID = -1;
+int RecordExtPSTATS::s_registeredId = -1;
 
-__attribute__((constructor)) static void register_this_plugin()
+__attribute__((constructor)) static void registerThisPlugin()
 {
 	static PluginRecord rec = PluginRecord("pstats", []() { return new PSTATSPlugin(); });
-	register_plugin(&rec);
-	RecordExtPSTATS::REGISTERED_ID = register_extension();
+	registerPlugin(&rec);
+	RecordExtPSTATS::s_registeredId = registerExtension();
 }
 
 //#define DEBUG_PSTATS
@@ -72,8 +72,8 @@ __attribute__((constructor)) static void register_this_plugin()
 #endif
 
 PSTATSPlugin::PSTATSPlugin()
-	: use_zeros(false)
-	, skip_dup_pkts(false)
+	: m_use_zeros(false)
+	, m_skip_dup_pkts(false)
 {
 }
 
@@ -91,8 +91,8 @@ void PSTATSPlugin::init(const char* params)
 		throw PluginError(e.what());
 	}
 
-	use_zeros = parser.m_include_zeroes;
-	skip_dup_pkts = parser.m_skipdup;
+	m_use_zeros = parser.mIncludeZeroes;
+	m_skip_dup_pkts = parser.mSkipdup;
 }
 
 void PSTATSPlugin::close() {}
@@ -102,40 +102,40 @@ ProcessPlugin* PSTATSPlugin::copy()
 	return new PSTATSPlugin(*this);
 }
 
-inline bool seq_overflowed(uint32_t curr, uint32_t prev)
+inline bool seqOverflowed(uint32_t curr, uint32_t prev)
 {
 	return (int64_t) curr - (int64_t) prev < -4252017623LL;
 }
 
-void PSTATSPlugin::update_record(RecordExtPSTATS* pstats_data, const Packet& pkt)
+void PSTATSPlugin::updateRecord(RecordExtPSTATS* pstatsData, const Packet& pkt)
 {
 	/**
 	 * 0 - client -> server
 	 * 1 - server -> client
 	 */
-	int8_t dir = pkt.source_pkt ? 0 : 1;
-	if (skip_dup_pkts && pkt.ip_proto == IPPROTO_TCP) {
+	int8_t dir = pkt.sourcePkt ? 0 : 1;
+	if (m_skip_dup_pkts && pkt.ipProto == IPPROTO_TCP) {
 		// Current seq <= previous ack?
-		bool seq_susp = (pkt.tcp_seq <= pstats_data->tcp_seq[dir]
-						 && !seq_overflowed(pkt.tcp_seq, pstats_data->tcp_seq[dir]))
-			|| (pkt.tcp_seq > pstats_data->tcp_seq[dir]
-				&& seq_overflowed(pkt.tcp_seq, pstats_data->tcp_seq[dir]));
+		bool seqSusp = (pkt.tcpSeq <= pstatsData->tcpSeq[dir]
+						 && !seqOverflowed(pkt.tcpSeq, pstatsData->tcpSeq[dir]))
+			|| (pkt.tcpSeq > pstatsData->tcpSeq[dir]
+				&& seqOverflowed(pkt.tcpSeq, pstatsData->tcpSeq[dir]));
 		// Current ack <= previous ack?
-		bool ack_susp = (pkt.tcp_ack <= pstats_data->tcp_ack[dir]
-						 && !seq_overflowed(pkt.tcp_ack, pstats_data->tcp_ack[dir]))
-			|| (pkt.tcp_ack > pstats_data->tcp_ack[dir]
-				&& seq_overflowed(pkt.tcp_ack, pstats_data->tcp_ack[dir]));
-		if (seq_susp && ack_susp && pkt.payload_len == pstats_data->tcp_len[dir]
-			&& pkt.tcp_flags == pstats_data->tcp_flg[dir] && pstats_data->pkt_count != 0) {
+		bool ackSusp = (pkt.tcpAck <= pstatsData->tcpAck[dir]
+						 && !seqOverflowed(pkt.tcpAck, pstatsData->tcpAck[dir]))
+			|| (pkt.tcpAck > pstatsData->tcpAck[dir]
+				&& seqOverflowed(pkt.tcpAck, pstatsData->tcpAck[dir]));
+		if (seqSusp && ackSusp && pkt.payloadLen == pstatsData->tcpLen[dir]
+			&& pkt.tcpFlags == pstatsData->tcpFlg[dir] && pstatsData->pktCount != 0) {
 			return;
 		}
 	}
-	pstats_data->tcp_seq[dir] = pkt.tcp_seq;
-	pstats_data->tcp_ack[dir] = pkt.tcp_ack;
-	pstats_data->tcp_len[dir] = pkt.payload_len;
-	pstats_data->tcp_flg[dir] = pkt.tcp_flags;
+	pstatsData->tcpSeq[dir] = pkt.tcpSeq;
+	pstatsData->tcpAck[dir] = pkt.tcpAck;
+	pstatsData->tcpLen[dir] = pkt.payloadLen;
+	pstatsData->tcpFlg[dir] = pkt.tcpFlags;
 
-	if (pkt.payload_len == 0 && use_zeros == false) {
+	if (pkt.payloadLen == 0 && m_use_zeros == false) {
 		return;
 	}
 
@@ -143,13 +143,13 @@ void PSTATSPlugin::update_record(RecordExtPSTATS* pstats_data, const Packet& pkt
 	 * dir =  1 iff client -> server
 	 * dir = -1 iff server -> client
 	 */
-	dir = pkt.source_pkt ? 1 : -1;
-	if (pstats_data->pkt_count < PSTATS_MAXELEMCOUNT) {
-		uint16_t pkt_cnt = pstats_data->pkt_count;
-		pstats_data->pkt_sizes[pkt_cnt] = pkt.payload_len_wire;
-		pstats_data->pkt_tcp_flgs[pkt_cnt] = pkt.tcp_flags;
+	dir = pkt.sourcePkt ? 1 : -1;
+	if (pstatsData->pktCount < PSTATS_MAXELEMCOUNT) {
+		uint16_t pktCnt = pstatsData->pktCount;
+		pstatsData->pktSizes[pktCnt] = pkt.payloadLenWire;
+		pstatsData->pktTcpFlgs[pktCnt] = pkt.tcpFlags;
 
-		pstats_data->pkt_timestamps[pkt_cnt] = pkt.ts;
+		pstatsData->pktTimestamps[pktCnt] = pkt.ts;
 
 		DEBUG_MSG(
 			"PSTATS processed packet %d: Size: %d Timestamp: %ld.%ld\n",
@@ -158,37 +158,37 @@ void PSTATSPlugin::update_record(RecordExtPSTATS* pstats_data, const Packet& pkt
 			pstats_data->pkt_timestamps[pkt_cnt].tv_sec,
 			pstats_data->pkt_timestamps[pkt_cnt].tv_usec);
 
-		pstats_data->pkt_dirs[pkt_cnt] = dir;
-		pstats_data->pkt_count++;
+		pstatsData->pktDirs[pktCnt] = dir;
+		pstatsData->pktCount++;
 	} else {
 		/* Do not count more than PSTATS_MAXELEMCOUNT packets */
 	}
 }
 
-int PSTATSPlugin::post_create(Flow& rec, const Packet& pkt)
+int PSTATSPlugin::postCreate(Flow& rec, const Packet& pkt)
 {
-	RecordExtPSTATS* pstats_data = new RecordExtPSTATS();
-	rec.add_extension(pstats_data);
+	RecordExtPSTATS* pstatsData = new RecordExtPSTATS();
+	rec.addExtension(pstatsData);
 
-	update_record(pstats_data, pkt);
+	updateRecord(pstatsData, pkt);
 	return 0;
 }
 
-void PSTATSPlugin::pre_export(Flow& rec)
+void PSTATSPlugin::preExport(Flow& rec)
 {
 	// do not export pstats for single packets flows, usually port scans
-	uint32_t packets = rec.src_packets + rec.dst_packets;
-	uint8_t flags = rec.src_tcp_flags | rec.dst_tcp_flags;
+	uint32_t packets = rec.srcPackets + rec.dstPackets;
+	uint8_t flags = rec.srcTcpFlags | rec.dstTcpFlags;
 	if (packets <= PSTATS_MINLEN && (flags & 0x02)) { // tcp SYN set
-		rec.remove_extension(RecordExtPSTATS::REGISTERED_ID);
+		rec.removeExtension(RecordExtPSTATS::s_registeredId);
 	}
 }
 
-int PSTATSPlugin::post_update(Flow& rec, const Packet& pkt)
+int PSTATSPlugin::postUpdate(Flow& rec, const Packet& pkt)
 {
-	RecordExtPSTATS* pstats_data
-		= (RecordExtPSTATS*) rec.get_extension(RecordExtPSTATS::REGISTERED_ID);
-	update_record(pstats_data, pkt);
+	RecordExtPSTATS* pstatsData
+		= (RecordExtPSTATS*) rec.getExtension(RecordExtPSTATS::s_registeredId);
+	updateRecord(pstatsData, pkt);
 	return 0;
 }
 

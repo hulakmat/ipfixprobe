@@ -48,25 +48,25 @@
 
 #include "options.hpp"
 
-namespace ipxp {
+namespace Ipxp {
 
 class Plugin;
 typedef std::function<Plugin*()> PluginGetter;
 
 struct PluginRecord {
-	std::string m_name;
-	PluginGetter m_getter;
-	PluginRecord* m_next;
+	std::string mName;
+	PluginGetter mGetter;
+	PluginRecord* mNext;
 
 	PluginRecord(const std::string& name, PluginGetter getter)
-		: m_name(name)
-		, m_getter(getter)
-		, m_next(nullptr)
+		: mName(name)
+		, mGetter(getter)
+		, mNext(nullptr)
 	{
 	}
 };
 
-void register_plugin(PluginRecord* rec);
+void registerPlugin(PluginRecord* rec);
 
 class Plugin {
 public:
@@ -76,8 +76,8 @@ public:
 	virtual void init(const char* params) {}
 	virtual void close() {}
 
-	virtual OptionsParser* get_parser() const = 0;
-	virtual std::string get_name() const = 0;
+	virtual OptionsParser* getParser() const = 0;
+	virtual std::string getName() const = 0;
 };
 
 class PluginException : public std::runtime_error {

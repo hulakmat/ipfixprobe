@@ -46,22 +46,22 @@
 
 #include "wg.hpp"
 
-namespace ipxp {
+namespace Ipxp {
 
-int RecordExtWG::REGISTERED_ID = -1;
+int RecordExtWG::s_registeredId = -1;
 
-__attribute__((constructor)) static void register_this_plugin()
+__attribute__((constructor)) static void registerThisPlugin()
 {
 	static PluginRecord rec = PluginRecord("wg", []() { return new WGPlugin(); });
-	register_plugin(&rec);
-	RecordExtWG::REGISTERED_ID = register_extension();
+	registerPlugin(&rec);
+	RecordExtWG::s_registeredId = registerExtension();
 }
 
 WGPlugin::WGPlugin()
-	: preallocated_record(nullptr)
-	, flow_flush(false)
-	, total(0)
-	, identified(0)
+	: m_preallocated_record(nullptr)
+	, m_flow_flush(false)
+	, m_total(0)
+	, m_identified(0)
 {
 }
 
@@ -74,9 +74,9 @@ void WGPlugin::init(const char* params) {}
 
 void WGPlugin::close()
 {
-	if (preallocated_record != nullptr) {
-		delete preallocated_record;
-		preallocated_record = nullptr;
+	if (m_preallocated_record != nullptr) {
+		delete m_preallocated_record;
+		m_preallocated_record = nullptr;
 	}
 }
 
@@ -85,77 +85,77 @@ ProcessPlugin* WGPlugin::copy()
 	return new WGPlugin(*this);
 }
 
-int WGPlugin::post_create(Flow& rec, const Packet& pkt)
+int WGPlugin::postCreate(Flow& rec, const Packet& pkt)
 {
-	if (pkt.ip_proto == IPPROTO_UDP) {
-		add_ext_wg(
+	if (pkt.ipProto == IPPROTO_UDP) {
+		addExtWg(
 			reinterpret_cast<const char*>(pkt.payload),
-			pkt.payload_len,
-			pkt.source_pkt,
+			pkt.payloadLen,
+			pkt.sourcePkt,
 			rec);
 	}
 
 	return 0;
 }
 
-int WGPlugin::pre_update(Flow& rec, Packet& pkt)
+int WGPlugin::preUpdate(Flow& rec, Packet& pkt)
 {
-	RecordExtWG* vpn_data = (RecordExtWG*) rec.get_extension(RecordExtWG::REGISTERED_ID);
-	if (vpn_data != nullptr && vpn_data->possible_wg) {
-		bool res = parse_wg(
+	RecordExtWG* vpnData = (RecordExtWG*) rec.getExtension(RecordExtWG::s_registeredId);
+	if (vpnData != nullptr && vpnData->possibleWg) {
+		bool res = parseWg(
 			reinterpret_cast<const char*>(pkt.payload),
-			pkt.payload_len,
-			pkt.source_pkt,
-			vpn_data);
+			pkt.payloadLen,
+			pkt.sourcePkt,
+			vpnData);
 		// In case of new flow, flush
-		if (flow_flush) {
-			flow_flush = false;
+		if (m_flow_flush) {
+			m_flow_flush = false;
 			return FLOW_FLUSH_WITH_REINSERT;
 		}
 		// In other cases, when WG was not detected
 		if (!res) {
-			vpn_data->possible_wg = 0;
+			vpnData->possibleWg = 0;
 		}
 	}
 
 	return 0;
 }
 
-void WGPlugin::pre_export(Flow& rec) {}
+void WGPlugin::preExport(Flow& rec) {}
 
-void WGPlugin::finish(bool print_stats)
+void WGPlugin::finish(bool printStats)
 {
-	if (print_stats) {
+	if (printStats) {
 		std::cout << "WG plugin stats:" << std::endl;
-		std::cout << "   Identified WG packets: " << identified << std::endl;
-		std::cout << "   Total packets processed: " << total << std::endl;
+		std::cout << "   Identified WG packets: " << m_identified << std::endl;
+		std::cout << "   Total packets processed: " << m_total << std::endl;
 	}
 }
 
-bool WGPlugin::parse_wg(
+bool WGPlugin::parseWg(
 	const char* data,
-	unsigned int payload_len,
-	bool source_pkt,
+	unsigned int payloadLen,
+	bool sourcePkt,
 	RecordExtWG* ext)
 {
-	uint32_t cmp_peer;
-	uint32_t cmp_new_peer;
+	uint32_t cmpPeer;
+	uint32_t cmpNewPeer;
 
-	static const char dns_query_mask[4] = {0x00, 0x01, 0x00, 0x00};
+	static const char dnsQueryMask[4] = {0x00, 0x01, 0x00, 0x00};
 
-	total++;
+	m_total++;
 
 	// The smallest message (according to specs) is the data message (0x04) with 16 header bytes
 	// and 16 bytes of (empty) data authentication.
 	// Anything below that is not a valid WireGuard message.
-	if (payload_len < WG_PACKETLEN_MIN_TRANSPORT_DATA) {
+	if (payloadLen < WG_PACKETLEN_MIN_TRANSPORT_DATA) {
 		return false;
 	}
 
 	// Let's try to parse according to the first 4 bytes, and see if that is enough.
 	// The first byte is 0x01-0x04, the following three bytes are reserved (0x00).
-	uint8_t pkt_type = data[0];
-	if (pkt_type < WG_PACKETTYPE_INIT_TO_RESP || pkt_type > WG_PACKETTYPE_TRANSPORT_DATA) {
+	uint8_t pktType = data[0];
+	if (pktType < WG_PACKETTYPE_INIT_TO_RESP || pktType > WG_PACKETTYPE_TRANSPORT_DATA) {
 		return false;
 	}
 	if (data[1] != 0x0 || data[2] != 0x0 || data[3] != 0x0) {
@@ -163,54 +163,54 @@ bool WGPlugin::parse_wg(
 	}
 
 	// Next, check the packet contents based on the message type.
-	switch (pkt_type) {
+	switch (pktType) {
 	case WG_PACKETTYPE_INIT_TO_RESP:
-		if (payload_len != WG_PACKETLEN_INIT_TO_RESP) {
+		if (payloadLen != WG_PACKETLEN_INIT_TO_RESP) {
 			return false;
 		}
 
 		// compare the current dst_peer and see if it matches the original source.
 		// If not, the flow flush may be needed to create a new flow.
-		cmp_peer = source_pkt ? ext->src_peer : ext->dst_peer;
-		memcpy(&cmp_new_peer, (data + 4), sizeof(uint32_t));
+		cmpPeer = sourcePkt ? ext->srcPeer : ext->dstPeer;
+		memcpy(&cmpNewPeer, (data + 4), sizeof(uint32_t));
 
-		if (cmp_peer != 0 && cmp_peer != cmp_new_peer) {
-			flow_flush = true;
+		if (cmpPeer != 0 && cmpPeer != cmpNewPeer) {
+			m_flow_flush = true;
 			return false;
 		}
 
-		memcpy(source_pkt ? &(ext->src_peer) : &(ext->dst_peer), (data + 4), sizeof(uint32_t));
+		memcpy(sourcePkt ? &(ext->srcPeer) : &(ext->dstPeer), (data + 4), sizeof(uint32_t));
 		break;
 
 	case WG_PACKETTYPE_RESP_TO_INIT:
-		if (payload_len != WG_PACKETLEN_RESP_TO_INIT) {
+		if (payloadLen != WG_PACKETLEN_RESP_TO_INIT) {
 			return false;
 		}
 
-		memcpy(&(ext->src_peer), (data + 4), sizeof(uint32_t));
-		memcpy(&(ext->dst_peer), (data + 8), sizeof(uint32_t));
+		memcpy(&(ext->srcPeer), (data + 4), sizeof(uint32_t));
+		memcpy(&(ext->dstPeer), (data + 8), sizeof(uint32_t));
 
 		// let's swap for the opposite direction
-		if (!source_pkt) {
-			std::swap(ext->src_peer, ext->dst_peer);
+		if (!sourcePkt) {
+			std::swap(ext->srcPeer, ext->dstPeer);
 		}
 		break;
 
 	case WG_PACKETTYPE_COOKIE_REPLY:
-		if (payload_len != WG_PACKETLEN_COOKIE_REPLY) {
+		if (payloadLen != WG_PACKETLEN_COOKIE_REPLY) {
 			return false;
 		}
 
-		memcpy(source_pkt ? &(ext->dst_peer) : &(ext->src_peer), (data + 4), sizeof(uint32_t));
+		memcpy(sourcePkt ? &(ext->dstPeer) : &(ext->srcPeer), (data + 4), sizeof(uint32_t));
 		break;
 
 	case WG_PACKETTYPE_TRANSPORT_DATA:
 		// Each packet of transport data is zero-padded to the multiple of 16 bytes in length.
-		if (payload_len < WG_PACKETLEN_MIN_TRANSPORT_DATA || (payload_len % 16) != 0) {
+		if (payloadLen < WG_PACKETLEN_MIN_TRANSPORT_DATA || (payloadLen % 16) != 0) {
 			return false;
 		}
 
-		memcpy(source_pkt ? &(ext->dst_peer) : &(ext->src_peer), (data + 4), sizeof(uint32_t));
+		memcpy(sourcePkt ? &(ext->dstPeer) : &(ext->srcPeer), (data + 4), sizeof(uint32_t));
 		break;
 	}
 
@@ -219,27 +219,27 @@ bool WGPlugin::parse_wg(
 	//   Can happen when transaction ID is >= 1 and <= 4, the query is non-recursive
 	//   and other flags are zeros, too.
 	//   2B transaction ID, 2B flags, 2B questions count, 2B answers count
-	if (!memcmp((data + 4), dns_query_mask, sizeof(dns_query_mask))) {
-		ext->possible_wg = 1;
+	if (!memcmp((data + 4), dnsQueryMask, sizeof(dnsQueryMask))) {
+		ext->possibleWg = 1;
 	} else {
-		ext->possible_wg = 100;
+		ext->possibleWg = 100;
 	}
-	identified++;
+	m_identified++;
 	return true;
 }
 
-int WGPlugin::add_ext_wg(const char* data, unsigned int payload_len, bool source_pkt, Flow& rec)
+int WGPlugin::addExtWg(const char* data, unsigned int payloadLen, bool sourcePkt, Flow& rec)
 {
-	if (preallocated_record == nullptr) {
-		preallocated_record = new RecordExtWG();
+	if (m_preallocated_record == nullptr) {
+		m_preallocated_record = new RecordExtWG();
 	}
 	// try to parse WireGuard packet
-	if (!parse_wg(data, payload_len, source_pkt, preallocated_record)) {
+	if (!parseWg(data, payloadLen, sourcePkt, m_preallocated_record)) {
 		return 0;
 	}
 
-	rec.add_extension(preallocated_record);
-	preallocated_record = nullptr;
+	rec.addExtension(m_preallocated_record);
+	m_preallocated_record = nullptr;
 	return 0;
 }
 

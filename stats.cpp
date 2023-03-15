@@ -51,9 +51,9 @@
 
 #include "stats.hpp"
 
-namespace ipxp {
+namespace Ipxp {
 
-int connect_to_exporter(const char* path)
+int connectToExporter(const char* path)
 {
 	int fd;
 	struct sockaddr_un addr;
@@ -73,7 +73,7 @@ int connect_to_exporter(const char* path)
 	return fd;
 }
 
-int create_stats_sock(const char* path)
+int createStatsSock(const char* path)
 {
 	int fd;
 	struct sockaddr_un addr;
@@ -103,21 +103,21 @@ int create_stats_sock(const char* path)
 	return fd;
 }
 
-int recv_data(int fd, uint32_t size, void* data)
+int recvData(int fd, uint32_t size, void* data)
 {
-	size_t num_of_timeouts = 0;
-	size_t total_received = 0;
-	ssize_t last_received = 0;
+	size_t numOfTimeouts = 0;
+	size_t totalReceived = 0;
+	ssize_t lastReceived = 0;
 
-	while (total_received < size) {
-		last_received
-			= recv(fd, (uint8_t*) data + total_received, size - total_received, MSG_DONTWAIT);
-		if (last_received == 0) {
+	while (totalReceived < size) {
+		lastReceived
+			= recv(fd, (uint8_t*) data + totalReceived, size - totalReceived, MSG_DONTWAIT);
+		if (lastReceived == 0) {
 			return -1;
-		} else if (last_received == -1) {
+		} else if (lastReceived == -1) {
 			if (errno == EAGAIN || errno == EWOULDBLOCK) {
-				num_of_timeouts++;
-				if (num_of_timeouts > SERVICE_WAIT_MAX_TRY) {
+				numOfTimeouts++;
+				if (numOfTimeouts > SERVICE_WAIT_MAX_TRY) {
 					return -1;
 				} else {
 					usleep(SERVICE_WAIT_BEFORE_TIMEOUT);
@@ -126,23 +126,23 @@ int recv_data(int fd, uint32_t size, void* data)
 			}
 			return -1;
 		}
-		total_received += last_received;
+		totalReceived += lastReceived;
 	}
 	return 0;
 }
 
-int send_data(int fd, uint32_t size, void* data)
+int sendData(int fd, uint32_t size, void* data)
 {
-	size_t num_of_timeouts = 0;
-	size_t total_sent = 0;
-	ssize_t last_sent = 0;
+	size_t numOfTimeouts = 0;
+	size_t totalSent = 0;
+	ssize_t lastSent = 0;
 
-	while (total_sent < size) {
-		last_sent = send(fd, (uint8_t*) data + total_sent, size - total_sent, MSG_DONTWAIT);
-		if (last_sent == -1) {
+	while (totalSent < size) {
+		lastSent = send(fd, (uint8_t*) data + totalSent, size - totalSent, MSG_DONTWAIT);
+		if (lastSent == -1) {
 			if (errno == EAGAIN || errno == EWOULDBLOCK) {
-				num_of_timeouts++;
-				if (num_of_timeouts > SERVICE_WAIT_MAX_TRY) {
+				numOfTimeouts++;
+				if (numOfTimeouts > SERVICE_WAIT_MAX_TRY) {
 					return -1;
 				} else {
 					usleep(SERVICE_WAIT_BEFORE_TIMEOUT);
@@ -151,12 +151,12 @@ int send_data(int fd, uint32_t size, void* data)
 			}
 			return -1;
 		}
-		total_sent += last_sent;
+		totalSent += lastSent;
 	}
 	return 0;
 }
 
-std::string create_sockpath(const char* id)
+std::string createSockpath(const char* id)
 {
 	return DEFAULTSOCKETDIR "/ipfixprobe_" + std::string(id) + ".sock";
 }

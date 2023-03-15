@@ -47,7 +47,7 @@
 #include <endian.h>
 #include <stdint.h>
 
-namespace ipxp {
+namespace Ipxp {
 
 #define DNS_TYPE_A 1
 #define DNS_TYPE_NS 2
@@ -84,21 +84,21 @@ namespace ipxp {
 /**
  * \brief Struct containing DNS header fields.
  */
-struct __attribute__((packed)) dns_hdr {
+struct __attribute__((packed)) DnsHdr {
 	uint16_t id;
 	union {
 		struct {
 #if defined(__BYTE_ORDER) && __BYTE_ORDER == __LITTLE_ENDIAN
-			uint16_t recursion_desired : 1;
+			uint16_t recursionDesired : 1;
 			uint16_t truncation : 1;
-			uint16_t authoritative_answer : 1;
-			uint16_t op_code : 4;
-			uint16_t query_response : 1;
-			uint16_t response_code : 4;
-			uint16_t checking_disabled : 1;
-			uint16_t auth_data : 1;
+			uint16_t authoritativeAnswer : 1;
+			uint16_t opCode : 4;
+			uint16_t queryResponse : 1;
+			uint16_t responseCode : 4;
+			uint16_t checkingDisabled : 1;
+			uint16_t authData : 1;
 			uint16_t reserved : 1;
-			uint16_t recursion_available : 1;
+			uint16_t recursionAvailable : 1;
 #elif defined(__BYTE_ORDER) && __BYTE_ORDER == __BIG_ENDIAN
 			uint16_t query_response : 1;
 			uint16_t op_code : 4;
@@ -116,16 +116,16 @@ struct __attribute__((packed)) dns_hdr {
 		};
 		uint16_t flags;
 	};
-	uint16_t question_rec_cnt;
-	uint16_t answer_rec_cnt;
-	uint16_t name_server_rec_cnt;
-	uint16_t additional_rec_cnt;
+	uint16_t questionRecCnt;
+	uint16_t answerRecCnt;
+	uint16_t nameServerRecCnt;
+	uint16_t additionalRecCnt;
 };
 
 /**
  * \brief Struct containing DNS question.
  */
-struct __attribute__((packed)) dns_question {
+struct __attribute__((packed)) DnsQuestion {
 	/* name */
 	uint16_t qtype;
 	uint16_t qclass;
@@ -134,7 +134,7 @@ struct __attribute__((packed)) dns_question {
 /**
  * \brief Struct containing DNS answer.
  */
-struct __attribute__((packed)) dns_answer {
+struct __attribute__((packed)) DnsAnswer {
 	/* name */
 	uint16_t atype;
 	uint16_t aclass;
@@ -146,7 +146,7 @@ struct __attribute__((packed)) dns_answer {
 /**
  * \brief Struct containing DNS SOA record.
  */
-struct __attribute__((packed)) dns_soa {
+struct __attribute__((packed)) DnsSoa {
 	/* primary NS */
 	/* admin MB */
 	uint32_t serial;
@@ -159,7 +159,7 @@ struct __attribute__((packed)) dns_soa {
 /**
  * \brief Struct containing DNS SRV record.
  */
-struct __attribute__((packed)) dns_srv {
+struct __attribute__((packed)) DnsSrv {
 	/* _service._proto.name*/
 	uint16_t priority;
 	uint16_t weight;
@@ -170,23 +170,23 @@ struct __attribute__((packed)) dns_srv {
 /**
  * \brief Struct containing DNS DS record.
  */
-struct __attribute__((packed)) dns_ds {
+struct __attribute__((packed)) DnsDs {
 	uint16_t keytag;
 	uint8_t algorithm;
-	uint8_t digest_type;
+	uint8_t digestType;
 	/* digest */
 };
 
 /**
  * \brief Struct containing DNS RRSIG record.
  */
-struct __attribute__((packed)) dns_rrsig {
+struct __attribute__((packed)) DnsRrsig {
 	uint16_t type;
 	uint8_t algorithm;
 	uint8_t labels;
 	uint32_t ttl;
-	uint32_t sig_expiration;
-	uint32_t sig_inception;
+	uint32_t sigExpiration;
+	uint32_t sigInception;
 	uint16_t keytag;
 	/* signer's name */
 	/* signature */
@@ -195,7 +195,7 @@ struct __attribute__((packed)) dns_rrsig {
 /**
  * \brief Struct containing DNS DNSKEY record.
  */
-struct __attribute__((packed)) dns_dnskey {
+struct __attribute__((packed)) DnsDnskey {
 	uint16_t flags;
 	uint8_t protocol;
 	uint8_t algorithm;

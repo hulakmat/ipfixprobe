@@ -62,7 +62,7 @@
 #include <ipfixprobe/ipfix-basiclist.hpp>
 #include <ipfixprobe/ipfix-elements.hpp>
 
-namespace ipxp {
+namespace Ipxp {
 
 #ifndef PSTATS_MAXELEMCOUNT
 #define PSTATS_MAXELEMCOUNT 30
@@ -82,34 +82,34 @@ UR_FIELDS(
 
 class PSTATSOptParser : public OptionsParser {
 public:
-	bool m_include_zeroes;
-	bool m_skipdup;
+	bool mIncludeZeroes;
+	bool mSkipdup;
 
 	PSTATSOptParser()
 		: OptionsParser("pstats", "Processing plugin for packet stats")
-		, m_include_zeroes(false)
-		, m_skipdup(false)
+		, mIncludeZeroes(false)
+		, mSkipdup(false)
 	{
-		register_option(
+		registerOption(
 			"i",
 			"includezeroes",
 			"",
 			"Include zero payload packets",
 			[this](const char* arg) {
-				m_include_zeroes = true;
+				mIncludeZeroes = true;
 				return true;
 			},
-			OptionFlags::NoArgument);
-		register_option(
+			OptionFlags::NO_ARGUMENT);
+		registerOption(
 			"s",
 			"skipdup",
 			"",
 			"Skip duplicated TCP packets",
 			[this](const char* arg) {
-				m_skipdup = true;
+				mSkipdup = true;
 				return true;
 			},
-			OptionFlags::NoArgument);
+			OptionFlags::NO_ARGUMENT);
 	}
 };
 
@@ -117,125 +117,125 @@ public:
  * \brief Flow record extension header for storing parsed PSTATS packets.
  */
 struct RecordExtPSTATS : public RecordExt {
-	static int REGISTERED_ID;
+	static int s_registeredId;
 
-	uint16_t pkt_sizes[PSTATS_MAXELEMCOUNT];
-	uint8_t pkt_tcp_flgs[PSTATS_MAXELEMCOUNT];
-	struct timeval pkt_timestamps[PSTATS_MAXELEMCOUNT];
-	int8_t pkt_dirs[PSTATS_MAXELEMCOUNT];
-	uint16_t pkt_count;
-	uint32_t tcp_seq[2];
-	uint32_t tcp_ack[2];
-	uint16_t tcp_len[2];
-	uint8_t tcp_flg[2];
+	uint16_t pktSizes[PSTATS_MAXELEMCOUNT];
+	uint8_t pktTcpFlgs[PSTATS_MAXELEMCOUNT];
+	struct timeval pktTimestamps[PSTATS_MAXELEMCOUNT];
+	int8_t pktDirs[PSTATS_MAXELEMCOUNT];
+	uint16_t pktCount;
+	uint32_t tcpSeq[2];
+	uint32_t tcpAck[2];
+	uint16_t tcpLen[2];
+	uint8_t tcpFlg[2];
 
 	typedef enum eHdrFieldID {
-		PktSize = 1013,
-		PktFlags = 1015,
-		PktDir = 1016,
-		PktTmstp = 1014
+		PKT_SIZE = 1013,
+		PKT_FLAGS = 1015,
+		PKT_DIR = 1016,
+		PKT_TMSTP = 1014
 	} eHdrSemantic;
 
-	static const uint32_t CesnetPem = 8057;
+	static const uint32_t CESNET_PEM = 8057;
 
 	RecordExtPSTATS()
-		: RecordExt(REGISTERED_ID)
+		: RecordExt(s_registeredId)
 	{
-		pkt_count = 0;
+		pktCount = 0;
 	}
 
 #ifdef WITH_NEMEA
-	virtual void fill_unirec(ur_template_t* tmplt, void* record)
+	virtual void fillUnirec(ur_template_t* tmplt, void* record)
 	{
-		ur_array_allocate(tmplt, record, F_PPI_PKT_TIMES, pkt_count);
-		ur_array_allocate(tmplt, record, F_PPI_PKT_LENGTHS, pkt_count);
-		ur_array_allocate(tmplt, record, F_PPI_PKT_FLAGS, pkt_count);
-		ur_array_allocate(tmplt, record, F_PPI_PKT_DIRECTIONS, pkt_count);
+		ur_array_allocate(tmplt, record, F_PPI_PKT_TIMES, pktCount);
+		ur_array_allocate(tmplt, record, F_PPI_PKT_LENGTHS, pktCount);
+		ur_array_allocate(tmplt, record, F_PPI_PKT_FLAGS, pktCount);
+		ur_array_allocate(tmplt, record, F_PPI_PKT_DIRECTIONS, pktCount);
 
-		for (int i = 0; i < pkt_count; i++) {
+		for (int i = 0; i < pktCount; i++) {
 			ur_time_t ts
-				= ur_time_from_sec_usec(pkt_timestamps[i].tv_sec, pkt_timestamps[i].tv_usec);
+				= ur_time_from_sec_usec(pktTimestamps[i].tv_sec, pktTimestamps[i].tv_usec);
 			ur_array_set(tmplt, record, F_PPI_PKT_TIMES, i, ts);
-			ur_array_set(tmplt, record, F_PPI_PKT_LENGTHS, i, pkt_sizes[i]);
-			ur_array_set(tmplt, record, F_PPI_PKT_FLAGS, i, pkt_tcp_flgs[i]);
-			ur_array_set(tmplt, record, F_PPI_PKT_DIRECTIONS, i, pkt_dirs[i]);
+			ur_array_set(tmplt, record, F_PPI_PKT_LENGTHS, i, pktSizes[i]);
+			ur_array_set(tmplt, record, F_PPI_PKT_FLAGS, i, pktTcpFlgs[i]);
+			ur_array_set(tmplt, record, F_PPI_PKT_DIRECTIONS, i, pktDirs[i]);
 		}
 	}
 
-	const char* get_unirec_tmplt() const
+	const char* getUnirecTmplt() const
 	{
 		return PSTATS_UNIREC_TEMPLATE;
 	}
 #endif // ifdef WITH_NEMEA
 
-	virtual int fill_ipfix(uint8_t* buffer, int size)
+	virtual int fillIpfix(uint8_t* buffer, int size)
 	{
 		int32_t bufferPtr;
 		IpfixBasicList basiclist;
-		basiclist.hdrEnterpriseNum = IpfixBasicList::CesnetPEM;
+		basiclist.hdrEnterpriseNum = IpfixBasicList::CESNET_PEM;
 		// Check sufficient size of buffer
-		int req_size = 4 * basiclist.HeaderSize() /* sizes, times, flags, dirs */
-			+ pkt_count * sizeof(uint16_t) /* sizes */ + 2 * pkt_count * sizeof(uint32_t) /* times
+		int reqSize = 4 * basiclist.headerSize() /* sizes, times, flags, dirs */
+			+ pktCount * sizeof(uint16_t) /* sizes */ + 2 * pktCount * sizeof(uint32_t) /* times
 																						   */
-			+ pkt_count /* flags */ + pkt_count /* dirs */;
+			+ pktCount /* flags */ + pktCount /* dirs */;
 
-		if (req_size > size) {
+		if (reqSize > size) {
 			return -1;
 		}
 		// Fill packet sizes
-		bufferPtr = basiclist.FillBuffer(buffer, pkt_sizes, pkt_count, (uint16_t) PktSize);
+		bufferPtr = basiclist.fillBuffer(buffer, pktSizes, pktCount, (uint16_t) PKT_SIZE);
 		// Fill timestamps
-		bufferPtr += basiclist.FillBuffer(
+		bufferPtr += basiclist.fillBuffer(
 			buffer + bufferPtr,
-			pkt_timestamps,
-			pkt_count,
-			(uint16_t) PktTmstp);
+			pktTimestamps,
+			pktCount,
+			(uint16_t) PKT_TMSTP);
 		// Fill tcp flags
-		bufferPtr += basiclist.FillBuffer(
+		bufferPtr += basiclist.fillBuffer(
 			buffer + bufferPtr,
-			pkt_tcp_flgs,
-			pkt_count,
-			(uint16_t) PktFlags);
+			pktTcpFlgs,
+			pktCount,
+			(uint16_t) PKT_FLAGS);
 		// Fill directions
 		bufferPtr
-			+= basiclist.FillBuffer(buffer + bufferPtr, pkt_dirs, pkt_count, (uint16_t) PktDir);
+			+= basiclist.fillBuffer(buffer + bufferPtr, pktDirs, pktCount, (uint16_t) PKT_DIR);
 
 		return bufferPtr;
 	} // fill_ipfix
 
-	const char** get_ipfix_tmplt() const
+	const char** getIpfixTmplt() const
 	{
-		static const char* ipfix_tmplt[] = {IPFIX_PSTATS_TEMPLATE(IPFIX_FIELD_NAMES) nullptr};
-		return ipfix_tmplt;
+		static const char* ipfixTmplt[] = {IPFIX_PSTATS_TEMPLATE(IPFIX_FIELD_NAMES) nullptr};
+		return ipfixTmplt;
 	}
-	std::string get_text() const
+	std::string getText() const
 	{
 		std::ostringstream out;
 		out << "ppisizes=(";
-		for (int i = 0; i < pkt_count; i++) {
-			out << pkt_sizes[i];
-			if (i != pkt_count - 1) {
+		for (int i = 0; i < pktCount; i++) {
+			out << pktSizes[i];
+			if (i != pktCount - 1) {
 				out << ",";
 			}
 		}
 		out << "),ppitimes=(";
-		for (int i = 0; i < pkt_count; i++) {
-			out << pkt_timestamps[i].tv_sec << "." << pkt_timestamps[i].tv_usec;
-			if (i != pkt_count - 1) {
+		for (int i = 0; i < pktCount; i++) {
+			out << pktTimestamps[i].tv_sec << "." << pktTimestamps[i].tv_usec;
+			if (i != pktCount - 1) {
 				out << ",";
 			}
 		}
 		out << "),ppiflags=(";
-		for (int i = 0; i < pkt_count; i++) {
-			out << (uint16_t) pkt_tcp_flgs[i];
-			if (i != pkt_count - 1) {
+		for (int i = 0; i < pktCount; i++) {
+			out << (uint16_t) pktTcpFlgs[i];
+			if (i != pktCount - 1) {
 				out << ",";
 			}
 		}
 		out << "),ppidirs=(";
-		for (int i = 0; i < pkt_count; i++) {
-			out << (int16_t) pkt_dirs[i];
-			if (i != pkt_count - 1) {
+		for (int i = 0; i < pktCount; i++) {
+			out << (int16_t) pktDirs[i];
+			if (i != pktCount - 1) {
 				out << ",";
 			}
 		}
@@ -253,18 +253,18 @@ public:
 	~PSTATSPlugin();
 	void init(const char* params);
 	void close();
-	OptionsParser* get_parser() const { return new PSTATSOptParser(); }
-	std::string get_name() const { return "pstats"; }
-	RecordExt* get_ext() const { return new RecordExtPSTATS(); }
+	OptionsParser* getParser() const { return new PSTATSOptParser(); }
+	std::string getName() const { return "pstats"; }
+	RecordExt* getExt() const { return new RecordExtPSTATS(); }
 	ProcessPlugin* copy();
-	int post_create(Flow& rec, const Packet& pkt);
-	int post_update(Flow& rec, const Packet& pkt);
-	void update_record(RecordExtPSTATS* pstats_data, const Packet& pkt);
-	void pre_export(Flow& rec);
+	int postCreate(Flow& rec, const Packet& pkt);
+	int postUpdate(Flow& rec, const Packet& pkt);
+	void updateRecord(RecordExtPSTATS* pstatsData, const Packet& pkt);
+	void preExport(Flow& rec);
 
 private:
-	bool use_zeros;
-	bool skip_dup_pkts;
+	bool m_use_zeros;
+	bool m_skip_dup_pkts;
 };
 
 } // namespace ipxp

@@ -49,24 +49,24 @@
 #include "ndp.hpp"
 #include "parser.hpp"
 
-namespace ipxp {
+namespace Ipxp {
 
-__attribute__((constructor)) static void register_this_plugin()
+__attribute__((constructor)) static void registerThisPlugin()
 {
 	static PluginRecord rec = PluginRecord("ndp", []() { return new NdpPacketReader(); });
-	register_plugin(&rec);
+	registerPlugin(&rec);
 }
 
-void packet_ndp_handler(
+void packetNdpHandler(
 	parser_opt_t* opt,
-	const struct ndp_packet* ndp_packet,
-	const struct ndp_header* ndp_header)
+	const struct ndp_packet* ndpPacket,
+	const struct NdpHeader* ndpHeader)
 {
 	struct timeval ts;
-	ts.tv_sec = le32toh(ndp_header->timestamp_sec);
-	ts.tv_usec = le32toh(ndp_header->timestamp_nsec) / 1000;
+	ts.tv_sec = le32toh(ndpHeader->timestampSec);
+	ts.tv_usec = le32toh(ndpHeader->timestampNsec) / 1000;
 
-	parse_packet(opt, ts, ndp_packet->data, ndp_packet->data_length, ndp_packet->data_length);
+	parsePacket(opt, ts, ndpPacket->data, ndpPacket->data_length, ndpPacket->data_length);
 }
 
 NdpPacketReader::NdpPacketReader() {}
@@ -85,35 +85,35 @@ void NdpPacketReader::init(const char* params)
 		throw PluginError(e.what());
 	}
 
-	if (parser.m_dev.empty()) {
+	if (parser.mDev.empty()) {
 		throw PluginError("specify device path");
 	}
-	init_ifc(parser.m_dev);
+	initIfc(parser.mDev);
 }
 
 void NdpPacketReader::close()
 {
-	ndpReader.close();
+	m_ndpReader.close();
 }
 
-void NdpPacketReader::init_ifc(const std::string& dev)
+void NdpPacketReader::initIfc(const std::string& dev)
 {
-	if (ndpReader.init_interface(dev) != 0) {
-		throw PluginError(ndpReader.error_msg);
+	if (m_ndpReader.initInterface(dev) != 0) {
+		throw PluginError(m_ndpReader.errorMsg);
 	}
 }
 
 InputPlugin::Result NdpPacketReader::get(PacketBlock& packets)
 {
 	parser_opt_t opt = {&packets, false, false, 0};
-	struct ndp_packet* ndp_packet;
-	struct ndp_header* ndp_header;
-	size_t read_pkts = 0;
+	struct ndp_packet* ndpPacket;
+	struct NdpHeader* ndpHeader;
+	size_t readPkts = 0;
 	int ret = -1;
 
 	packets.cnt = 0;
 	for (unsigned i = 0; i < packets.size; i++) {
-		ret = ndpReader.get_pkt(&ndp_packet, &ndp_header);
+		ret = m_ndpReader.getPkt(&ndpPacket, &ndpHeader);
 		if (ret == 0) {
 			if (opt.pblock->cnt) {
 				break;
@@ -121,14 +121,14 @@ InputPlugin::Result NdpPacketReader::get(PacketBlock& packets)
 			return Result::TIMEOUT;
 		} else if (ret < 0) {
 			// Error occured.
-			throw PluginError(ndpReader.error_msg);
+			throw PluginError(m_ndpReader.errorMsg);
 		}
-		read_pkts++;
-		packet_ndp_handler(&opt, ndp_packet, ndp_header);
+		readPkts++;
+		packetNdpHandler(&opt, ndpPacket, ndpHeader);
 	}
 
-	m_seen += read_pkts;
-	m_parsed += opt.pblock->cnt;
+	mSeen += readPkts;
+	mParsed += opt.pblock->cnt;
 	return opt.pblock->cnt ? Result::PARSED : Result::NOT_PARSED;
 }
 

@@ -60,22 +60,22 @@
 #endif
 #include "stats.hpp"
 
-namespace ipxp {
+namespace Ipxp {
 
-volatile sig_atomic_t stop = 0;
+volatile sig_atomic_t g_stop = 0;
 
-volatile sig_atomic_t terminate_export = 0;
-volatile sig_atomic_t terminate_input = 0;
+volatile sig_atomic_t g_terminate_export = 0;
+volatile sig_atomic_t g_terminate_input = 0;
 
-const uint32_t DEFAULT_IQUEUE_SIZE = 64;
-const uint32_t DEFAULT_OQUEUE_SIZE = 16536;
-const uint32_t DEFAULT_FPS = 0; // unlimited
+const uint32_t g_DEFAULT_IQUEUE_SIZE = 64;
+const uint32_t g_DEFAULT_OQUEUE_SIZE = 16536;
+const uint32_t g_DEFAULT_FPS = 0; // unlimited
 
 /**
  * \brief Signal handler function.
  * \param [in] sig Signal number.
  */
-void signal_handler(int sig)
+void signalHandler(int sig)
 {
 #ifdef WITH_LIBUNWIND
 	if (sig == SIGSEGV) {
@@ -83,13 +83,13 @@ void signal_handler(int sig)
 		abort();
 	}
 #endif
-	stop = 1;
+	g_stop = 1;
 }
 
-void register_handlers()
+void registerHandlers()
 {
-	signal(SIGTERM, signal_handler);
-	signal(SIGINT, signal_handler);
+	signal(SIGTERM, signalHandler);
+	signal(SIGINT, signalHandler);
 #ifdef WITH_LIBUNWIND
 	signal(SIGSEGV, signal_handler);
 #endif
@@ -104,11 +104,11 @@ void error(std::string msg)
 }
 
 template<typename T>
-static void print_plugins_help(std::vector<Plugin*>& plugins)
+static void printPluginsHelp(std::vector<Plugin*>& plugins)
 {
 	for (auto& it : plugins) {
 		if (dynamic_cast<T*>(it)) {
-			OptionsParser* parser = it->get_parser();
+			OptionsParser* parser = it->getParser();
 			parser->usage(std::cout);
 			std::cout << std::endl;
 			delete parser;
@@ -116,7 +116,7 @@ static void print_plugins_help(std::vector<Plugin*>& plugins)
 	}
 }
 
-void print_help(ipxp_conf_t& conf, const std::string& arg)
+void printHelp(ipxp_conf_t& conf, const std::string& arg)
 {
 	auto deleter = [&](std::vector<Plugin*>* p) {
 		for (auto& it : *p) {
@@ -129,13 +129,13 @@ void print_help(ipxp_conf_t& conf, const std::string& arg)
 		deleter);
 
 	if (arg == "input") {
-		print_plugins_help<InputPlugin>(*plugins);
+		printPluginsHelp<InputPlugin>(*plugins);
 	} else if (arg == "storage") {
-		print_plugins_help<StoragePlugin>(*plugins);
+		printPluginsHelp<StoragePlugin>(*plugins);
 	} else if (arg == "output") {
-		print_plugins_help<OutputPlugin>(*plugins);
+		printPluginsHelp<OutputPlugin>(*plugins);
 	} else if (arg == "process") {
-		print_plugins_help<ProcessPlugin>(*plugins);
+		printPluginsHelp<ProcessPlugin>(*plugins);
 	} else {
 		Plugin* p;
 		try {
@@ -148,14 +148,14 @@ void print_help(ipxp_conf_t& conf, const std::string& arg)
 			error(std::string("when loading plugin: ") + e.what());
 			return;
 		}
-		OptionsParser* parser = p->get_parser();
+		OptionsParser* parser = p->getParser();
 		parser->usage(std::cout);
 		delete parser;
 		delete p;
 	}
 }
 
-void process_plugin_argline(const std::string& args, std::string& plugin, std::string& params)
+void processPluginArgline(const std::string& args, std::string& plugin, std::string& params)
 {
 	size_t delim;
 
@@ -165,11 +165,11 @@ void process_plugin_argline(const std::string& args, std::string& plugin, std::s
 	plugin = params.substr(0, delim);
 	params.erase(0, delim == std::string::npos ? delim : delim + 1);
 
-	trim_str(plugin);
-	trim_str(params);
+	trimStr(plugin);
+	trimStr(params);
 }
 
-bool process_plugin_args(ipxp_conf_t& conf, IpfixprobeOptParser& parser)
+bool processPluginArgs(ipxp_conf_t& conf, IpfixprobeOptParser& parser)
 {
 	auto deleter = [&](OutputPlugin::Plugins* p) {
 		for (auto& it : *p) {
@@ -177,179 +177,179 @@ bool process_plugin_args(ipxp_conf_t& conf, IpfixprobeOptParser& parser)
 		}
 		delete p;
 	};
-	auto process_plugins = std::unique_ptr<OutputPlugin::Plugins, decltype(deleter)>(
+	auto processPlugins = std::unique_ptr<OutputPlugin::Plugins, decltype(deleter)>(
 		new OutputPlugin::Plugins(),
 		deleter);
-	std::string storage_name = "cache";
-	std::string storage_params = "";
-	std::string output_name = "ipfix";
-	std::string output_params = "";
+	std::string storageName = "cache";
+	std::string storageParams = "";
+	std::string outputName = "ipfix";
+	std::string outputParams = "";
 
-	if (parser.m_storage.size()) {
-		process_plugin_argline(parser.m_storage[0], storage_name, storage_params);
+	if (parser.mStorage.size()) {
+		processPluginArgline(parser.mStorage[0], storageName, storageParams);
 	}
-	if (parser.m_output.size()) {
-		process_plugin_argline(parser.m_output[0], output_name, output_params);
+	if (parser.mOutput.size()) {
+		processPluginArgline(parser.mOutput[0], outputName, outputParams);
 	}
 
 	// Process
-	for (auto& it : parser.m_process) {
-		ProcessPlugin* process_plugin = nullptr;
-		std::string process_params;
-		std::string process_name;
-		process_plugin_argline(it, process_name, process_params);
-		for (auto& it : *process_plugins) {
-			std::string plugin_name = it.first;
-			if (plugin_name == process_name) {
-				throw IPXPError(process_name + " plugin was specified multiple times");
+	for (auto& it : parser.mProcess) {
+		ProcessPlugin* processPlugin = nullptr;
+		std::string processParams;
+		std::string processName;
+		processPluginArgline(it, processName, processParams);
+		for (auto& it : *processPlugins) {
+			std::string pluginName = it.first;
+			if (pluginName == processName) {
+				throw IPXPError(processName + " plugin was specified multiple times");
 			}
 		}
-		if (process_name == BASIC_PLUGIN_NAME) {
+		if (processName == BASIC_PLUGIN_NAME) {
 			continue;
 		}
 		try {
-			process_plugin = dynamic_cast<ProcessPlugin*>(conf.mgr.get(process_name));
-			if (process_plugin == nullptr) {
-				throw IPXPError("invalid processing plugin " + process_name);
+			processPlugin = dynamic_cast<ProcessPlugin*>(conf.mgr.get(processName));
+			if (processPlugin == nullptr) {
+				throw IPXPError("invalid processing plugin " + processName);
 			}
 
-			process_plugin->init(process_params.c_str());
-			process_plugins->push_back(std::make_pair(process_name, process_plugin));
+			processPlugin->init(processParams.c_str());
+			processPlugins->push_back(std::make_pair(processName, processPlugin));
 		} catch (PluginError& e) {
-			delete process_plugin;
-			throw IPXPError(process_name + std::string(": ") + e.what());
+			delete processPlugin;
+			throw IPXPError(processName + std::string(": ") + e.what());
 		} catch (PluginExit& e) {
-			delete process_plugin;
+			delete processPlugin;
 			return true;
 		} catch (PluginManagerError& e) {
-			throw IPXPError(process_name + std::string(": ") + e.what());
+			throw IPXPError(processName + std::string(": ") + e.what());
 		}
 	}
 
 	// Output
-	ipx_ring_t* output_queue = ipx_ring_init(conf.oqueue_size, 1);
-	if (output_queue == nullptr) {
+	ipx_ring_t* outputQueue = ipxRingInit(conf.oqueueSize, 1);
+	if (outputQueue == nullptr) {
 		throw IPXPError("unable to initialize ring buffer");
 	}
-	OutputPlugin* output_plugin = nullptr;
+	OutputPlugin* outputPlugin = nullptr;
 	try {
-		output_plugin = dynamic_cast<OutputPlugin*>(conf.mgr.get(output_name));
-		if (output_plugin == nullptr) {
-			ipx_ring_destroy(output_queue);
-			throw IPXPError("invalid output plugin " + output_name);
+		outputPlugin = dynamic_cast<OutputPlugin*>(conf.mgr.get(outputName));
+		if (outputPlugin == nullptr) {
+			ipxRingDestroy(outputQueue);
+			throw IPXPError("invalid output plugin " + outputName);
 		}
 
-		output_plugin->init(output_params.c_str(), *process_plugins);
-		conf.active.output.push_back(output_plugin);
-		conf.active.all.push_back(output_plugin);
+		outputPlugin->init(outputParams.c_str(), *processPlugins);
+		conf.active.output.push_back(outputPlugin);
+		conf.active.all.push_back(outputPlugin);
 	} catch (PluginError& e) {
-		ipx_ring_destroy(output_queue);
-		delete output_plugin;
-		throw IPXPError(output_name + std::string(": ") + e.what());
+		ipxRingDestroy(outputQueue);
+		delete outputPlugin;
+		throw IPXPError(outputName + std::string(": ") + e.what());
 	} catch (PluginExit& e) {
-		ipx_ring_destroy(output_queue);
-		delete output_plugin;
+		ipxRingDestroy(outputQueue);
+		delete outputPlugin;
 		return true;
 	} catch (PluginManagerError& e) {
-		throw IPXPError(output_name + std::string(": ") + e.what());
+		throw IPXPError(outputName + std::string(": ") + e.what());
 	}
 
 	{
-		std::promise<WorkerResult>* output_res = new std::promise<WorkerResult>();
-		auto output_stats = new std::atomic<OutputStats>();
-		conf.output_stats.push_back(output_stats);
+		std::promise<WorkerResult>* outputRes = new std::promise<WorkerResult>();
+		auto outputStats = new std::atomic<OutputStats>();
+		conf.outputStats.push_back(outputStats);
 		OutputWorker tmp
-			= {output_plugin,
+			= {outputPlugin,
 			   new std::thread(
-				   output_worker,
-				   output_plugin,
-				   output_queue,
-				   output_res,
-				   output_stats,
+				   outputWorker,
+				   outputPlugin,
+				   outputQueue,
+				   outputRes,
+				   outputStats,
 				   conf.fps),
-			   output_res,
-			   output_stats,
-			   output_queue};
+			   outputRes,
+			   outputStats,
+			   outputQueue};
 		conf.outputs.push_back(tmp);
-		conf.output_fut.push_back(output_res->get_future());
+		conf.outputFut.push_back(outputRes->get_future());
 	}
 
 	// Input
-	size_t pipeline_idx = 0;
-	for (auto& it : parser.m_input) {
-		InputPlugin* input_plugin = nullptr;
-		StoragePlugin* storage_plugin = nullptr;
-		std::string input_params;
-		std::string input_name;
-		process_plugin_argline(it, input_name, input_params);
+	size_t pipelineIdx = 0;
+	for (auto& it : parser.mInput) {
+		InputPlugin* inputPlugin = nullptr;
+		StoragePlugin* storagePlugin = nullptr;
+		std::string inputParams;
+		std::string inputName;
+		processPluginArgline(it, inputName, inputParams);
 
 		try {
-			input_plugin = dynamic_cast<InputPlugin*>(conf.mgr.get(input_name));
-			if (input_plugin == nullptr) {
-				throw IPXPError("invalid input plugin " + input_name);
+			inputPlugin = dynamic_cast<InputPlugin*>(conf.mgr.get(inputName));
+			if (inputPlugin == nullptr) {
+				throw IPXPError("invalid input plugin " + inputName);
 			}
-			input_plugin->init(input_params.c_str());
-			conf.active.input.push_back(input_plugin);
-			conf.active.all.push_back(input_plugin);
+			inputPlugin->init(inputParams.c_str());
+			conf.active.input.push_back(inputPlugin);
+			conf.active.all.push_back(inputPlugin);
 		} catch (PluginError& e) {
-			delete input_plugin;
-			throw IPXPError(input_name + std::string(": ") + e.what());
+			delete inputPlugin;
+			throw IPXPError(inputName + std::string(": ") + e.what());
 		} catch (PluginExit& e) {
-			delete input_plugin;
+			delete inputPlugin;
 			return true;
 		} catch (PluginManagerError& e) {
-			throw IPXPError(input_name + std::string(": ") + e.what());
+			throw IPXPError(inputName + std::string(": ") + e.what());
 		}
 
 		try {
-			storage_plugin = dynamic_cast<StoragePlugin*>(conf.mgr.get(storage_name));
-			if (storage_plugin == nullptr) {
-				throw IPXPError("invalid storage plugin " + storage_name);
+			storagePlugin = dynamic_cast<StoragePlugin*>(conf.mgr.get(storageName));
+			if (storagePlugin == nullptr) {
+				throw IPXPError("invalid storage plugin " + storageName);
 			}
-			storage_plugin->set_queue(output_queue);
-			storage_plugin->init(storage_params.c_str());
-			conf.active.storage.push_back(storage_plugin);
-			conf.active.all.push_back(storage_plugin);
+			storagePlugin->setQueue(outputQueue);
+			storagePlugin->init(storageParams.c_str());
+			conf.active.storage.push_back(storagePlugin);
+			conf.active.all.push_back(storagePlugin);
 		} catch (PluginError& e) {
-			delete storage_plugin;
-			throw IPXPError(storage_name + std::string(": ") + e.what());
+			delete storagePlugin;
+			throw IPXPError(storageName + std::string(": ") + e.what());
 		} catch (PluginExit& e) {
-			delete storage_plugin;
+			delete storagePlugin;
 			return true;
 		} catch (PluginManagerError& e) {
-			throw IPXPError(storage_name + std::string(": ") + e.what());
+			throw IPXPError(storageName + std::string(": ") + e.what());
 		}
 
-		std::vector<ProcessPlugin*> storage_process_plugins;
-		for (auto& it : *process_plugins) {
+		std::vector<ProcessPlugin*> storageProcessPlugins;
+		for (auto& it : *processPlugins) {
 			ProcessPlugin* tmp = it.second->copy();
-			storage_plugin->add_plugin(tmp);
+			storagePlugin->addPlugin(tmp);
 			conf.active.process.push_back(tmp);
 			conf.active.all.push_back(tmp);
-			storage_process_plugins.push_back(tmp);
+			storageProcessPlugins.push_back(tmp);
 		}
 
-		std::promise<WorkerResult>* input_res = new std::promise<WorkerResult>();
-		conf.input_fut.push_back(input_res->get_future());
+		std::promise<WorkerResult>* inputRes = new std::promise<WorkerResult>();
+		conf.inputFut.push_back(inputRes->get_future());
 
-		auto input_stats = new std::atomic<InputStats>();
-		conf.input_stats.push_back(input_stats);
+		auto inputStats = new std::atomic<InputStats>();
+		conf.inputStats.push_back(inputStats);
 
 		WorkPipeline tmp
-			= {{input_plugin,
+			= {{inputPlugin,
 				new std::thread(
-					input_storage_worker,
-					input_plugin,
-					storage_plugin,
-					conf.iqueue_size,
-					conf.max_pkts,
-					input_res,
-					input_stats),
-				input_res,
-				input_stats},
-			   {storage_plugin, storage_process_plugins}};
+					inputStorageWorker,
+					inputPlugin,
+					storagePlugin,
+					conf.iqueueSize,
+					conf.maxPkts,
+					inputRes,
+					inputStats),
+				inputRes,
+				inputStats},
+			   {storagePlugin, storageProcessPlugins}};
 		conf.pipelines.push_back(tmp);
-		pipeline_idx++;
+		pipelineIdx++;
 	}
 
 	return false;
@@ -360,7 +360,7 @@ void finish(ipxp_conf_t& conf)
 	bool ok = true;
 
 	// Terminate all inputs
-	terminate_input = 1;
+	g_terminate_input = 1;
 	for (auto& it : conf.pipelines) {
 		it.input.thread->join();
 		it.input.plugin->close();
@@ -374,7 +374,7 @@ void finish(ipxp_conf_t& conf)
 	}
 
 	// Terminate all outputs
-	terminate_export = 1;
+	g_terminate_export = 1;
 	for (auto& it : conf.outputs) {
 		it.thread->join();
 	}
@@ -389,34 +389,34 @@ void finish(ipxp_conf_t& conf)
 			  << std::setw(7) << "status" << std::endl;
 
 	int idx = 0;
-	uint64_t total_packets = 0;
-	uint64_t total_parsed = 0;
-	uint64_t total_bytes = 0;
-	uint64_t total_dropped = 0;
-	uint64_t total_qtime = 0;
+	uint64_t totalPackets = 0;
+	uint64_t totalParsed = 0;
+	uint64_t totalBytes = 0;
+	uint64_t totalDropped = 0;
+	uint64_t totalQtime = 0;
 
-	for (auto& it : conf.input_fut) {
+	for (auto& it : conf.inputFut) {
 		WorkerResult res = it.get();
 		std::string status = "ok";
 		if (res.error) {
 			ok = false;
 			status = res.msg;
 		}
-		InputStats stats = conf.input_stats[idx]->load();
+		InputStats stats = conf.inputStats[idx]->load();
 		std::cout << std::setw(3) << idx++ << " " << std::setw(12) << stats.packets << " "
 				  << std::setw(12) << stats.parsed << " " << std::setw(19) << stats.bytes << " "
 				  << std::setw(12) << stats.dropped << " " << std::setw(15) << stats.qtime << " "
 				  << std::setw(6) << status << std::endl;
-		total_packets += stats.packets;
-		total_parsed += stats.parsed;
-		total_bytes += stats.bytes;
-		total_dropped += stats.dropped;
-		total_qtime += stats.qtime;
+		totalPackets += stats.packets;
+		totalParsed += stats.parsed;
+		totalBytes += stats.bytes;
+		totalDropped += stats.dropped;
+		totalQtime += stats.qtime;
 	}
 
-	std::cout << std::setw(3) << "SUM" << std::setw(13) << total_packets << std::setw(13)
-			  << total_parsed << std::setw(20) << total_bytes << std::setw(13) << total_dropped
-			  << std::setw(16) << total_qtime << std::endl;
+	std::cout << std::setw(3) << "SUM" << std::setw(13) << totalPackets << std::setw(13)
+			  << totalParsed << std::setw(20) << totalBytes << std::setw(13) << totalDropped
+			  << std::setw(16) << totalQtime << std::endl;
 
 	std::cout << std::endl;
 
@@ -426,14 +426,14 @@ void finish(ipxp_conf_t& conf)
 			  << "status" << std::endl;
 
 	idx = 0;
-	for (auto& it : conf.output_fut) {
+	for (auto& it : conf.outputFut) {
 		WorkerResult res = it.get();
 		std::string status = "ok";
 		if (res.error) {
 			ok = false;
 			status = res.msg;
 		}
-		OutputStats stats = conf.output_stats[idx]->load();
+		OutputStats stats = conf.outputStats[idx]->load();
 		std::cout << std::setw(3) << idx++ << " " << std::setw(12) << stats.biflows << " "
 				  << std::setw(12) << stats.packets << " " << std::setw(19) << stats.bytes << " "
 				  << std::setw(12) << stats.dropped << " " << std::setw(6) << status << std::endl;
@@ -444,7 +444,7 @@ void finish(ipxp_conf_t& conf)
 	}
 }
 
-void serve_stat_clients(ipxp_conf_t& conf, struct pollfd pfds[2])
+void serveStatClients(ipxp_conf_t& conf, struct pollfd pfds[2])
 {
 	uint8_t buffer[100000];
 	size_t written = 0;
@@ -454,7 +454,7 @@ void serve_stat_clients(ipxp_conf_t& conf, struct pollfd pfds[2])
 		return;
 	}
 	if (pfds[1].fd > 0 && pfds[1].revents & POLL_IN) {
-		ret = recv_data(pfds[1].fd, sizeof(uint32_t), buffer);
+		ret = recvData(pfds[1].fd, sizeof(uint32_t), buffer);
 		if (ret < 0) {
 			// Client disconnected
 			close(pfds[1].fd);
@@ -465,12 +465,12 @@ void serve_stat_clients(ipxp_conf_t& conf, struct pollfd pfds[2])
 			}
 			// Received stats request from client
 			written += sizeof(msg_header_t);
-			for (auto& it : conf.input_stats) {
+			for (auto& it : conf.inputStats) {
 				InputStats stats = it->load();
 				*(InputStats*) (buffer + written) = stats;
 				written += sizeof(InputStats);
 			}
-			for (auto& it : conf.output_stats) {
+			for (auto& it : conf.outputStats) {
 				OutputStats stats = it->load();
 				*(OutputStats*) (buffer + written) = stats;
 				written += sizeof(OutputStats);
@@ -478,10 +478,10 @@ void serve_stat_clients(ipxp_conf_t& conf, struct pollfd pfds[2])
 
 			hdr->magic = MSG_MAGIC;
 			hdr->size = written - sizeof(msg_header_t);
-			hdr->inputs = conf.input_stats.size();
-			hdr->outputs = conf.output_stats.size();
+			hdr->inputs = conf.inputStats.size();
+			hdr->outputs = conf.outputStats.size();
 
-			send_data(pfds[1].fd, written, buffer);
+			sendData(pfds[1].fd, written, buffer);
 		}
 	}
 
@@ -496,10 +496,10 @@ void serve_stat_clients(ipxp_conf_t& conf, struct pollfd pfds[2])
 	}
 }
 
-void main_loop(ipxp_conf_t& conf)
+void mainLoop(ipxp_conf_t& conf)
 {
 	std::vector<std::shared_future<WorkerResult>*> futs;
-	for (auto& it : conf.input_fut) {
+	for (auto& it : conf.inputFut) {
 		futs.push_back(&it);
 	}
 
@@ -508,14 +508,14 @@ void main_loop(ipxp_conf_t& conf)
 		{.fd = -1, .events = POLL_IN} // Client
 	};
 
-	std::string sock_path = create_sockpath(std::to_string(getpid()).c_str());
-	pfds[0].fd = create_stats_sock(sock_path.c_str());
+	std::string sockPath = createSockpath(std::to_string(getpid()).c_str());
+	pfds[0].fd = createStatsSock(sockPath.c_str());
 	if (pfds[0].fd < 0) {
-		error("Unable to create stats socket " + sock_path);
+		error("Unable to create stats socket " + sockPath);
 	}
 
-	while (!stop && futs.size()) {
-		serve_stat_clients(conf, pfds);
+	while (!g_stop && futs.size()) {
+		serveStatClients(conf, pfds);
 
 		for (auto it = futs.begin(); it != futs.end(); it++) {
 			std::future_status status = (*it)->wait_for(std::chrono::seconds(0));
@@ -525,14 +525,14 @@ void main_loop(ipxp_conf_t& conf)
 					it = futs.erase(it);
 					break;
 				}
-				stop = 1;
+				g_stop = 1;
 				break;
 			}
 		}
-		for (auto& it : conf.output_fut) {
+		for (auto& it : conf.outputFut) {
 			std::future_status status = it.wait_for(std::chrono::seconds(0));
 			if (status == std::future_status::ready) {
-				stop = 1;
+				g_stop = 1;
 				break;
 			}
 		}
@@ -546,7 +546,7 @@ void main_loop(ipxp_conf_t& conf)
 	if (pfds[1].fd != -1) {
 		close(pfds[1].fd);
 	}
-	unlink(sock_path.c_str());
+	unlink(sockPath.c_str());
 	finish(conf);
 }
 
@@ -556,7 +556,7 @@ int run(int argc, char* argv[])
 	ipxp_conf_t conf;
 	int status = EXIT_SUCCESS;
 
-	register_handlers();
+	registerHandlers();
 
 	try {
 		parser.parse(argc - 1, const_cast<const char**>(argv) + 1);
@@ -566,70 +566,70 @@ int run(int argc, char* argv[])
 		goto EXIT;
 	}
 
-	if (parser.m_help) {
-		if (parser.m_help_str.empty()) {
+	if (parser.mHelp) {
+		if (parser.mHelpStr.empty()) {
 			parser.usage(std::cout, 0, PACKAGE_NAME);
 		} else {
-			print_help(conf, parser.m_help_str);
+			printHelp(conf, parser.mHelpStr);
 		}
 		goto EXIT;
 	}
-	if (parser.m_version) {
+	if (parser.mVersion) {
 		std::cout << PACKAGE_VERSION << std::endl;
 		goto EXIT;
 	}
-	if (parser.m_storage.size() > 1 || parser.m_output.size() > 1) {
+	if (parser.mStorage.size() > 1 || parser.mOutput.size() > 1) {
 		error("only one storage and output plugin can be specified");
 		status = EXIT_FAILURE;
 		goto EXIT;
 	}
-	if (parser.m_input.size() == 0) {
+	if (parser.mInput.size() == 0) {
 		error("specify at least one input plugin");
 		status = EXIT_FAILURE;
 		goto EXIT;
 	}
 
-	if (parser.m_daemon) {
+	if (parser.mDaemon) {
 		if (daemon(1, 0) == -1) {
 			error("failed to run as a standalone process");
 			status = EXIT_FAILURE;
 			goto EXIT;
 		}
 	}
-	if (!parser.m_pid.empty()) {
-		std::ofstream pid_file(parser.m_pid, std::ofstream::out);
-		if (pid_file.fail()) {
+	if (!parser.mPid.empty()) {
+		std::ofstream pidFile(parser.mPid, std::ofstream::out);
+		if (pidFile.fail()) {
 			error("failed to write pid file");
 			status = EXIT_FAILURE;
 			goto EXIT;
 		}
-		pid_file << getpid();
-		pid_file.close();
+		pidFile << getpid();
+		pidFile.close();
 	}
 
-	if (parser.m_iqueue < 1) {
+	if (parser.mIqueue < 1) {
 		error("input queue size must be at least 1 record");
 		status = EXIT_FAILURE;
 		goto EXIT;
 	}
-	if (parser.m_oqueue < 1) {
+	if (parser.mOqueue < 1) {
 		error("output queue size must be at least 1 record");
 		status = EXIT_FAILURE;
 		goto EXIT;
 	}
 
-	conf.worker_cnt = parser.m_input.size();
-	conf.iqueue_size = parser.m_iqueue;
-	conf.oqueue_size = parser.m_oqueue;
-	conf.fps = parser.m_fps;
-	conf.pkt_bufsize = parser.m_pkt_bufsize;
-	conf.max_pkts = parser.m_max_pkts;
+	conf.workerCnt = parser.mInput.size();
+	conf.iqueueSize = parser.mIqueue;
+	conf.oqueueSize = parser.mOqueue;
+	conf.fps = parser.mFps;
+	conf.pktBufsize = parser.mPktBufsize;
+	conf.maxPkts = parser.mMaxPkts;
 
 	try {
-		if (process_plugin_args(conf, parser)) {
+		if (processPluginArgs(conf, parser)) {
 			goto EXIT;
 		}
-		main_loop(conf);
+		mainLoop(conf);
 	} catch (std::system_error& e) {
 		error(e.what());
 		status = EXIT_FAILURE;
@@ -645,8 +645,8 @@ int run(int argc, char* argv[])
 	}
 
 EXIT:
-	if (!parser.m_pid.empty()) {
-		unlink(parser.m_pid.c_str());
+	if (!parser.mPid.empty()) {
+		unlink(parser.mPid.c_str());
 	}
 	return status;
 }

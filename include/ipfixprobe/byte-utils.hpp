@@ -49,7 +49,7 @@
 #include <endian.h>
 #include <stdint.h>
 
-namespace ipxp {
+namespace Ipxp {
 
 /**
  * \brief Swaps byte order of 8 B value.
@@ -62,7 +62,7 @@ static inline uint64_t swap_uint64(uint64_t value)
 	return value;
 }
 #elif defined(__BYTE_ORDER) && __BYTE_ORDER == __LITTLE_ENDIAN
-static inline uint64_t swap_uint64(uint64_t value)
+static inline uint64_t swapUint64(uint64_t value)
 {
 	value = ((value << 8) & 0xFF00FF00FF00FF00ULL) | ((value >> 8) & 0x00FF00FF00FF00FFULL);
 	value = ((value << 16) & 0xFFFF0000FFFF0000ULL) | ((value >> 16) & 0x0000FFFF0000FFFFULL);

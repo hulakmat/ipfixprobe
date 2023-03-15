@@ -52,7 +52,7 @@
 #include <ipfixprobe/packet.hpp>
 #include <ipfixprobe/utils.hpp>
 
-namespace ipxp {
+namespace Ipxp {
 
 #define BENCHMARK_L2_SIZE 14
 #define BENCHMARK_L3_SIZE 20
@@ -72,98 +72,98 @@ namespace ipxp {
 
 class BenchmarkOptParser : public OptionsParser {
 public:
-	std::string m_mode;
-	std::string m_seed;
-	uint64_t m_duration;
-	uint64_t m_pkt_cnt;
-	uint16_t m_pkt_size;
-	uint64_t m_link;
+	std::string mMode;
+	std::string mSeed;
+	uint64_t mDuration;
+	uint64_t mPktCnt;
+	uint16_t mPktSize;
+	uint64_t mLink;
 
 	BenchmarkOptParser()
 		: OptionsParser("benchmark", "Input plugin for various benchmarking purposes")
-		, m_mode("1f")
-		, m_seed("")
-		, m_duration(0)
-		, m_pkt_cnt(0)
-		, m_pkt_size(BENCHMARK_DEFAULT_SIZE_FROM)
-		, m_link(0)
+		, mMode("1f")
+		, mSeed("")
+		, mDuration(0)
+		, mPktCnt(0)
+		, mPktSize(BENCHMARK_DEFAULT_SIZE_FROM)
+		, mLink(0)
 	{
-		register_option(
+		registerOption(
 			"m",
 			"mode",
 			"STR",
 			"Benchmark mode 1f (1x N-packet flow) or nf (Nx 1-packet flow)",
 			[this](const char* arg) {
-				m_mode = arg;
+				mMode = arg;
 				return true;
 			},
-			OptionFlags::RequiredArgument);
-		register_option(
+			OptionFlags::REQUIRED_ARGUMENT);
+		registerOption(
 			"S",
 			"seed",
 			"STR",
 			"String seed for random generator",
 			[this](const char* arg) {
-				m_seed = arg;
+				mSeed = arg;
 				return true;
 			},
-			OptionFlags::RequiredArgument);
-		register_option(
+			OptionFlags::REQUIRED_ARGUMENT);
+		registerOption(
 			"d",
 			"duration",
 			"TIME",
 			"Duration in seconds",
 			[this](const char* arg) {
 				try {
-					m_duration = str2num<decltype(m_duration)>(arg);
+					mDuration = str2num<decltype(mDuration)>(arg);
 				} catch (std::invalid_argument& e) {
 					return false;
 				}
 				return true;
 			},
-			OptionFlags::RequiredArgument);
-		register_option(
+			OptionFlags::REQUIRED_ARGUMENT);
+		registerOption(
 			"p",
 			"count",
 			"SIZE",
 			"Packet count",
 			[this](const char* arg) {
 				try {
-					m_pkt_cnt = str2num<decltype(m_pkt_cnt)>(arg);
+					mPktCnt = str2num<decltype(mPktCnt)>(arg);
 				} catch (std::invalid_argument& e) {
 					return false;
 				}
 				return true;
 			},
-			OptionFlags::RequiredArgument);
-		register_option(
+			OptionFlags::REQUIRED_ARGUMENT);
+		registerOption(
 			"s",
 			"size",
 			"SIZE",
 			"Packet size",
 			[this](const char* arg) {
 				try {
-					m_pkt_size = str2num<decltype(m_pkt_size)>(arg);
+					mPktSize = str2num<decltype(mPktSize)>(arg);
 				} catch (std::invalid_argument& e) {
 					return false;
 				}
 				return true;
 			},
-			OptionFlags::RequiredArgument);
-		register_option(
+			OptionFlags::REQUIRED_ARGUMENT);
+		registerOption(
 			"I",
 			"id",
 			"NUM",
 			"Link identifier number",
 			[this](const char* arg) {
 				try {
-					m_link = str2num<decltype(m_link)>(arg);
+					mLink = str2num<decltype(mLink)>(arg);
 				} catch (std::invalid_argument& e) {
 					return false;
 				}
 				return true;
 			},
-			OptionFlags::RequiredArgument);
+			OptionFlags::REQUIRED_ARGUMENT);
 	}
 };
 
@@ -177,8 +177,8 @@ public:
 	~Benchmark();
 	void init(const char* params);
 	void close();
-	OptionsParser* get_parser() const { return new BenchmarkOptParser(); }
-	std::string get_name() const { return "benchmark"; }
+	OptionsParser* getParser() const { return new BenchmarkOptParser(); }
+	std::string getName() const { return "benchmark"; }
 
 	InputPlugin::Result get(PacketBlock& packets);
 
@@ -196,7 +196,7 @@ private:
 	struct timeval m_currentTs;
 	uint64_t m_pktCnt;
 
-	InputPlugin::Result check_constraints() const;
+	InputPlugin::Result checkConstraints() const;
 	void swapEndpoints(Packet* pkt);
 	void generatePacket(Packet* pkt);
 	void generatePacketFlow1(Packet* pkt);

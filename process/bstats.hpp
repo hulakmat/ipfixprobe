@@ -59,7 +59,7 @@
 #include <ipfixprobe/packet.hpp>
 #include <ipfixprobe/process.hpp>
 
-namespace ipxp {
+namespace Ipxp {
 
 #define BSTATS_MAXELENCOUNT 15
 
@@ -90,39 +90,39 @@ UR_FIELDS(
  */
 struct RecordExtBSTATS : public RecordExt {
 	typedef enum eHdrFieldID {
-		SPkts = 1050,
-		SBytes = 1051,
-		SStart = 1052,
-		SStop = 1053,
-		DPkts = 1054,
-		DBytes = 1055,
-		DStart = 1056,
-		DStop = 1057
+		S_PKTS = 1050,
+		S_BYTES = 1051,
+		S_START = 1052,
+		S_STOP = 1053,
+		D_PKTS = 1054,
+		D_BYTES = 1055,
+		D_START = 1056,
+		D_STOP = 1057
 	} eHdrFieldID;
 
-	static int REGISTERED_ID;
+	static int s_registeredId;
 
 	uint16_t burst_count[2];
-	uint8_t burst_empty[2];
+	uint8_t burstEmpty[2];
 
-	uint32_t brst_pkts[2][BSTATS_MAXELENCOUNT];
-	uint32_t brst_bytes[2][BSTATS_MAXELENCOUNT];
-	struct timeval brst_start[2][BSTATS_MAXELENCOUNT];
-	struct timeval brst_end[2][BSTATS_MAXELENCOUNT];
+	uint32_t brstPkts[2][BSTATS_MAXELENCOUNT];
+	uint32_t brstBytes[2][BSTATS_MAXELENCOUNT];
+	struct timeval brstStart[2][BSTATS_MAXELENCOUNT];
+	struct timeval brstEnd[2][BSTATS_MAXELENCOUNT];
 
 	RecordExtBSTATS()
-		: RecordExt(REGISTERED_ID)
+		: RecordExt(s_registeredId)
 	{
 		memset(burst_count, 0, 2 * sizeof(uint16_t));
-		memset(burst_empty, 0, 2 * sizeof(uint8_t));
-		brst_pkts[BSTATS_DEST][0] = 0;
-		brst_pkts[BSTATS_SOURCE][0] = 0;
+		memset(burstEmpty, 0, 2 * sizeof(uint8_t));
+		brstPkts[BSTATS_DEST][0] = 0;
+		brstPkts[BSTATS_SOURCE][0] = 0;
 	}
 
 #ifdef WITH_NEMEA
-	virtual void fill_unirec(ur_template_t* tmplt, void* record)
+	virtual void fillUnirec(ur_template_t* tmplt, void* record)
 	{
-		ur_time_t ts_start, ts_stop;
+		ur_time_t tsStart, tsStop;
 
 		ur_array_allocate(tmplt, record, F_SBI_BRST_PACKETS, burst_count[BSTATS_SOURCE]);
 		ur_array_allocate(tmplt, record, F_SBI_BRST_BYTES, burst_count[BSTATS_SOURCE]);
@@ -135,131 +135,131 @@ struct RecordExtBSTATS : public RecordExt {
 		ur_array_allocate(tmplt, record, F_DBI_BRST_TIME_STOP, burst_count[BSTATS_DEST]);
 
 		for (int i = 0; i < burst_count[BSTATS_SOURCE]; i++) {
-			ts_start = ur_time_from_sec_usec(
-				brst_start[BSTATS_SOURCE][i].tv_sec,
-				brst_start[BSTATS_SOURCE][i].tv_usec);
-			ts_stop = ur_time_from_sec_usec(
-				brst_end[BSTATS_SOURCE][i].tv_sec,
-				brst_end[BSTATS_SOURCE][i].tv_usec);
-			ur_array_set(tmplt, record, F_SBI_BRST_PACKETS, i, brst_pkts[BSTATS_SOURCE][i]);
-			ur_array_set(tmplt, record, F_SBI_BRST_BYTES, i, brst_bytes[BSTATS_SOURCE][i]);
-			ur_array_set(tmplt, record, F_SBI_BRST_TIME_START, i, ts_start);
-			ur_array_set(tmplt, record, F_SBI_BRST_TIME_STOP, i, ts_stop);
+			tsStart = ur_time_from_sec_usec(
+				brstStart[BSTATS_SOURCE][i].tv_sec,
+				brstStart[BSTATS_SOURCE][i].tv_usec);
+			tsStop = ur_time_from_sec_usec(
+				brstEnd[BSTATS_SOURCE][i].tv_sec,
+				brstEnd[BSTATS_SOURCE][i].tv_usec);
+			ur_array_set(tmplt, record, F_SBI_BRST_PACKETS, i, brstPkts[BSTATS_SOURCE][i]);
+			ur_array_set(tmplt, record, F_SBI_BRST_BYTES, i, brstBytes[BSTATS_SOURCE][i]);
+			ur_array_set(tmplt, record, F_SBI_BRST_TIME_START, i, tsStart);
+			ur_array_set(tmplt, record, F_SBI_BRST_TIME_STOP, i, tsStop);
 		}
 		for (int i = 0; i < burst_count[BSTATS_DEST]; i++) {
-			ts_start = ur_time_from_sec_usec(
-				brst_start[BSTATS_DEST][i].tv_sec,
-				brst_start[BSTATS_DEST][i].tv_usec);
-			ts_stop = ur_time_from_sec_usec(
-				brst_end[BSTATS_DEST][i].tv_sec,
-				brst_end[BSTATS_DEST][i].tv_usec);
-			ur_array_set(tmplt, record, F_DBI_BRST_PACKETS, i, brst_pkts[BSTATS_DEST][i]);
-			ur_array_set(tmplt, record, F_DBI_BRST_BYTES, i, brst_bytes[BSTATS_DEST][i]);
-			ur_array_set(tmplt, record, F_DBI_BRST_TIME_START, i, ts_start);
-			ur_array_set(tmplt, record, F_DBI_BRST_TIME_STOP, i, ts_stop);
+			tsStart = ur_time_from_sec_usec(
+				brstStart[BSTATS_DEST][i].tv_sec,
+				brstStart[BSTATS_DEST][i].tv_usec);
+			tsStop = ur_time_from_sec_usec(
+				brstEnd[BSTATS_DEST][i].tv_sec,
+				brstEnd[BSTATS_DEST][i].tv_usec);
+			ur_array_set(tmplt, record, F_DBI_BRST_PACKETS, i, brstPkts[BSTATS_DEST][i]);
+			ur_array_set(tmplt, record, F_DBI_BRST_BYTES, i, brstBytes[BSTATS_DEST][i]);
+			ur_array_set(tmplt, record, F_DBI_BRST_TIME_START, i, tsStart);
+			ur_array_set(tmplt, record, F_DBI_BRST_TIME_STOP, i, tsStop);
 		}
 	}
 
-	const char* get_unirec_tmplt() const
+	const char* getUnirecTmplt() const
 	{
 		return BSTATS_UNIREC_TEMPLATE;
 	}
 #endif // ifdef WITH_NEMEA
 
-	virtual int fill_ipfix(uint8_t* buffer, int size)
+	virtual int fillIpfix(uint8_t* buffer, int size)
 	{
 		int32_t bufferPtr;
 		IpfixBasicList basiclist;
 
-		basiclist.hdrEnterpriseNum = IpfixBasicList::CesnetPEM;
+		basiclist.hdrEnterpriseNum = IpfixBasicList::CESNET_PEM;
 		// Check sufficient size of buffer
-		int req_size = 8 * basiclist.HeaderSize() /* sizes, times, flags, dirs */
+		int reqSize = 8 * basiclist.headerSize() /* sizes, times, flags, dirs */
 			+ 2 * burst_count[BSTATS_SOURCE] * sizeof(uint32_t) /* bytes+sizes */
 			+ 2 * burst_count[BSTATS_SOURCE] * sizeof(uint64_t) /* times_start + time_end */
 			+ 2 * burst_count[BSTATS_DEST] * sizeof(uint32_t) /* bytes+sizes */
 			+ 2 * burst_count[BSTATS_DEST] * sizeof(uint64_t) /* times_start + time_end */;
 
-		if (req_size > size) {
+		if (reqSize > size) {
 			return -1;
 		}
 		// Fill buffer
-		bufferPtr = basiclist.FillBuffer(
+		bufferPtr = basiclist.fillBuffer(
 			buffer,
-			brst_pkts[BSTATS_SOURCE],
+			brstPkts[BSTATS_SOURCE],
 			burst_count[BSTATS_SOURCE],
-			(uint16_t) SPkts);
-		bufferPtr += basiclist.FillBuffer(
+			(uint16_t) S_PKTS);
+		bufferPtr += basiclist.fillBuffer(
 			buffer + bufferPtr,
-			brst_bytes[BSTATS_SOURCE],
+			brstBytes[BSTATS_SOURCE],
 			burst_count[BSTATS_SOURCE],
-			(uint16_t) SBytes);
-		bufferPtr += basiclist.FillBuffer(
+			(uint16_t) S_BYTES);
+		bufferPtr += basiclist.fillBuffer(
 			buffer + bufferPtr,
-			brst_start[BSTATS_SOURCE],
+			brstStart[BSTATS_SOURCE],
 			burst_count[BSTATS_SOURCE],
-			(uint16_t) SStart);
-		bufferPtr += basiclist.FillBuffer(
+			(uint16_t) S_START);
+		bufferPtr += basiclist.fillBuffer(
 			buffer + bufferPtr,
-			brst_end[BSTATS_SOURCE],
+			brstEnd[BSTATS_SOURCE],
 			burst_count[BSTATS_SOURCE],
-			(uint16_t) SStop);
+			(uint16_t) S_STOP);
 
-		bufferPtr += basiclist.FillBuffer(
+		bufferPtr += basiclist.fillBuffer(
 			buffer + bufferPtr,
-			brst_pkts[BSTATS_DEST],
+			brstPkts[BSTATS_DEST],
 			burst_count[BSTATS_DEST],
-			(uint16_t) DPkts);
-		bufferPtr += basiclist.FillBuffer(
+			(uint16_t) D_PKTS);
+		bufferPtr += basiclist.fillBuffer(
 			buffer + bufferPtr,
-			brst_bytes[BSTATS_DEST],
+			brstBytes[BSTATS_DEST],
 			burst_count[BSTATS_DEST],
-			(uint16_t) DBytes);
-		bufferPtr += basiclist.FillBuffer(
+			(uint16_t) D_BYTES);
+		bufferPtr += basiclist.fillBuffer(
 			buffer + bufferPtr,
-			brst_start[BSTATS_DEST],
+			brstStart[BSTATS_DEST],
 			burst_count[BSTATS_DEST],
-			(uint16_t) DStart);
-		bufferPtr += basiclist.FillBuffer(
+			(uint16_t) D_START);
+		bufferPtr += basiclist.fillBuffer(
 			buffer + bufferPtr,
-			brst_end[BSTATS_DEST],
+			brstEnd[BSTATS_DEST],
 			burst_count[BSTATS_DEST],
-			(uint16_t) DStop);
+			(uint16_t) D_STOP);
 
 		return bufferPtr;
 	}
 
-	const char** get_ipfix_tmplt() const
+	const char** getIpfixTmplt() const
 	{
-		static const char* ipfix_tmplt[] = {IPFIX_BSTATS_TEMPLATE(IPFIX_FIELD_NAMES) nullptr};
-		return ipfix_tmplt;
+		static const char* ipfixTmplt[] = {IPFIX_BSTATS_TEMPLATE(IPFIX_FIELD_NAMES) nullptr};
+		return ipfixTmplt;
 	}
 
-	std::string get_text() const
+	std::string getText() const
 	{
 		std::ostringstream out;
-		char dirs_c[2] = {'s', 'd'};
+		char dirsC[2] = {'s', 'd'};
 		int dirs[2] = {BSTATS_SOURCE, BSTATS_DEST};
 
 		for (int j = 0; j < 2; j++) {
 			int dir = dirs[j];
-			out << dirs_c[j] << "burstpkts=(";
+			out << dirsC[j] << "burstpkts=(";
 			for (int i = 0; i < burst_count[dir]; i++) {
-				out << brst_pkts[dir][i];
+				out << brstPkts[dir][i];
 				if (i != burst_count[dir] - 1) {
 					out << ",";
 				}
 			}
-			out << ")," << dirs_c[j] << "burstbytes=(";
+			out << ")," << dirsC[j] << "burstbytes=(";
 			for (int i = 0; i < burst_count[dir]; i++) {
-				out << brst_bytes[dir][i];
+				out << brstBytes[dir][i];
 				if (i != burst_count[dir] - 1) {
 					out << ",";
 				}
 			}
-			out << ")," << dirs_c[j] << "bursttime=(";
+			out << ")," << dirsC[j] << "bursttime=(";
 			for (int i = 0; i < burst_count[dir]; i++) {
-				struct timeval start = brst_start[dir][i];
-				struct timeval end = brst_end[dir][i];
+				struct timeval start = brstStart[dir][i];
+				struct timeval end = brstEnd[dir][i];
 				out << start.tv_sec << "." << start.tv_usec << "-" << end.tv_sec << "."
 					<< end.tv_usec;
 				if (i != burst_count[dir] - 1) {
@@ -282,28 +282,28 @@ public:
 	~BSTATSPlugin();
 	void init(const char* params);
 	void close();
-	OptionsParser* get_parser() const
+	OptionsParser* getParser() const
 	{
 		return new OptionsParser("bstats", "Compute packet bursts stats");
 	}
-	std::string get_name() const { return "bstats"; }
-	RecordExt* get_ext() const { return new RecordExtBSTATS(); }
+	std::string getName() const { return "bstats"; }
+	RecordExt* getExt() const { return new RecordExtBSTATS(); }
 	ProcessPlugin* copy();
 
-	int pre_create(Packet& pkt);
-	int post_create(Flow& rec, const Packet& pkt);
-	int pre_update(Flow& rec, Packet& pkt);
-	int post_update(Flow& rec, const Packet& pkt);
-	void pre_export(Flow& rec);
+	int preCreate(Packet& pkt);
+	int postCreate(Flow& rec, const Packet& pkt);
+	int preUpdate(Flow& rec, Packet& pkt);
+	int postUpdate(Flow& rec, const Packet& pkt);
+	void preExport(Flow& rec);
 
-	static const struct timeval min_packet_in_burst;
+	static const struct timeval MIN_PACKET_IN_BURST;
 
 private:
-	void initialize_new_burst(RecordExtBSTATS* bstats_record, uint8_t direction, const Packet& pkt);
-	void process_bursts(RecordExtBSTATS* bstats_record, uint8_t direction, const Packet& pkt);
-	void update_record(RecordExtBSTATS* bstats_record, const Packet& pkt);
-	bool isLastRecordBurst(RecordExtBSTATS* bstats_record, uint8_t direction);
-	bool belogsToLastRecord(RecordExtBSTATS* bstats_record, uint8_t direction, const Packet& pkt);
+	void initializeNewBurst(RecordExtBSTATS* bstatsRecord, uint8_t direction, const Packet& pkt);
+	void processBursts(RecordExtBSTATS* bstatsRecord, uint8_t direction, const Packet& pkt);
+	void updateRecord(RecordExtBSTATS* bstatsRecord, const Packet& pkt);
+	bool isLastRecordBurst(RecordExtBSTATS* bstatsRecord, uint8_t direction);
+	bool belogsToLastRecord(RecordExtBSTATS* bstatsRecord, uint8_t direction, const Packet& pkt);
 };
 
 } // namespace ipxp

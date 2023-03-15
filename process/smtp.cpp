@@ -48,22 +48,22 @@
 #include "common.hpp"
 #include "smtp.hpp"
 
-namespace ipxp {
+namespace Ipxp {
 
-int RecordExtSMTP::REGISTERED_ID = -1;
+int RecordExtSMTP::s_registeredId = -1;
 
-__attribute__((constructor)) static void register_this_plugin()
+__attribute__((constructor)) static void registerThisPlugin()
 {
 	static PluginRecord rec = PluginRecord("smtp", []() { return new SMTPPlugin(); });
-	register_plugin(&rec);
-	RecordExtSMTP::REGISTERED_ID = register_extension();
+	registerPlugin(&rec);
+	RecordExtSMTP::s_registeredId = registerExtension();
 }
 
 SMTPPlugin::SMTPPlugin()
-	: ext_ptr(nullptr)
-	, total(0)
-	, replies_cnt(0)
-	, commands_cnt(0)
+	: m_ext_ptr(nullptr)
+	, m_total(0)
+	, m_replies_cnt(0)
+	, m_commands_cnt(0)
 {
 }
 
@@ -81,24 +81,24 @@ ProcessPlugin* SMTPPlugin::copy()
 	return new SMTPPlugin(*this);
 }
 
-int SMTPPlugin::post_create(Flow& rec, const Packet& pkt)
+int SMTPPlugin::postCreate(Flow& rec, const Packet& pkt)
 {
-	if (pkt.src_port == 25 || pkt.dst_port == 25) {
-		create_smtp_record(rec, pkt);
+	if (pkt.srcPort == 25 || pkt.dstPort == 25) {
+		createSmtpRecord(rec, pkt);
 	}
 
 	return 0;
 }
 
-int SMTPPlugin::pre_update(Flow& rec, Packet& pkt)
+int SMTPPlugin::preUpdate(Flow& rec, Packet& pkt)
 {
-	if (pkt.src_port == 25 || pkt.dst_port == 25) {
-		RecordExt* ext = rec.get_extension(RecordExtSMTP::REGISTERED_ID);
+	if (pkt.srcPort == 25 || pkt.dstPort == 25) {
+		RecordExt* ext = rec.getExtension(RecordExtSMTP::s_registeredId);
 		if (ext == nullptr) {
-			create_smtp_record(rec, pkt);
+			createSmtpRecord(rec, pkt);
 			return 0;
 		}
-		update_smtp_record(static_cast<RecordExtSMTP*>(ext), pkt);
+		updateSmtpRecord(static_cast<RecordExtSMTP*>(ext), pkt);
 	}
 
 	return 0;
@@ -131,9 +131,9 @@ char* strncasestr(const char* str, size_t n, const char* substr)
  * \param [out] rec Pointer to SMTP extension record.
  * \return True on success, false otherwise.
  */
-bool SMTPPlugin::parse_smtp_response(const char* data, int payload_len, RecordExtSMTP* rec)
+bool SMTPPlugin::parseSmtpResponse(const char* data, int payloadLen, RecordExtSMTP* rec)
 {
-	if (payload_len < 5 || !(data[3] == ' ' || data[3] == '-')) {
+	if (payloadLen < 5 || !(data[3] == ' ' || data[3] == '-')) {
 		return false;
 	}
 	for (int i = 0; i < 3; i++) {
@@ -144,104 +144,104 @@ bool SMTPPlugin::parse_smtp_response(const char* data, int payload_len, RecordEx
 
 	switch (atoi(data)) {
 	case 211:
-		rec->mail_code_flags |= SMTP_SC_211;
+		rec->mailCodeFlags |= SMTP_SC_211;
 		break;
 	case 214:
-		rec->mail_code_flags |= SMTP_SC_214;
+		rec->mailCodeFlags |= SMTP_SC_214;
 		break;
 	case 220:
-		rec->mail_code_flags |= SMTP_SC_220;
+		rec->mailCodeFlags |= SMTP_SC_220;
 		break;
 	case 221:
-		rec->mail_code_flags |= SMTP_SC_221;
+		rec->mailCodeFlags |= SMTP_SC_221;
 		break;
 	case 250:
-		rec->mail_code_flags |= SMTP_SC_250;
+		rec->mailCodeFlags |= SMTP_SC_250;
 		break;
 	case 251:
-		rec->mail_code_flags |= SMTP_SC_251;
+		rec->mailCodeFlags |= SMTP_SC_251;
 		break;
 	case 252:
-		rec->mail_code_flags |= SMTP_SC_252;
+		rec->mailCodeFlags |= SMTP_SC_252;
 		break;
 	case 354:
-		rec->mail_code_flags |= SMTP_SC_354;
+		rec->mailCodeFlags |= SMTP_SC_354;
 		break;
 	case 421:
-		rec->mail_code_flags |= SMTP_SC_421;
+		rec->mailCodeFlags |= SMTP_SC_421;
 		break;
 	case 450:
-		rec->mail_code_flags |= SMTP_SC_450;
+		rec->mailCodeFlags |= SMTP_SC_450;
 		break;
 	case 451:
-		rec->mail_code_flags |= SMTP_SC_451;
+		rec->mailCodeFlags |= SMTP_SC_451;
 		break;
 	case 452:
-		rec->mail_code_flags |= SMTP_SC_452;
+		rec->mailCodeFlags |= SMTP_SC_452;
 		break;
 	case 455:
-		rec->mail_code_flags |= SMTP_SC_455;
+		rec->mailCodeFlags |= SMTP_SC_455;
 		break;
 	case 500:
-		rec->mail_code_flags |= SMTP_SC_500;
+		rec->mailCodeFlags |= SMTP_SC_500;
 		break;
 	case 501:
-		rec->mail_code_flags |= SMTP_SC_501;
+		rec->mailCodeFlags |= SMTP_SC_501;
 		break;
 	case 502:
-		rec->mail_code_flags |= SMTP_SC_502;
+		rec->mailCodeFlags |= SMTP_SC_502;
 		break;
 	case 503:
-		rec->mail_code_flags |= SMTP_SC_503;
+		rec->mailCodeFlags |= SMTP_SC_503;
 		break;
 	case 504:
-		rec->mail_code_flags |= SMTP_SC_504;
+		rec->mailCodeFlags |= SMTP_SC_504;
 		break;
 	case 550:
-		rec->mail_code_flags |= SMTP_SC_550;
+		rec->mailCodeFlags |= SMTP_SC_550;
 		break;
 	case 551:
-		rec->mail_code_flags |= SMTP_SC_551;
+		rec->mailCodeFlags |= SMTP_SC_551;
 		break;
 	case 552:
-		rec->mail_code_flags |= SMTP_SC_552;
+		rec->mailCodeFlags |= SMTP_SC_552;
 		break;
 	case 553:
-		rec->mail_code_flags |= SMTP_SC_553;
+		rec->mailCodeFlags |= SMTP_SC_553;
 		break;
 	case 554:
-		rec->mail_code_flags |= SMTP_SC_554;
+		rec->mailCodeFlags |= SMTP_SC_554;
 		break;
 	case 555:
-		rec->mail_code_flags |= SMTP_SC_555;
+		rec->mailCodeFlags |= SMTP_SC_555;
 		break;
 	default:
-		rec->mail_code_flags |= SC_UNKNOWN;
+		rec->mailCodeFlags |= SC_UNKNOWN;
 		break;
 	}
 
-	if (strncasestr(data, payload_len, "SPAM") != nullptr) {
-		rec->mail_code_flags |= SC_SPAM;
+	if (strncasestr(data, payloadLen, "SPAM") != nullptr) {
+		rec->mailCodeFlags |= SC_SPAM;
 	}
 
 	switch (data[0]) {
 	case '2':
-		rec->code_2xx_cnt++;
+		rec->code2xxCnt++;
 		break;
 	case '3':
-		rec->code_3xx_cnt++;
+		rec->code3xxCnt++;
 		break;
 	case '4':
-		rec->code_4xx_cnt++;
+		rec->code4xxCnt++;
 		break;
 	case '5':
-		rec->code_5xx_cnt++;
+		rec->code5xxCnt++;
 		break;
 	default:
 		return false;
 	}
 
-	replies_cnt++;
+	m_replies_cnt++;
 	return true;
 }
 
@@ -251,7 +251,7 @@ bool SMTPPlugin::parse_smtp_response(const char* data, int payload_len, RecordEx
  * \param [in] data Pointer to data.
  * \return True on success, false otherwise.
  */
-bool SMTPPlugin::smtp_keyword(const char* data)
+bool SMTPPlugin::smtpKeyword(const char* data)
 {
 	for (int i = 0; data[i]; i++) {
 		if (!isupper(data[i])) {
@@ -269,33 +269,33 @@ bool SMTPPlugin::smtp_keyword(const char* data)
  * \param [out] rec Pointer to SMTP extension record.
  * \return True on success, false otherwise.
  */
-bool SMTPPlugin::parse_smtp_command(const char* data, int payload_len, RecordExtSMTP* rec)
+bool SMTPPlugin::parseSmtpCommand(const char* data, int payloadLen, RecordExtSMTP* rec)
 {
 	const char *begin, *end;
 	char buffer[32];
 	size_t len;
 	size_t remaining;
 
-	if (payload_len == 0) {
+	if (payloadLen == 0) {
 		return false;
 	}
 
-	if (rec->data_transfer) {
-		if (payload_len != 3 || strcmp(data, ".\r\n")) {
+	if (rec->dataTransfer) {
+		if (payloadLen != 3 || strcmp(data, ".\r\n")) {
 			return false;
 		}
-		rec->data_transfer = 0;
+		rec->dataTransfer = 0;
 		return true;
 	}
 
 	begin = data;
-	end = static_cast<const char*>(memchr(begin, '\r', payload_len));
+	end = static_cast<const char*>(memchr(begin, '\r', payloadLen));
 
 	len = end - begin;
 	if (end == nullptr) {
 		return false;
 	}
-	end = static_cast<const char*>(memchr(begin, ' ', payload_len));
+	end = static_cast<const char*>(memchr(begin, ' ', payloadLen));
 	if (end != nullptr) {
 		len = end - begin;
 	}
@@ -309,7 +309,7 @@ bool SMTPPlugin::parse_smtp_command(const char* data, int payload_len, RecordExt
 	if (!strcmp(buffer, "HELO") || !strcmp(buffer, "EHLO")) {
 		if (rec->domain[0] == 0 && end != nullptr) {
 			begin = end;
-			remaining = payload_len - (begin - data);
+			remaining = payloadLen - (begin - data);
 			end = static_cast<const char*>(memchr(begin, '\r', remaining));
 			if (end != nullptr && begin != NULL) {
 				begin++;
@@ -323,109 +323,109 @@ bool SMTPPlugin::parse_smtp_command(const char* data, int payload_len, RecordExt
 			}
 		}
 		if (!strcmp(buffer, "HELO")) {
-			rec->command_flags |= SMTP_CMD_HELO;
+			rec->commandFlags |= SMTP_CMD_HELO;
 		} else {
-			rec->command_flags |= SMTP_CMD_EHLO;
+			rec->commandFlags |= SMTP_CMD_EHLO;
 		}
 	} else if (!strcmp(buffer, "RCPT")) {
-		rec->mail_rcpt_cnt++;
-		if (rec->first_recipient[0] == 0 && end != nullptr) {
-			if (check_payload_len(payload_len, (end + 1) - data)) {
+		rec->mailRcptCnt++;
+		if (rec->firstRecipient[0] == 0 && end != nullptr) {
+			if (checkPayloadLen(payloadLen, (end + 1) - data)) {
 				return false;
 			}
-			remaining = payload_len - ((end + 1) - data);
+			remaining = payloadLen - ((end + 1) - data);
 			begin = static_cast<const char*>(memchr(end + 1, ':', remaining));
-			remaining = payload_len - (end - data);
+			remaining = payloadLen - (end - data);
 			end = static_cast<const char*>(memchr(end, '\r', remaining));
 
 			if (end != nullptr && begin != NULL) {
 				begin++;
 				len = end - begin;
-				if (len >= sizeof(rec->first_recipient)) {
-					len = sizeof(rec->first_recipient) - 1;
+				if (len >= sizeof(rec->firstRecipient)) {
+					len = sizeof(rec->firstRecipient) - 1;
 				}
 
-				memcpy(rec->first_recipient, begin, len);
-				rec->first_recipient[len] = 0;
+				memcpy(rec->firstRecipient, begin, len);
+				rec->firstRecipient[len] = 0;
 			}
 		}
-		rec->command_flags |= SMTP_CMD_RCPT;
+		rec->commandFlags |= SMTP_CMD_RCPT;
 	} else if (!strcmp(buffer, "MAIL")) {
-		rec->mail_cmd_cnt++;
-		if (rec->first_sender[0] == 0 && end != nullptr) {
-			if (check_payload_len(payload_len, (end + 1) - data)) {
+		rec->mailCmdCnt++;
+		if (rec->firstSender[0] == 0 && end != nullptr) {
+			if (checkPayloadLen(payloadLen, (end + 1) - data)) {
 				return false;
 			}
-			remaining = payload_len - ((end + 1) - data);
+			remaining = payloadLen - ((end + 1) - data);
 			begin = static_cast<const char*>(memchr(end + 1, ':', remaining));
-			remaining = payload_len - (end - data);
+			remaining = payloadLen - (end - data);
 			end = static_cast<const char*>(memchr(end, '\r', remaining));
 
 			if (end != nullptr && begin != NULL) {
 				begin++;
 				len = end - begin;
-				if (len >= sizeof(rec->first_sender)) {
-					len = sizeof(rec->first_sender) - 1;
+				if (len >= sizeof(rec->firstSender)) {
+					len = sizeof(rec->firstSender) - 1;
 				}
 
-				memcpy(rec->first_sender, begin, len);
-				rec->first_sender[len] = 0;
+				memcpy(rec->firstSender, begin, len);
+				rec->firstSender[len] = 0;
 			}
 		}
-		rec->command_flags |= SMTP_CMD_MAIL;
+		rec->commandFlags |= SMTP_CMD_MAIL;
 	} else if (!strcmp(buffer, "DATA")) {
-		rec->data_transfer = 1;
-		rec->command_flags |= SMTP_CMD_DATA;
+		rec->dataTransfer = 1;
+		rec->commandFlags |= SMTP_CMD_DATA;
 	} else if (!strcmp(buffer, "VRFY")) {
-		rec->command_flags |= SMTP_CMD_VRFY;
+		rec->commandFlags |= SMTP_CMD_VRFY;
 	} else if (!strcmp(buffer, "EXPN")) {
-		rec->command_flags |= SMTP_CMD_EXPN;
+		rec->commandFlags |= SMTP_CMD_EXPN;
 	} else if (!strcmp(buffer, "HELP")) {
-		rec->command_flags |= SMTP_CMD_HELP;
+		rec->commandFlags |= SMTP_CMD_HELP;
 	} else if (!strcmp(buffer, "NOOP")) {
-		rec->command_flags |= SMTP_CMD_NOOP;
+		rec->commandFlags |= SMTP_CMD_NOOP;
 	} else if (!strcmp(buffer, "QUIT")) {
-		rec->command_flags |= SMTP_CMD_QUIT;
-	} else if (!smtp_keyword(buffer)) {
-		rec->command_flags |= CMD_UNKNOWN;
+		rec->commandFlags |= SMTP_CMD_QUIT;
+	} else if (!smtpKeyword(buffer)) {
+		rec->commandFlags |= CMD_UNKNOWN;
 	}
 
-	commands_cnt++;
+	m_commands_cnt++;
 	return true;
 }
 
-void SMTPPlugin::create_smtp_record(Flow& rec, const Packet& pkt)
+void SMTPPlugin::createSmtpRecord(Flow& rec, const Packet& pkt)
 {
-	if (ext_ptr == nullptr) {
-		ext_ptr = new RecordExtSMTP();
+	if (m_ext_ptr == nullptr) {
+		m_ext_ptr = new RecordExtSMTP();
 	}
 
-	if (update_smtp_record(ext_ptr, pkt)) {
-		rec.add_extension(ext_ptr);
-		ext_ptr = nullptr;
+	if (updateSmtpRecord(m_ext_ptr, pkt)) {
+		rec.addExtension(m_ext_ptr);
+		m_ext_ptr = nullptr;
 	}
 }
 
-bool SMTPPlugin::update_smtp_record(RecordExtSMTP* ext, const Packet& pkt)
+bool SMTPPlugin::updateSmtpRecord(RecordExtSMTP* ext, const Packet& pkt)
 {
-	total++;
+	m_total++;
 	const char* payload = reinterpret_cast<const char*>(pkt.payload);
-	if (pkt.src_port == 25) {
-		return parse_smtp_response(payload, pkt.payload_len, ext);
-	} else if (pkt.dst_port == 25) {
-		return parse_smtp_command(payload, pkt.payload_len, ext);
+	if (pkt.srcPort == 25) {
+		return parseSmtpResponse(payload, pkt.payloadLen, ext);
+	} else if (pkt.dstPort == 25) {
+		return parseSmtpCommand(payload, pkt.payloadLen, ext);
 	}
 
 	return false;
 }
 
-void SMTPPlugin::finish(bool print_stats)
+void SMTPPlugin::finish(bool printStats)
 {
-	if (print_stats) {
+	if (printStats) {
 		std::cout << "SMTP plugin stats:" << std::endl;
-		std::cout << "   Total SMTP packets: " << total << std::endl;
-		std::cout << "   Parsed SMTP replies: " << replies_cnt << std::endl;
-		std::cout << "   Parsed SMTP commands: " << commands_cnt << std::endl;
+		std::cout << "   Total SMTP packets: " << m_total << std::endl;
+		std::cout << "   Parsed SMTP replies: " << m_replies_cnt << std::endl;
+		std::cout << "   Parsed SMTP commands: " << m_commands_cnt << std::endl;
 	}
 }
 

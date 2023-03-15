@@ -53,15 +53,15 @@
 #include "common.hpp"
 #include "http.hpp"
 
-namespace ipxp {
+namespace Ipxp {
 
-int RecordExtHTTP::REGISTERED_ID = -1;
+int RecordExtHTTP::s_registeredId = -1;
 
-__attribute__((constructor)) static void register_this_plugin()
+__attribute__((constructor)) static void registerThisPlugin()
 {
 	static PluginRecord rec = PluginRecord("http", []() { return new HTTPPlugin(); });
-	register_plugin(&rec);
-	RecordExtHTTP::REGISTERED_ID = register_extension();
+	registerPlugin(&rec);
+	RecordExtHTTP::s_registeredId = registerExtension();
 }
 
 //#define DEBUG_HTTP
@@ -84,11 +84,11 @@ __attribute__((constructor)) static void register_this_plugin()
 #define HTTP_KEYVAL_DELIMITER ':'
 
 HTTPPlugin::HTTPPlugin()
-	: recPrealloc(nullptr)
-	, flow_flush(false)
-	, requests(0)
-	, responses(0)
-	, total(0)
+	: m_recPrealloc(nullptr)
+	, m_flow_flush(false)
+	, m_requests(0)
+	, m_responses(0)
+	, m_total(0)
 {
 }
 
@@ -101,9 +101,9 @@ void HTTPPlugin::init(const char* params) {}
 
 void HTTPPlugin::close()
 {
-	if (recPrealloc != nullptr) {
-		delete recPrealloc;
-		recPrealloc = nullptr;
+	if (m_recPrealloc != nullptr) {
+		delete m_recPrealloc;
+		m_recPrealloc = nullptr;
 	}
 }
 
@@ -112,44 +112,44 @@ ProcessPlugin* HTTPPlugin::copy()
 	return new HTTPPlugin(*this);
 }
 
-int HTTPPlugin::post_create(Flow& rec, const Packet& pkt)
+int HTTPPlugin::postCreate(Flow& rec, const Packet& pkt)
 {
 	const char* payload = reinterpret_cast<const char*>(pkt.payload);
-	if (is_request(payload, pkt.payload_len)) {
-		add_ext_http_request(payload, pkt.payload_len, rec);
-	} else if (is_response(payload, pkt.payload_len)) {
-		add_ext_http_response(payload, pkt.payload_len, rec);
+	if (isRequest(payload, pkt.payloadLen)) {
+		addExtHttpRequest(payload, pkt.payloadLen, rec);
+	} else if (isResponse(payload, pkt.payloadLen)) {
+		addExtHttpResponse(payload, pkt.payloadLen, rec);
 	}
 
 	return 0;
 }
 
-int HTTPPlugin::pre_update(Flow& rec, Packet& pkt)
+int HTTPPlugin::preUpdate(Flow& rec, Packet& pkt)
 {
 	RecordExt* ext = nullptr;
 	const char* payload = reinterpret_cast<const char*>(pkt.payload);
-	if (is_request(payload, pkt.payload_len)) {
-		ext = rec.get_extension(RecordExtHTTP::REGISTERED_ID);
+	if (isRequest(payload, pkt.payloadLen)) {
+		ext = rec.getExtension(RecordExtHTTP::s_registeredId);
 		if (ext == nullptr) { /* Check if header is present in flow. */
-			add_ext_http_request(payload, pkt.payload_len, rec);
+			addExtHttpRequest(payload, pkt.payloadLen, rec);
 			return 0;
 		}
 
-		parse_http_request(payload, pkt.payload_len, static_cast<RecordExtHTTP*>(ext));
-		if (flow_flush) {
-			flow_flush = false;
+		parseHttpRequest(payload, pkt.payloadLen, static_cast<RecordExtHTTP*>(ext));
+		if (m_flow_flush) {
+			m_flow_flush = false;
 			return FLOW_FLUSH_WITH_REINSERT;
 		}
-	} else if (is_response(payload, pkt.payload_len)) {
-		ext = rec.get_extension(RecordExtHTTP::REGISTERED_ID);
+	} else if (isResponse(payload, pkt.payloadLen)) {
+		ext = rec.getExtension(RecordExtHTTP::s_registeredId);
 		if (ext == nullptr) { /* Check if header is present in flow. */
-			add_ext_http_response(payload, pkt.payload_len, rec);
+			addExtHttpResponse(payload, pkt.payloadLen, rec);
 			return 0;
 		}
 
-		parse_http_response(payload, pkt.payload_len, static_cast<RecordExtHTTP*>(ext));
-		if (flow_flush) {
-			flow_flush = false;
+		parseHttpResponse(payload, pkt.payloadLen, static_cast<RecordExtHTTP*>(ext));
+		if (m_flow_flush) {
+			m_flow_flush = false;
 			return FLOW_FLUSH_WITH_REINSERT;
 		}
 	}
@@ -157,13 +157,13 @@ int HTTPPlugin::pre_update(Flow& rec, Packet& pkt)
 	return 0;
 }
 
-void HTTPPlugin::finish(bool print_stats)
+void HTTPPlugin::finish(bool printStats)
 {
-	if (print_stats) {
+	if (printStats) {
 		std::cout << "HTTP plugin stats:" << std::endl;
-		std::cout << "   Parsed http requests: " << requests << std::endl;
-		std::cout << "   Parsed http responses: " << responses << std::endl;
-		std::cout << "   Total http packets processed: " << total << std::endl;
+		std::cout << "   Parsed http requests: " << m_requests << std::endl;
+		std::cout << "   Parsed http responses: " << m_responses << std::endl;
+		std::cout << "   Total http packets processed: " << m_total << std::endl;
 	}
 }
 
@@ -175,7 +175,7 @@ void HTTPPlugin::finish(bool print_stats)
  * \param [in] begin Ptr to begin of source string.
  * \param [in] end Ptr to end of source string.
  */
-void copy_str(char* dst, ssize_t size, const char* begin, const char* end)
+void copyStr(char* dst, ssize_t size, const char* begin, const char* end)
 {
 	ssize_t len = end - begin;
 	if (len >= size) {
@@ -195,23 +195,23 @@ void copy_str(char* dst, ssize_t size, const char* begin, const char* end)
 	dst[len] = 0;
 }
 
-bool HTTPPlugin::is_request(const char* data, int payload_len)
+bool HTTPPlugin::isRequest(const char* data, int payloadLen)
 {
 	char chars[5];
 
-	if (payload_len < 4) {
+	if (payloadLen < 4) {
 		return false;
 	}
 	memcpy(chars, data, 4);
 	chars[4] = 0;
-	return valid_http_method(chars);
+	return validHttpMethod(chars);
 }
 
-bool HTTPPlugin::is_response(const char* data, int payload_len)
+bool HTTPPlugin::isResponse(const char* data, int payloadLen)
 {
 	char chars[5];
 
-	if (payload_len < 4) {
+	if (payloadLen < 4) {
 		return false;
 	}
 	memcpy(chars, data, 4);
@@ -230,19 +230,19 @@ static uint32_t s_requests = 0, s_responses = 0;
  * \param [out] rec Variable where http request will be stored.
  * \return True if request was parsed, false if error occured.
  */
-bool HTTPPlugin::parse_http_request(const char* data, int payload_len, RecordExtHTTP* rec)
+bool HTTPPlugin::parseHttpRequest(const char* data, int payloadLen, RecordExtHTTP* rec)
 {
 	char buffer[64];
 	size_t remaining;
-	const char *begin, *end, *keyval_delimiter;
+	const char *begin, *end, *keyvalDelimiter;
 
-	total++;
+	m_total++;
 
 	DEBUG_MSG("---------- http parser #%u ----------\n", total);
 	DEBUG_MSG("Parsing request number: %u\n", ++s_requests);
 	DEBUG_MSG("Payload length: %u\n\n", payload_len);
 
-	if (payload_len == 0) {
+	if (payloadLen == 0) {
 		DEBUG_MSG("Parser quits:\tpayload length = 0\n");
 		return false;
 	}
@@ -257,19 +257,19 @@ bool HTTPPlugin::parse_http_request(const char* data, int payload_len, RecordExt
 	 */
 
 	/* Find begin of URI. */
-	begin = static_cast<const char*>(memchr(data, ' ', payload_len));
+	begin = static_cast<const char*>(memchr(data, ' ', payloadLen));
 	if (begin == nullptr) {
 		DEBUG_MSG("Parser quits:\tnot a http request header\n");
 		return false;
 	}
 
 	/* Find end of URI. */
-	if (check_payload_len(payload_len, (begin + 1) - data)) {
+	if (checkPayloadLen(payloadLen, (begin + 1) - data)) {
 		DEBUG_MSG("Parser quits:\tpayload end\n");
 		return false;
 	}
 
-	remaining = payload_len - ((begin + 1) - data);
+	remaining = payloadLen - ((begin + 1) - data);
 	end = static_cast<const char*>(memchr(begin + 1, ' ', remaining));
 
 	if (end == nullptr) {
@@ -283,27 +283,27 @@ bool HTTPPlugin::parse_http_request(const char* data, int payload_len, RecordExt
 	}
 
 	/* Copy and check HTTP method */
-	copy_str(buffer, sizeof(buffer), data, begin);
+	copyStr(buffer, sizeof(buffer), data, begin);
 	if (rec->req) {
-		flow_flush = true;
-		total--;
+		m_flow_flush = true;
+		m_total--;
 		DEBUG_MSG("Parser quits:\tflushing flow\n");
 		return false;
 	}
 	strncpy(rec->method, buffer, sizeof(rec->method));
 	rec->method[sizeof(rec->method) - 1] = 0;
 
-	copy_str(rec->uri, sizeof(rec->uri), begin + 1, end);
+	copyStr(rec->uri, sizeof(rec->uri), begin + 1, end);
 	DEBUG_MSG("\tMethod: %s\n", rec->method);
 	DEBUG_MSG("\tURI: %s\n", rec->uri);
 
 	/* Find begin of next line after request line. */
-	if (check_payload_len(payload_len, end - data)) {
+	if (checkPayloadLen(payloadLen, end - data)) {
 		DEBUG_MSG("Parser quits:\tpayload end\n");
 		return false;
 	}
-	remaining = payload_len - (end - data);
-	begin = ipxp::strnstr(end, HTTP_LINE_DELIMITER, remaining);
+	remaining = payloadLen - (end - data);
+	begin = Ipxp::strnstr(end, HTTP_LINE_DELIMITER, remaining);
 	if (begin == nullptr) {
 		DEBUG_MSG("Parser quits:\tNo line delim after request line\n");
 		return false;
@@ -320,13 +320,13 @@ bool HTTPPlugin::parse_http_request(const char* data, int payload_len, RecordExt
 	 */
 
 	rec->host[0] = 0;
-	rec->user_agent[0] = 0;
+	rec->userAgent[0] = 0;
 	rec->referer[0] = 0;
 	/* Process headers. */
-	while (begin - data < payload_len) {
-		remaining = payload_len - (begin - data);
-		end = ipxp::strnstr(begin, HTTP_LINE_DELIMITER, remaining);
-		keyval_delimiter
+	while (begin - data < payloadLen) {
+		remaining = payloadLen - (begin - data);
+		end = Ipxp::strnstr(begin, HTTP_LINE_DELIMITER, remaining);
+		keyvalDelimiter
 			= static_cast<const char*>(memchr(begin, HTTP_KEYVAL_DELIMITER, remaining));
 
 		if (end == nullptr) {
@@ -338,13 +338,13 @@ bool HTTPPlugin::parse_http_request(const char* data, int payload_len, RecordExt
 		int tmp = end - begin;
 		if (tmp == 0 || tmp == 1) { /* Check for blank line with \r\n or \n ending. */
 			break; /* Double LF found - end of header section. */
-		} else if (keyval_delimiter == nullptr) {
+		} else if (keyvalDelimiter == nullptr) {
 			DEBUG_MSG("Parser quits:\theader is fragmented\n");
 			return false;
 		}
 
 		/* Copy field name. */
-		copy_str(buffer, sizeof(buffer), begin, keyval_delimiter);
+		copyStr(buffer, sizeof(buffer), begin, keyvalDelimiter);
 
 		DEBUG_CODE(char debug_buffer[4096]);
 		DEBUG_CODE(copy_str(debug_buffer, sizeof(debug_buffer), keyval_delimiter + 2, end));
@@ -352,11 +352,11 @@ bool HTTPPlugin::parse_http_request(const char* data, int payload_len, RecordExt
 
 		/* Copy interesting field values. */
 		if (!strcmp(buffer, "Host")) {
-			copy_str(rec->host, sizeof(rec->host), keyval_delimiter + 2, end);
+			copyStr(rec->host, sizeof(rec->host), keyvalDelimiter + 2, end);
 		} else if (!strcmp(buffer, "User-Agent")) {
-			copy_str(rec->user_agent, sizeof(rec->user_agent), keyval_delimiter + 2, end);
+			copyStr(rec->userAgent, sizeof(rec->userAgent), keyvalDelimiter + 2, end);
 		} else if (!strcmp(buffer, "Referer")) {
-			copy_str(rec->referer, sizeof(rec->referer), keyval_delimiter + 2, end);
+			copyStr(rec->referer, sizeof(rec->referer), keyvalDelimiter + 2, end);
 		}
 
 		/* Go to next line. */
@@ -365,7 +365,7 @@ bool HTTPPlugin::parse_http_request(const char* data, int payload_len, RecordExt
 
 	DEBUG_MSG("Parser quits:\tend of header section\n");
 	rec->req = true;
-	requests++;
+	m_requests++;
 	return true;
 }
 
@@ -376,20 +376,20 @@ bool HTTPPlugin::parse_http_request(const char* data, int payload_len, RecordExt
  * \param [out] rec Variable where http response will be stored.
  * \return True if request was parsed, false if error occured.
  */
-bool HTTPPlugin::parse_http_response(const char* data, int payload_len, RecordExtHTTP* rec)
+bool HTTPPlugin::parseHttpResponse(const char* data, int payloadLen, RecordExtHTTP* rec)
 {
 	char buffer[64];
-	const char *begin, *end, *keyval_delimiter;
+	const char *begin, *end, *keyvalDelimiter;
 	size_t remaining;
 	int code;
 
-	total++;
+	m_total++;
 
 	DEBUG_MSG("---------- http parser #%u ----------\n", total);
 	DEBUG_MSG("Parsing response number: %u\n", ++s_responses);
 	DEBUG_MSG("Payload length: %u\n\n", payload_len);
 
-	if (payload_len == 0) {
+	if (payloadLen == 0) {
 		DEBUG_MSG("Parser quits:\tpayload length = 0\n");
 		return false;
 	}
@@ -410,18 +410,18 @@ bool HTTPPlugin::parse_http_response(const char* data, int payload_len, RecordEx
 	 */
 
 	/* Find begin of status code. */
-	begin = static_cast<const char*>(memchr(data, ' ', payload_len));
+	begin = static_cast<const char*>(memchr(data, ' ', payloadLen));
 	if (begin == nullptr) {
 		DEBUG_MSG("Parser quits:\tnot a http response header\n");
 		return false;
 	}
 
 	/* Find end of status code. */
-	if (check_payload_len(payload_len, (begin + 1) - data)) {
+	if (checkPayloadLen(payloadLen, (begin + 1) - data)) {
 		DEBUG_MSG("Parser quits:\tpayload end\n");
 		return false;
 	}
-	remaining = payload_len - ((begin + 1) - data);
+	remaining = payloadLen - ((begin + 1) - data);
 	end = static_cast<const char*>(memchr(begin + 1, ' ', remaining));
 	if (end == nullptr) {
 		DEBUG_MSG("Parser quits:\tresponse is fragmented\n");
@@ -429,7 +429,7 @@ bool HTTPPlugin::parse_http_response(const char* data, int payload_len, RecordEx
 	}
 
 	/* Copy and check HTTP response code. */
-	copy_str(buffer, sizeof(buffer), begin + 1, end);
+	copyStr(buffer, sizeof(buffer), begin + 1, end);
 	code = atoi(buffer);
 	if (code <= 0) {
 		DEBUG_MSG("Parser quits:\twrong response code: %d\n", code);
@@ -438,20 +438,20 @@ bool HTTPPlugin::parse_http_response(const char* data, int payload_len, RecordEx
 
 	DEBUG_MSG("\tCode: %d\n", code);
 	if (rec->resp) {
-		flow_flush = true;
-		total--;
+		m_flow_flush = true;
+		m_total--;
 		DEBUG_MSG("Parser quits:\tflushing flow\n");
 		return false;
 	}
 	rec->code = code;
 
 	/* Find begin of next line after request line. */
-	if (check_payload_len(payload_len, end - data)) {
+	if (checkPayloadLen(payloadLen, end - data)) {
 		DEBUG_MSG("Parser quits:\tpayload end\n");
 		return false;
 	}
-	remaining = payload_len - (end - data);
-	begin = ipxp::strnstr(end, HTTP_LINE_DELIMITER, remaining);
+	remaining = payloadLen - (end - data);
+	begin = Ipxp::strnstr(end, HTTP_LINE_DELIMITER, remaining);
 	if (begin == nullptr) {
 		DEBUG_MSG("Parser quits:\tNo line delim after request line\n");
 		return false;
@@ -467,12 +467,12 @@ bool HTTPPlugin::parse_http_response(const char* data, int payload_len, RecordEx
 	 * --------------------- begin
 	 */
 
-	rec->content_type[0] = 0;
+	rec->contentType[0] = 0;
 	/* Process headers. */
-	while (begin - data < payload_len) {
-		remaining = payload_len - (begin - data);
-		end = ipxp::strnstr(begin, HTTP_LINE_DELIMITER, remaining);
-		keyval_delimiter
+	while (begin - data < payloadLen) {
+		remaining = payloadLen - (begin - data);
+		end = Ipxp::strnstr(begin, HTTP_LINE_DELIMITER, remaining);
+		keyvalDelimiter
 			= static_cast<const char*>(memchr(begin, HTTP_KEYVAL_DELIMITER, remaining));
 
 		if (end == nullptr) {
@@ -484,13 +484,13 @@ bool HTTPPlugin::parse_http_response(const char* data, int payload_len, RecordEx
 		int tmp = end - begin;
 		if (tmp == 0 || tmp == 1) { /* Check for blank line with \r\n or \n ending. */
 			break; /* Double LF found - end of header section. */
-		} else if (keyval_delimiter == nullptr) {
+		} else if (keyvalDelimiter == nullptr) {
 			DEBUG_MSG("Parser quits:\theader is fragmented\n");
 			return false;
 		}
 
 		/* Copy field name. */
-		copy_str(buffer, sizeof(buffer), begin, keyval_delimiter);
+		copyStr(buffer, sizeof(buffer), begin, keyvalDelimiter);
 
 		DEBUG_CODE(char debug_buffer[4096]);
 		DEBUG_CODE(copy_str(debug_buffer, sizeof(debug_buffer), keyval_delimiter + 2, end));
@@ -498,7 +498,7 @@ bool HTTPPlugin::parse_http_response(const char* data, int payload_len, RecordEx
 
 		/* Copy interesting field values. */
 		if (!strcmp(buffer, "Content-Type")) {
-			copy_str(rec->content_type, sizeof(rec->content_type), keyval_delimiter + 2, end);
+			copyStr(rec->contentType, sizeof(rec->contentType), keyvalDelimiter + 2, end);
 		}
 
 		/* Go to next line. */
@@ -507,7 +507,7 @@ bool HTTPPlugin::parse_http_response(const char* data, int payload_len, RecordEx
 
 	DEBUG_MSG("Parser quits:\tend of header section\n");
 	rec->resp = true;
-	responses++;
+	m_responses++;
 	return true;
 }
 
@@ -516,7 +516,7 @@ bool HTTPPlugin::parse_http_response(const char* data, int payload_len, RecordEx
  * \param [in] method C string with http method.
  * \return True if http method is valid.
  */
-bool HTTPPlugin::valid_http_method(const char* method) const
+bool HTTPPlugin::validHttpMethod(const char* method) const
 {
 	return (
 		!strcmp(method, "GET ") || !strcmp(method, "POST") || !strcmp(method, "PUT ")
@@ -530,15 +530,15 @@ bool HTTPPlugin::valid_http_method(const char* method) const
  * \param [in] payload_len Length of packet payload.
  * \param [out] flow Flow record where to store created extension header.
  */
-void HTTPPlugin::add_ext_http_request(const char* data, int payload_len, Flow& flow)
+void HTTPPlugin::addExtHttpRequest(const char* data, int payloadLen, Flow& flow)
 {
-	if (recPrealloc == nullptr) {
-		recPrealloc = new RecordExtHTTP();
+	if (m_recPrealloc == nullptr) {
+		m_recPrealloc = new RecordExtHTTP();
 	}
 
-	if (parse_http_request(data, payload_len, recPrealloc)) {
-		flow.add_extension(recPrealloc);
-		recPrealloc = nullptr;
+	if (parseHttpRequest(data, payloadLen, m_recPrealloc)) {
+		flow.addExtension(m_recPrealloc);
+		m_recPrealloc = nullptr;
 	}
 }
 
@@ -548,15 +548,15 @@ void HTTPPlugin::add_ext_http_request(const char* data, int payload_len, Flow& f
  * \param [in] payload_len Length of packet payload.
  * \param [out] flow Flow record where to store created extension header.
  */
-void HTTPPlugin::add_ext_http_response(const char* data, int payload_len, Flow& flow)
+void HTTPPlugin::addExtHttpResponse(const char* data, int payloadLen, Flow& flow)
 {
-	if (recPrealloc == nullptr) {
-		recPrealloc = new RecordExtHTTP();
+	if (m_recPrealloc == nullptr) {
+		m_recPrealloc = new RecordExtHTTP();
 	}
 
-	if (parse_http_response(data, payload_len, recPrealloc)) {
-		flow.add_extension(recPrealloc);
-		recPrealloc = nullptr;
+	if (parseHttpResponse(data, payloadLen, m_recPrealloc)) {
+		flow.addExtension(m_recPrealloc);
+		m_recPrealloc = nullptr;
 	}
 }
 

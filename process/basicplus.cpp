@@ -45,15 +45,15 @@
 
 #include "basicplus.hpp"
 
-namespace ipxp {
+namespace Ipxp {
 
-int RecordExtBASICPLUS::REGISTERED_ID = -1;
+int RecordExtBASICPLUS::s_registeredId = -1;
 
-__attribute__((constructor)) static void register_this_plugin()
+__attribute__((constructor)) static void registerThisPlugin()
 {
 	static PluginRecord rec = PluginRecord("basicplus", []() { return new BASICPLUSPlugin(); });
-	register_plugin(&rec);
-	RecordExtBASICPLUS::REGISTERED_ID = register_extension();
+	registerPlugin(&rec);
+	RecordExtBASICPLUS::s_registeredId = registerExtension();
 }
 
 BASICPLUSPlugin::BASICPLUSPlugin() {}
@@ -72,40 +72,40 @@ ProcessPlugin* BASICPLUSPlugin::copy()
 	return new BASICPLUSPlugin(*this);
 }
 
-int BASICPLUSPlugin::post_create(Flow& rec, const Packet& pkt)
+int BASICPLUSPlugin::postCreate(Flow& rec, const Packet& pkt)
 {
 	RecordExtBASICPLUS* p = new RecordExtBASICPLUS();
 
-	rec.add_extension(p);
+	rec.addExtension(p);
 
-	p->ip_ttl[0] = pkt.ip_ttl;
-	p->ip_flg[0] = pkt.ip_flags;
-	p->tcp_mss[0] = pkt.tcp_mss;
-	p->tcp_opt[0] = pkt.tcp_options;
-	p->tcp_win[0] = pkt.tcp_window;
-	if (pkt.tcp_flags == 0x02) { // check syn packet
-		p->tcp_syn_size = pkt.ip_len;
+	p->ipTtl[0] = pkt.ipTtl;
+	p->ipFlg[0] = pkt.ipFlags;
+	p->tcpMss[0] = pkt.tcpMss;
+	p->tcpOpt[0] = pkt.tcpOptions;
+	p->tcpWin[0] = pkt.tcpWindow;
+	if (pkt.tcpFlags == 0x02) { // check syn packet
+		p->tcpSynSize = pkt.ipLen;
 	}
 
 	return 0;
 }
 
-int BASICPLUSPlugin::pre_update(Flow& rec, Packet& pkt)
+int BASICPLUSPlugin::preUpdate(Flow& rec, Packet& pkt)
 {
 	RecordExtBASICPLUS* p
-		= (RecordExtBASICPLUS*) rec.get_extension(RecordExtBASICPLUS::REGISTERED_ID);
-	uint8_t dir = pkt.source_pkt ? 0 : 1;
+		= (RecordExtBASICPLUS*) rec.getExtension(RecordExtBASICPLUS::s_registeredId);
+	uint8_t dir = pkt.sourcePkt ? 0 : 1;
 
-	if (p->ip_ttl[dir] < pkt.ip_ttl) {
-		p->ip_ttl[dir] = pkt.ip_ttl;
+	if (p->ipTtl[dir] < pkt.ipTtl) {
+		p->ipTtl[dir] = pkt.ipTtl;
 	}
-	if (dir && !p->dst_filled) {
-		p->ip_ttl[1] = pkt.ip_ttl;
-		p->ip_flg[1] = pkt.ip_flags;
-		p->tcp_mss[1] = pkt.tcp_mss;
-		p->tcp_opt[1] = pkt.tcp_options;
-		p->tcp_win[1] = pkt.tcp_window;
-		p->dst_filled = true;
+	if (dir && !p->dstFilled) {
+		p->ipTtl[1] = pkt.ipTtl;
+		p->ipFlg[1] = pkt.ipFlags;
+		p->tcpMss[1] = pkt.tcpMss;
+		p->tcpOpt[1] = pkt.tcpOptions;
+		p->tcpWin[1] = pkt.tcpWindow;
+		p->dstFilled = true;
 	}
 	return 0;
 }

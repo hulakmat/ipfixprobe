@@ -56,15 +56,15 @@
 
 #include "dnssd.hpp"
 
-namespace ipxp {
+namespace Ipxp {
 
-int RecordExtDNSSD::REGISTERED_ID = -1;
+int RecordExtDNSSD::s_registeredId = -1;
 
-__attribute__((constructor)) static void register_this_plugin()
+__attribute__((constructor)) static void registerThisPlugin()
 {
 	static PluginRecord rec = PluginRecord("dnssd", []() { return new DNSSDPlugin(); });
-	register_plugin(&rec);
-	RecordExtDNSSD::REGISTERED_ID = register_extension();
+	registerPlugin(&rec);
+	RecordExtDNSSD::s_registeredId = registerExtension();
 }
 
 // #define DEBUG_DNSSD
@@ -96,12 +96,12 @@ __attribute__((constructor)) static void register_this_plugin()
 #define GET_OFFSET(half1, half2) ((((uint8_t) (half1) &0x3F) << 8) | (uint8_t) (half2))
 
 DNSSDPlugin::DNSSDPlugin()
-	: txt_all_records(false)
-	, queries(0)
-	, responses(0)
-	, total(0)
-	, data_begin(nullptr)
-	, data_len(0)
+	: m_txt_all_records(false)
+	, m_queries(0)
+	, m_responses(0)
+	, m_total(0)
+	, m_data_begin(nullptr)
+	, m_data_len(0)
 {
 }
 
@@ -119,9 +119,9 @@ void DNSSDPlugin::init(const char* params)
 		throw PluginError(e.what());
 	}
 
-	txt_all_records = parser.m_txt_all;
-	if (!parser.m_config_file.empty()) {
-		load_txtconfig(parser.m_config_file.c_str());
+	m_txt_all_records = parser.mTxtAll;
+	if (!parser.mConfigFile.empty()) {
+		loadTxtconfig(parser.mConfigFile.c_str());
 	}
 }
 
@@ -132,35 +132,35 @@ ProcessPlugin* DNSSDPlugin::copy()
 	return new DNSSDPlugin(*this);
 }
 
-int DNSSDPlugin::post_create(Flow& rec, const Packet& pkt)
+int DNSSDPlugin::postCreate(Flow& rec, const Packet& pkt)
 {
-	if (pkt.dst_port == 5353 || pkt.src_port == 5353) {
-		return add_ext_dnssd(
+	if (pkt.dstPort == 5353 || pkt.srcPort == 5353) {
+		return addExtDnssd(
 			reinterpret_cast<const char*>(pkt.payload),
-			pkt.payload_len,
-			pkt.ip_proto == IPPROTO_TCP,
+			pkt.payloadLen,
+			pkt.ipProto == IPPROTO_TCP,
 			rec);
 	}
 
 	return 0;
 }
 
-int DNSSDPlugin::post_update(Flow& rec, const Packet& pkt)
+int DNSSDPlugin::postUpdate(Flow& rec, const Packet& pkt)
 {
-	if (pkt.dst_port == 5353 || pkt.src_port == 5353) {
-		RecordExt* ext = rec.get_extension(RecordExtDNSSD::REGISTERED_ID);
+	if (pkt.dstPort == 5353 || pkt.srcPort == 5353) {
+		RecordExt* ext = rec.getExtension(RecordExtDNSSD::s_registeredId);
 
 		if (ext == nullptr) {
-			return add_ext_dnssd(
+			return addExtDnssd(
 				reinterpret_cast<const char*>(pkt.payload),
-				pkt.payload_len,
-				pkt.ip_proto == IPPROTO_TCP,
+				pkt.payloadLen,
+				pkt.ipProto == IPPROTO_TCP,
 				rec);
 		} else {
-			parse_dns(
+			parseDns(
 				reinterpret_cast<const char*>(pkt.payload),
-				pkt.payload_len,
-				pkt.ip_proto == IPPROTO_TCP,
+				pkt.payloadLen,
+				pkt.ipProto == IPPROTO_TCP,
 				static_cast<RecordExtDNSSD*>(ext));
 		}
 		return 0;
@@ -169,13 +169,13 @@ int DNSSDPlugin::post_update(Flow& rec, const Packet& pkt)
 	return 0;
 }
 
-void DNSSDPlugin::finish(bool print_stats)
+void DNSSDPlugin::finish(bool printStats)
 {
-	if (print_stats) {
+	if (printStats) {
 		std::cout << "DNSSD plugin stats:" << std::endl;
-		std::cout << "   Parsed dns queries: " << queries << std::endl;
-		std::cout << "   Parsed dns responses: " << responses << std::endl;
-		std::cout << "   Total dns packets processed: " << total << std::endl;
+		std::cout << "   Parsed dns queries: " << m_queries << std::endl;
+		std::cout << "   Parsed dns responses: " << m_responses << std::endl;
+		std::cout << "   Total dns packets processed: " << m_total << std::endl;
 	}
 }
 
@@ -184,23 +184,23 @@ void DNSSDPlugin::finish(bool print_stats)
  *
  * Takes path to file from enviroment variable DNSSD_TXTCONFIG_PATH.
  */
-void DNSSDPlugin::load_txtconfig(const char* config_file)
+void DNSSDPlugin::loadTxtconfig(const char* configFile)
 {
-	if (!config_file) {
+	if (!configFile) {
 		return;
 	}
-	std::ifstream in_file;
+	std::ifstream inFile;
 
-	in_file.open(config_file);
-	if (!in_file) {
+	inFile.open(configFile);
+	if (!inFile) {
 		std::ostringstream oss;
-		oss << strerror(errno) << " '" << config_file << "'";
+		oss << strerror(errno) << " '" << configFile << "'";
 		throw PluginError(oss.str());
 	}
 	std::string line, part;
 	size_t begin = 0, end = 0;
 
-	while (getline(in_file, line)) {
+	while (getline(inFile, line)) {
 		begin = end = 0;
 		std::pair<std::string, std::list<std::string>> conf;
 		end = line.find(",", begin);
@@ -221,9 +221,9 @@ void DNSSDPlugin::load_txtconfig(const char* config_file)
 			begin = end + 1;
 		}
 		DEBUG_MSG("\n");
-		txt_config.push_back(conf);
+		m_txt_config.push_back(conf);
 	}
-	in_file.close();
+	inFile.close();
 }
 
 /**
@@ -231,12 +231,12 @@ void DNSSDPlugin::load_txtconfig(const char* config_file)
  * \param [in] data Pointer to string.
  * \return Number of characters in string.
  */
-size_t DNSSDPlugin::get_name_length(const char* data) const
+size_t DNSSDPlugin::getNameLength(const char* data) const
 {
 	size_t len = 0;
 
 	while (1) {
-		if ((uint32_t) (data - data_begin) + 1 > data_len) {
+		if ((uint32_t) (data - m_data_begin) + 1 > m_data_len) {
 			throw "Error: overflow";
 		}
 		if (!data[0]) {
@@ -261,18 +261,18 @@ size_t DNSSDPlugin::get_name_length(const char* data) const
 std::string DNSSDPlugin::get_name(const char* data) const
 {
 	std::string name = "";
-	int label_cnt = 0;
+	int labelCnt = 0;
 
-	if ((uint32_t) (data - data_begin) > data_len) {
+	if ((uint32_t) (data - m_data_begin) > m_data_len) {
 		throw "Error: overflow";
 	}
 
 	while (data[0]) { /* Check for terminating character. */
 		if (IS_POINTER(data[0])) { /* Check for label pointer (11xxxxxx byte) */
-			data = data_begin + GET_OFFSET(data[0], data[1]);
+			data = m_data_begin + GET_OFFSET(data[0], data[1]);
 
 			/* Check for possible errors. */
-			if (label_cnt++ > MAX_LABEL_CNT || (uint32_t) (data - data_begin) > data_len) {
+			if (labelCnt++ > MAX_LABEL_CNT || (uint32_t) (data - m_data_begin) > m_data_len) {
 				throw "Error: label count exceed or overflow";
 			}
 
@@ -280,8 +280,8 @@ std::string DNSSDPlugin::get_name(const char* data) const
 		}
 
 		/* Check for possible errors. */
-		if (label_cnt++ > MAX_LABEL_CNT || (uint8_t) data[0] > 63
-			|| (uint32_t) ((data - data_begin) + (uint8_t) data[0] + 2) > data_len) {
+		if (labelCnt++ > MAX_LABEL_CNT || (uint8_t) data[0] > 63
+			|| (uint32_t) ((data - m_data_begin) + (uint8_t) data[0] + 2) > m_data_len) {
 			throw "Error: label count exceed or overflow";
 		}
 
@@ -304,15 +304,15 @@ std::string DNSSDPlugin::get_name(const char* data) const
  * As an example, given input "My MacBook Air._device-info._tcp.local"
  * returns "_device-info._tcp.local".
  */
-const std::string DNSSDPlugin::get_service_str(std::string& name) const
+const std::string DNSSDPlugin::getServiceStr(std::string& name) const
 {
 	size_t begin = name.length();
-	int8_t underscore_counter = 0;
+	int8_t underscoreCounter = 0;
 
-	while (underscore_counter < 2 && begin != std::string::npos) {
+	while (underscoreCounter < 2 && begin != std::string::npos) {
 		begin = name.rfind("_", begin - 1);
 		if (begin != std::string::npos) {
-			underscore_counter++;
+			underscoreCounter++;
 		}
 	}
 	return name.substr((begin == std::string::npos ? 0 : begin), name.length());
@@ -322,13 +322,13 @@ const std::string DNSSDPlugin::get_service_str(std::string& name) const
  * \brief Checks if Service Instance Name is allowed for TXT processing by checking txt_config.
  * \return True if allowed, otherwise false.
  */
-bool DNSSDPlugin::matches_service(
+bool DNSSDPlugin::matchesService(
 	std::list<std::pair<std::string, std::list<std::string>>>::const_iterator& it,
 	std::string& name) const
 {
-	std::string service = get_service_str(name);
+	std::string service = getServiceStr(name);
 
-	for (it = txt_config.begin(); it != txt_config.end(); it++) {
+	for (it = m_txt_config.begin(); it != m_txt_config.end(); it++) {
 		if (it->first == service) {
 			return true;
 		}
@@ -344,8 +344,8 @@ bool DNSSDPlugin::matches_service(
  * \param [in] type Type of RDATA section.
  * \param [in] length Length of RDATA section.
  */
-void DNSSDPlugin::process_rdata(
-	const char* record_begin,
+void DNSSDPlugin::processRdata(
+	const char* recordBegin,
 	const char* data,
 	DnsSdRr& rdata,
 	uint16_t type,
@@ -359,14 +359,14 @@ void DNSSDPlugin::process_rdata(
 		DEBUG_MSG("%16s\t\t    %s\n", "PTR", get_name(data).c_str());
 		break;
 	case DNS_TYPE_SRV: {
-		struct dns_srv* srv = (struct dns_srv*) data;
+		struct DnsSrv* srv = (struct DnsSrv*) data;
 
 		std::string tmp = get_name(data + 6);
 
 		DEBUG_MSG("%16s\t%8u    %s\n", "SRV", ntohs(srv->port), tmp.c_str());
 
-		rdata.srv_port = ntohs(srv->port);
-		rdata.srv_target = tmp;
+		rdata.srvPort = ntohs(srv->port);
+		rdata.srvTarget = tmp;
 	} break;
 	case DNS_TYPE_HINFO: {
 		rdata.hinfo[0] = std::string(data + 1, (uint8_t) data[0]);
@@ -377,18 +377,18 @@ void DNSSDPlugin::process_rdata(
 	} break;
 	case DNS_TYPE_TXT: {
 		std::list<std::pair<std::string, std::list<std::string>>>::const_iterator it;
-		if (!(txt_all_records || matches_service(it, name))) { // all_records overrides filter
+		if (!(m_txt_all_records || matchesService(it, name))) { // all_records overrides filter
 			break;
 		}
 		size_t len = (uint8_t) * (data++);
-		size_t total_len = len + 1;
+		size_t totalLen = len + 1;
 		std::list<std::string>::const_iterator sit;
 		std::string txt;
 
-		while (length != 0 && total_len <= length) {
+		while (length != 0 && totalLen <= length) {
 			txt = std::string(data, len);
 
-			if (txt_all_records) {
+			if (m_txt_all_records) {
 				DEBUG_MSG("%16s\t\t    %s\n", "TXT", txt.c_str());
 				rdata.txt += txt + ":";
 			} else {
@@ -403,7 +403,7 @@ void DNSSDPlugin::process_rdata(
 
 			data += len;
 			len = (uint8_t) * (data++);
-			total_len += len + 1;
+			totalLen += len + 1;
 		}
 	} break;
 	default:
@@ -424,41 +424,41 @@ uint32_t s_responses = 0;
  * \param [out] rec Output Flow extension header.
  * \return True if DNS was parsed.
  */
-bool DNSSDPlugin::parse_dns(
+bool DNSSDPlugin::parseDns(
 	const char* data,
-	unsigned int payload_len,
+	unsigned int payloadLen,
 	bool tcp,
 	RecordExtDNSSD* rec)
 {
 	try {
-		total++;
+		m_total++;
 
 		DEBUG_MSG("---------- dns parser #%u ----------\n", total);
 		DEBUG_MSG("Payload length: %u\n", payload_len);
 
 		if (tcp) {
-			payload_len -= 2;
-			if (ntohs(*(uint16_t*) data) != payload_len) {
+			payloadLen -= 2;
+			if (ntohs(*(uint16_t*) data) != payloadLen) {
 				DEBUG_MSG("parser quits: fragmented tcp pkt");
 				return false;
 			}
 			data += 2;
 		}
 
-		if (payload_len < sizeof(struct dns_hdr)) {
+		if (payloadLen < sizeof(struct DnsHdr)) {
 			DEBUG_MSG("parser quits: payload length < %ld\n", sizeof(struct dns_hdr));
 			return false;
 		}
 
-		data_begin = data;
-		data_len = payload_len;
+		m_data_begin = data;
+		m_data_len = payloadLen;
 
-		struct dns_hdr* dns = (struct dns_hdr*) data;
+		struct DnsHdr* dns = (struct DnsHdr*) data;
 		uint16_t flags = ntohs(dns->flags);
-		uint16_t question_cnt = ntohs(dns->question_rec_cnt);
-		uint16_t answer_rr_cnt = ntohs(dns->answer_rec_cnt);
-		uint16_t authority_rr_cnt = ntohs(dns->name_server_rec_cnt);
-		uint16_t additional_rr_cnt = ntohs(dns->additional_rec_cnt);
+		uint16_t questionCnt = ntohs(dns->questionRecCnt);
+		uint16_t answerRrCnt = ntohs(dns->answerRecCnt);
+		uint16_t authorityRrCnt = ntohs(dns->nameServerRecCnt);
+		uint16_t additionalRrCnt = ntohs(dns->additionalRecCnt);
 
 		DEBUG_MSG(
 			"%s number: %u\n",
@@ -481,51 +481,51 @@ bool DNSSDPlugin::parse_dns(
 		/********************************************************************
 		*****                   DNS Question section                    *****
 		********************************************************************/
-		data += sizeof(struct dns_hdr);
-		for (int i = 0; i < question_cnt; i++) {
+		data += sizeof(struct DnsHdr);
+		for (int i = 0; i < questionCnt; i++) {
 			DEBUG_CODE(if (i == 0) {
 				DEBUG_MSG("\nDNS questions section\n");
 				DEBUG_MSG("%8s%8s%8s%8s%8s\n", "num", "type", "ttl", "port", "name");
 			});
 			std::string name = get_name(data);
 
-			data += get_name_length(data);
+			data += getNameLength(data);
 			DEBUG_CODE(struct dns_question* question = (struct dns_question*) data);
 
-			if ((data - data_begin) + sizeof(struct dns_question) > payload_len) {
+			if ((data - m_data_begin) + sizeof(struct DnsQuestion) > payloadLen) {
 				DEBUG_MSG("DNS parser quits: overflow\n\n");
 				return 1;
 			}
 
-			filtered_append(rec, name);
+			filteredAppend(rec, name);
 
 			DEBUG_MSG("#%7d%8u%20s%s\n", i + 1, ntohs(question->qtype), "", name.c_str());
-			data += sizeof(struct dns_question);
+			data += sizeof(struct DnsQuestion);
 		}
 
 		/********************************************************************
 		*****                    DNS Answers section                    *****
 		********************************************************************/
-		const char* record_begin;
+		const char* recordBegin;
 		size_t rdlength;
 		DnsSdRr rdata;
 
-		for (int i = 0; i < answer_rr_cnt; i++) { // Process answers section.
+		for (int i = 0; i < answerRrCnt; i++) { // Process answers section.
 			if (i == 0) {
 				DEBUG_MSG("DNS answers section\n");
 				DEBUG_MSG("%8s%8s%8s%8s%8s\n", "num", "type", "ttl", "port", "name");
 			}
 
-			record_begin = data;
+			recordBegin = data;
 			std::string name = get_name(data);
 
-			data += get_name_length(data);
+			data += getNameLength(data);
 
-			struct dns_answer* answer = (struct dns_answer*) data;
+			struct DnsAnswer* answer = (struct DnsAnswer*) data;
 
-			uint32_t tmp = (data - data_begin) + sizeof(dns_answer);
+			uint32_t tmp = (data - m_data_begin) + sizeof(DnsAnswer);
 
-			if (tmp > payload_len || tmp + ntohs(answer->rdlength) > payload_len) {
+			if (tmp > payloadLen || tmp + ntohs(answer->rdlength) > payloadLen) {
 				DEBUG_MSG("DNS parser quits: overflow\n\n");
 				return 1;
 			}
@@ -537,13 +537,13 @@ bool DNSSDPlugin::parse_dns(
 				"",
 				name.c_str());
 
-			data += sizeof(struct dns_answer);
+			data += sizeof(struct DnsAnswer);
 			rdlength = ntohs(answer->rdlength);
 			rdata.name = name;
 
-			process_rdata(record_begin, data, rdata, ntohs(answer->atype), rdlength);
+			processRdata(recordBegin, data, rdata, ntohs(answer->atype), rdlength);
 			if (DNS_HDR_GET_QR(flags)) { // Ignore the known answers in a query.
-				filtered_append(rec, name, ntohs(answer->atype), rdata);
+				filteredAppend(rec, name, ntohs(answer->atype), rdata);
 			}
 			data += rdlength;
 		}
@@ -552,22 +552,22 @@ bool DNSSDPlugin::parse_dns(
 		*****                 DNS Authority RRs section                 *****
 		********************************************************************/
 
-		for (int i = 0; i < authority_rr_cnt; i++) {
+		for (int i = 0; i < authorityRrCnt; i++) {
 			DEBUG_CODE(if (i == 0) {
 				DEBUG_MSG("DNS authority RRs section\n");
 				DEBUG_MSG("%8s%8s%8s%8s%8s\n", "num", "type", "ttl", "port", "name");
 			});
 
-			record_begin = data;
+			recordBegin = data;
 			std::string name = get_name(data);
 
-			data += get_name_length(data);
+			data += getNameLength(data);
 
-			struct dns_answer* answer = (struct dns_answer*) data;
+			struct DnsAnswer* answer = (struct DnsAnswer*) data;
 
-			uint32_t tmp = (data - data_begin) + sizeof(dns_answer);
+			uint32_t tmp = (data - m_data_begin) + sizeof(DnsAnswer);
 
-			if (tmp > payload_len || tmp + ntohs(answer->rdlength) > payload_len) {
+			if (tmp > payloadLen || tmp + ntohs(answer->rdlength) > payloadLen) {
 				DEBUG_MSG("DNS parser quits: overflow\n\n");
 				return 1;
 			}
@@ -580,12 +580,12 @@ bool DNSSDPlugin::parse_dns(
 				"",
 				name.c_str());
 
-			data += sizeof(struct dns_answer);
+			data += sizeof(struct DnsAnswer);
 			rdlength = ntohs(answer->rdlength);
 			rdata.name = name;
 
-			process_rdata(record_begin, data, rdata, ntohs(answer->atype), rdlength);
-			filtered_append(rec, name, ntohs(answer->atype), rdata);
+			processRdata(recordBegin, data, rdata, ntohs(answer->atype), rdlength);
+			filteredAppend(rec, name, ntohs(answer->atype), rdata);
 
 			data += rdlength;
 		}
@@ -593,23 +593,23 @@ bool DNSSDPlugin::parse_dns(
 		/********************************************************************
 		*****                 DNS Additional RRs section                *****
 		********************************************************************/
-		for (int i = 0; i < additional_rr_cnt; i++) {
+		for (int i = 0; i < additionalRrCnt; i++) {
 			DEBUG_CODE(if (i == 0) {
 				DEBUG_MSG("DNS additional RRs section\n");
 				DEBUG_MSG("%8s%8s%8s%8s%8s\n", "num", "type", "ttl", "port", "name");
 			});
 
-			record_begin = data;
+			recordBegin = data;
 
 			std::string name = get_name(data);
 
-			data += get_name_length(data);
+			data += getNameLength(data);
 
-			struct dns_answer* answer = (struct dns_answer*) data;
+			struct DnsAnswer* answer = (struct DnsAnswer*) data;
 
-			uint32_t tmp = (data - data_begin) + sizeof(dns_answer);
+			uint32_t tmp = (data - m_data_begin) + sizeof(DnsAnswer);
 
-			if (tmp > payload_len || tmp + ntohs(answer->rdlength) > payload_len) {
+			if (tmp > payloadLen || tmp + ntohs(answer->rdlength) > payloadLen) {
 				DEBUG_MSG("DNS parser quits: overflow\n\n");
 				return 1;
 			}
@@ -625,12 +625,12 @@ bool DNSSDPlugin::parse_dns(
 			rdlength = ntohs(answer->rdlength);
 
 			if (ntohs(answer->atype) != DNS_TYPE_OPT) {
-				data += sizeof(struct dns_answer);
+				data += sizeof(struct DnsAnswer);
 				rdata.name = name;
 
-				process_rdata(record_begin, data, rdata, ntohs(answer->atype), rdlength);
+				processRdata(recordBegin, data, rdata, ntohs(answer->atype), rdlength);
 				if (DNS_HDR_GET_QR(flags)) {
-					filtered_append(rec, name, ntohs(answer->atype), rdata);
+					filteredAppend(rec, name, ntohs(answer->atype), rdata);
 				}
 			}
 
@@ -638,9 +638,9 @@ bool DNSSDPlugin::parse_dns(
 		}
 
 		if (DNS_HDR_GET_QR(flags)) {
-			responses++;
+			m_responses++;
 		} else {
-			queries++;
+			m_queries++;
 		}
 
 		DEBUG_MSG("DNS parser quits: parsing done\n\n");
@@ -657,7 +657,7 @@ bool DNSSDPlugin::parse_dns(
  * \param [in,out] rec Pointer to DNSSD extension record
  * \param [in] name Domain name of the DNS record.
  */
-void DNSSDPlugin::filtered_append(RecordExtDNSSD* rec, std::string name)
+void DNSSDPlugin::filteredAppend(RecordExtDNSSD* rec, std::string name)
 {
 	if (name.rfind("arpa") == std::string::npos
 		&& std::find(rec->queries.begin(), rec->queries.end(), name) == rec->queries.end()) {
@@ -672,7 +672,7 @@ void DNSSDPlugin::filtered_append(RecordExtDNSSD* rec, std::string name)
  * \param [in] type DNS type id of the DNS record.
  * \param [in] rdata RDATA of the DNS record.
  */
-void DNSSDPlugin::filtered_append(
+void DNSSDPlugin::filteredAppend(
 	RecordExtDNSSD* rec,
 	std::string name,
 	uint16_t type,
@@ -688,8 +688,8 @@ void DNSSDPlugin::filtered_append(
 		if (it->name == name) {
 			switch (type) {
 			case DNS_TYPE_SRV:
-				it->srv_port = rdata.srv_port;
-				it->srv_target = rdata.srv_target;
+				it->srvPort = rdata.srvPort;
+				it->srvTarget = rdata.srvTarget;
 				return;
 			case DNS_TYPE_HINFO:
 				it->hinfo[0] = rdata.hinfo[0];
@@ -711,8 +711,8 @@ void DNSSDPlugin::filtered_append(
 	rr.name = name;
 	switch (type) {
 	case DNS_TYPE_SRV:
-		rr.srv_port = rdata.srv_port;
-		rr.srv_target = rdata.srv_target;
+		rr.srvPort = rdata.srvPort;
+		rr.srvTarget = rdata.srvTarget;
 		break;
 	case DNS_TYPE_HINFO:
 		rr.hinfo[0] = rdata.hinfo[0];
@@ -734,16 +734,16 @@ void DNSSDPlugin::filtered_append(
  * \param [in] tcp DNS over tcp.
  * \param [out] rec Destination Flow.
  */
-int DNSSDPlugin::add_ext_dnssd(const char* data, unsigned int payload_len, bool tcp, Flow& rec)
+int DNSSDPlugin::addExtDnssd(const char* data, unsigned int payloadLen, bool tcp, Flow& rec)
 {
 	RecordExtDNSSD* ext = new RecordExtDNSSD();
 
-	if (!parse_dns(data, payload_len, tcp, ext)) {
+	if (!parseDns(data, payloadLen, tcp, ext)) {
 		delete ext;
 
 		return 0;
 	} else {
-		rec.add_extension(ext);
+		rec.addExtension(ext);
 	}
 	return 0;
 }

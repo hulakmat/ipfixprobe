@@ -58,11 +58,11 @@
 
 #define MEMPOOL_CACHE_SIZE 256
 
-namespace ipxp {
-__attribute__((constructor)) static void register_this_plugin()
+namespace Ipxp {
+__attribute__((constructor)) static void registerThisPlugin()
 {
 	static PluginRecord rec = PluginRecord("dpdk", []() { return new DpdkReader(); });
-	register_plugin(&rec);
+	registerPlugin(&rec);
 }
 
 #ifdef WITH_FLEXPROBE
@@ -125,14 +125,14 @@ static bool convert_from_flexprobe(const rte_mbuf* mbuf, Packet& pkt)
 }
 #endif
 
-DpdkCore* DpdkCore::m_instance = nullptr;
+DpdkCore* DpdkCore::s_mInstance = nullptr;
 
 DpdkCore& DpdkCore::getInstance()
 {
-	if (!m_instance) {
-		m_instance = new DpdkCore();
+	if (!s_mInstance) {
+		s_mInstance = new DpdkCore();
 	}
-	return *m_instance;
+	return *s_mInstance;
 }
 
 DpdkCore::~DpdkCore()
@@ -140,14 +140,14 @@ DpdkCore::~DpdkCore()
 	rte_eth_dev_stop(m_portId);
 	rte_eth_dev_close(m_portId);
 	rte_eal_cleanup();
-	m_instance = nullptr;
+	s_mInstance = nullptr;
 }
 
 void DpdkCore::deinit()
 {
-	if (m_instance) {
-		delete m_instance;
-		m_instance = nullptr;
+	if (s_mInstance) {
+		delete s_mInstance;
+		s_mInstance = nullptr;
 	}
 }
 
@@ -205,16 +205,16 @@ void DpdkCore::configureRSS()
 		return;
 	}
 
-	constexpr size_t RSS_KEY_LEN = 40;
+	constexpr size_t rssKeyLen = 40;
 	// biflow hash key
-	static uint8_t rssKey[RSS_KEY_LEN]
+	static uint8_t rssKey[rssKeyLen]
 		= {0x6D, 0x5A, 0x6D, 0x5A, 0x6D, 0x5A, 0x6D, 0x5A, 0x6D, 0x5A, 0x6D, 0x5A, 0x6D, 0x5A,
 		   0x6D, 0x5A, 0x6D, 0x5A, 0x6D, 0x5A, 0x6D, 0x5A, 0x6D, 0x5A, 0x6D, 0x5A, 0x6D, 0x5A,
 		   0x6D, 0x5A, 0x6D, 0x5A, 0x6D, 0x5A, 0x6D, 0x5A, 0x6D, 0x5A, 0x6D, 0x5A};
 
 	struct rte_eth_rss_conf rssConfig = {
 		.rss_key = rssKey,
-		.rss_key_len = RSS_KEY_LEN,
+		.rss_key_len = rssKeyLen,
 		.rss_hf = ETH_RSS_IP,
 	};
 
@@ -243,7 +243,7 @@ void DpdkCore::registerRxTimestamp()
 
 void DpdkCore::configure(const char* params)
 {
-	if (isConfigured) {
+	if (m_isConfigured) {
 		return;
 	}
 
@@ -253,15 +253,15 @@ void DpdkCore::configure(const char* params)
 		throw PluginError(e.what());
 	}
 
-	m_portId = parser.port_num();
-	m_rxQueueCount = parser.rx_queues();
-	configureEal(parser.eal_params());
+	m_portId = parser.portNum();
+	m_rxQueueCount = parser.rxQueues();
+	configureEal(parser.ealParams());
 
 	/* recognize NIC driver and check capabilities */
 	recognizeDriver();
 	registerRxTimestamp();
 	initInterface();
-	isConfigured = true;
+	m_isConfigured = true;
 }
 
 void DpdkCore::recognizeDriver()
@@ -335,7 +335,7 @@ void DpdkCore::startIfReady()
 	if (m_rxQueueCount == m_currentRxId) {
 		configureRSS();
 		enablePort();
-		is_ifc_ready = true;
+		isIfcReady = true;
 
 		std::cerr << "DPDK input at port " << m_portId << " started." << std::endl;
 	}
@@ -349,7 +349,7 @@ int DpdkCore::getRxTimestampOffset()
 DpdkReader::DpdkReader()
 	: m_dpdkCore(DpdkCore::getInstance())
 {
-	pkts_read_ = 0;
+	m_pkts_read = 0;
 	m_useHwRxTimestamp = false;
 }
 
@@ -362,12 +362,12 @@ void DpdkReader::init(const char* params)
 {
 	m_dpdkCore.configure(params);
 	m_rxQueueId = m_dpdkCore.getRxQueueId();
-	m_portId = m_dpdkCore.parser.port_num();
+	m_portId = m_dpdkCore.parser.portNum();
 	m_rxTimestampOffset = m_dpdkCore.getRxTimestampOffset();
 	m_useHwRxTimestamp = m_dpdkCore.isNfbDpdkDriver();
 
-	createRteMempool(m_dpdkCore.parser.pkt_mempool_size());
-	createRteMbufs(m_dpdkCore.parser.pkt_buffer_size());
+	createRteMempool(m_dpdkCore.parser.pktMempoolSize());
+	createRteMbufs(m_dpdkCore.parser.pktBufferSize());
 	setupRxQueue();
 
 	m_dpdkCore.startIfReady();
@@ -375,15 +375,15 @@ void DpdkReader::init(const char* params)
 
 void DpdkReader::createRteMempool(uint16_t mempoolSize)
 {
-	std::string mpool_name = "mbuf_pool_" + std::to_string(m_rxQueueId);
-	rteMempool = rte_pktmbuf_pool_create(
-		mpool_name.c_str(),
+	std::string mpoolName = "mbuf_pool_" + std::to_string(m_rxQueueId);
+	m_rteMempool = rte_pktmbuf_pool_create(
+		mpoolName.c_str(),
 		mempoolSize,
 		MEMPOOL_CACHE_SIZE,
 		0,
 		RTE_MBUF_DEFAULT_BUF_SIZE,
 		rte_lcore_to_socket_id(m_rxQueueId));
-	if (!rteMempool) {
+	if (!m_rteMempool) {
 		throw PluginError("Unable to create memory pool. " + std::string(rte_strerror(rte_errno)));
 	}
 }
@@ -391,7 +391,7 @@ void DpdkReader::createRteMempool(uint16_t mempoolSize)
 void DpdkReader::createRteMbufs(uint16_t mbufsSize)
 {
 	try {
-		mbufs_.resize(mbufsSize);
+		m_mbufs.resize(mbufsSize);
 	} catch (const std::exception& e) {
 		throw PluginError(e.what());
 	}
@@ -402,10 +402,10 @@ void DpdkReader::setupRxQueue()
 	int ret = rte_eth_rx_queue_setup(
 		m_portId,
 		m_rxQueueId,
-		mbufs_.size(),
+		m_mbufs.size(),
 		rte_eth_dev_socket_id(m_portId),
 		nullptr,
-		rteMempool);
+		m_rteMempool);
 	if (ret < 0) {
 		throw PluginError("Unable to set up RX queues");
 	}
@@ -426,12 +426,12 @@ struct timeval DpdkReader::getTimestamp(rte_mbuf* mbuf)
 		return tv;
 	} else {
 		auto now = std::chrono::system_clock::now();
-		auto now_t = std::chrono::system_clock::to_time_t(now);
+		auto nowT = std::chrono::system_clock::to_time_t(now);
 
-		auto dur = now - std::chrono::system_clock::from_time_t(now_t);
+		auto dur = now - std::chrono::system_clock::from_time_t(nowT);
 		auto micros = std::chrono::duration_cast<std::chrono::microseconds>(dur).count();
 
-		tv.tv_sec = now_t;
+		tv.tv_sec = nowT;
 		tv.tv_usec = micros;
 		return tv;
 	}
@@ -439,7 +439,7 @@ struct timeval DpdkReader::getTimestamp(rte_mbuf* mbuf)
 
 InputPlugin::Result DpdkReader::get(PacketBlock& packets)
 {
-	while (m_dpdkCore.is_ifc_ready == false) {
+	while (m_dpdkCore.isIfcReady == false) {
 		usleep(1000);
 	}
 
@@ -447,15 +447,15 @@ InputPlugin::Result DpdkReader::get(PacketBlock& packets)
 	parser_opt_t opt {&packets, false, false, 0};
 #endif
 	packets.cnt = 0;
-	for (auto i = 0; i < pkts_read_; i++) {
-		rte_pktmbuf_free(mbufs_[i]);
+	for (auto i = 0; i < m_pkts_read; i++) {
+		rte_pktmbuf_free(m_mbufs[i]);
 	}
-	pkts_read_ = rte_eth_rx_burst(m_portId, m_rxQueueId, mbufs_.data(), mbufs_.size());
-	if (pkts_read_ == 0) {
+	m_pkts_read = rte_eth_rx_burst(m_portId, m_rxQueueId, m_mbufs.data(), m_mbufs.size());
+	if (m_pkts_read == 0) {
 		return Result::TIMEOUT;
 	}
 
-	for (auto i = 0; i < pkts_read_; i++) {
+	for (auto i = 0; i < m_pkts_read; i++) {
 #ifdef WITH_FLEXPROBE
 		// Convert Flexprobe pre-parsed packet into IPFIXPROBE packet
 		auto conv_result = convert_from_flexprobe(mbufs_[i], packets.pkts[packets.cnt]);
@@ -468,14 +468,14 @@ InputPlugin::Result DpdkReader::get(PacketBlock& packets)
 		m_parsed++;
 		packets.cnt++;
 #else
-		parse_packet(
+		parsePacket(
 			&opt,
-			getTimestamp(mbufs_[i]),
-			rte_pktmbuf_mtod(mbufs_[i], const std::uint8_t*),
-			rte_pktmbuf_data_len(mbufs_[i]),
-			rte_pktmbuf_data_len(mbufs_[i]));
-		m_seen++;
-		m_parsed++;
+			getTimestamp(m_mbufs[i]),
+			rte_pktmbuf_mtod(m_mbufs[i], const std::uint8_t*),
+			rte_pktmbuf_data_len(m_mbufs[i]),
+			rte_pktmbuf_data_len(m_mbufs[i]));
+		mSeen++;
+		mParsed++;
 #endif
 	}
 

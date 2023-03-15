@@ -57,7 +57,7 @@
 #include <ipfixprobe/packet.hpp>
 #include <ipfixprobe/process.hpp>
 
-namespace ipxp {
+namespace Ipxp {
 
 #define OVPN_UNIREC_TEMPLATE "OVPN_CONF_LEVEL"
 
@@ -67,57 +67,57 @@ UR_FIELDS(uint8 OVPN_CONF_LEVEL)
  * \brief Flow record extension header for storing parsed VPNDETECTOR packets.
  */
 struct RecordExtOVPN : RecordExt {
-	static int REGISTERED_ID;
+	static int s_registeredId;
 
-	uint8_t possible_vpn;
-	uint32_t pkt_cnt;
-	uint32_t data_pkt_cnt;
-	int32_t invalid_pkt_cnt;
+	uint8_t possibleVpn;
+	uint32_t pktCnt;
+	uint32_t dataPktCnt;
+	int32_t invalidPktCnt;
 	uint32_t status;
-	ipaddr_t client_ip;
+	ipaddr_t clientIp;
 
 	RecordExtOVPN()
-		: RecordExt(REGISTERED_ID)
+		: RecordExt(s_registeredId)
 	{
-		possible_vpn = 0;
-		pkt_cnt = 0;
-		data_pkt_cnt = 0;
-		invalid_pkt_cnt = 0;
+		possibleVpn = 0;
+		pktCnt = 0;
+		dataPktCnt = 0;
+		invalidPktCnt = 0;
 		status = 0;
 	}
 
 #ifdef WITH_NEMEA
-	virtual void fill_unirec(ur_template_t* tmplt, void* record)
+	virtual void fillUnirec(ur_template_t* tmplt, void* record)
 	{
-		ur_set(tmplt, record, F_OVPN_CONF_LEVEL, possible_vpn);
+		ur_set(tmplt, record, F_OVPN_CONF_LEVEL, possibleVpn);
 	}
 
-	const char* get_unirec_tmplt() const
+	const char* getUnirecTmplt() const
 	{
 		return OVPN_UNIREC_TEMPLATE;
 	}
 #endif
 
-	virtual int fill_ipfix(uint8_t* buffer, int size)
+	virtual int fillIpfix(uint8_t* buffer, int size)
 	{
 		if (size < 1) {
 			return -1;
 		}
-		buffer[0] = (uint8_t) possible_vpn;
+		buffer[0] = (uint8_t) possibleVpn;
 		return 1;
 	}
 
-	const char** get_ipfix_tmplt() const
+	const char** getIpfixTmplt() const
 	{
-		static const char* ipfix_tmplt[] = {IPFIX_OVPN_TEMPLATE(IPFIX_FIELD_NAMES) nullptr};
+		static const char* ipfixTmplt[] = {IPFIX_OVPN_TEMPLATE(IPFIX_FIELD_NAMES) nullptr};
 
-		return ipfix_tmplt;
+		return ipfixTmplt;
 	}
 
-	std::string get_text() const
+	std::string getText() const
 	{
 		std::ostringstream out;
-		out << "ovpnconf=" << (uint16_t) possible_vpn;
+		out << "ovpnconf=" << (uint16_t) possibleVpn;
 		return out.str();
 	}
 };
@@ -131,57 +131,57 @@ public:
 	~OVPNPlugin();
 	void init(const char* params);
 	void close();
-	OptionsParser* get_parser() const
+	OptionsParser* getParser() const
 	{
 		return new OptionsParser("ovpn", "OpenVPN detector plugin");
 	}
-	std::string get_name() const { return "ovpn"; }
-	RecordExt* get_ext() const { return new RecordExtOVPN(); }
+	std::string getName() const { return "ovpn"; }
+	RecordExt* getExt() const { return new RecordExtOVPN(); }
 	ProcessPlugin* copy();
 
-	int post_create(Flow& rec, const Packet& pkt);
-	int pre_update(Flow& rec, Packet& pkt);
-	void update_record(RecordExtOVPN* vpn_data, const Packet& pkt);
-	void pre_export(Flow& rec);
+	int postCreate(Flow& rec, const Packet& pkt);
+	int preUpdate(Flow& rec, Packet& pkt);
+	void updateRecord(RecordExtOVPN* vpnData, const Packet& pkt);
+	void preExport(Flow& rec);
 
-	typedef enum e_ip_proto_nbr { tcp = 6, udp = 17 } e_ip_proto_nbr;
+	typedef enum e_ip_proto_nbr { TCP = 6, UDP = 17 } e_ip_proto_nbr;
 
-	static const uint32_t c_udp_opcode_index = 0;
-	static const uint32_t c_tcp_opcode_index = 2;
-	static const uint32_t min_pckt_treshold = 20;
-	static constexpr float data_pckt_treshold = 0.6f;
-	static const int32_t invalid_pckt_treshold = 4;
-	static const uint32_t min_opcode = 1;
-	static const uint32_t max_opcode = 10;
-	static const uint32_t p_control_hard_reset_client_v1
+	static const uint32_t C_UDP_OPCODE_INDEX = 0;
+	static const uint32_t C_TCP_OPCODE_INDEX = 2;
+	static const uint32_t MIN_PCKT_TRESHOLD = 20;
+	static constexpr float DATA_PCKT_TRESHOLD = 0.6f;
+	static const int32_t INVALID_PCKT_TRESHOLD = 4;
+	static const uint32_t MIN_OPCODE = 1;
+	static const uint32_t MAX_OPCODE = 10;
+	static const uint32_t P_CONTROL_HARD_RESET_CLIENT_V1
 		= 1; /* initial key from client, forget previous state */
-	static const uint32_t p_control_hard_reset_server_v1
+	static const uint32_t P_CONTROL_HARD_RESET_SERVER_V1
 		= 2; /* initial key from server, forget previous state */
-	static const uint32_t p_control_soft_reset_v1
+	static const uint32_t P_CONTROL_SOFT_RESET_V1
 		= 3; /* new key, graceful transition from old to new key */
-	static const uint32_t p_control_v1 = 4; /* control channel packet (usually tls ciphertext) */
-	static const uint32_t p_ack_v1 = 5; /* acknowledgement for packets received */
-	static const uint32_t p_data_v1 = 6; /* data channel packet */
-	static const uint32_t p_data_v2 = 9; /* data channel packet with peer-id */
-	static const uint32_t p_control_hard_reset_client_v2
+	static const uint32_t P_CONTROL_V1 = 4; /* control channel packet (usually tls ciphertext) */
+	static const uint32_t P_ACK_V1 = 5; /* acknowledgement for packets received */
+	static const uint32_t P_DATA_V1 = 6; /* data channel packet */
+	static const uint32_t P_DATA_V2 = 9; /* data channel packet with peer-id */
+	static const uint32_t P_CONTROL_HARD_RESET_CLIENT_V2
 		= 7; /* initial key from client, forget previous state */
-	static const uint32_t p_control_hard_reset_server_v2
+	static const uint32_t P_CONTROL_HARD_RESET_SERVER_V2
 		= 8; /* initial key from server, forget previous state */
-	static const uint32_t p_control_hard_reset_client_v3
+	static const uint32_t P_CONTROL_HARD_RESET_CLIENT_V3
 		= 10; /* initial key from client, forget previous state */
-	static const uint32_t status_null = 0;
-	static const uint32_t status_reset_client = 1;
-	static const uint32_t status_reset_server = 2;
-	static const uint32_t status_ack = 3;
-	static const uint32_t status_client_hello = 4;
-	static const uint32_t status_server_hello = 5;
-	static const uint32_t status_control_ack = 6;
-	static const uint32_t status_data = 7;
+	static const uint32_t STATUS_NULL = 0;
+	static const uint32_t STATUS_RESET_CLIENT = 1;
+	static const uint32_t STATUS_RESET_SERVER = 2;
+	static const uint32_t STATUS_ACK = 3;
+	static const uint32_t STATUS_CLIENT_HELLO = 4;
+	static const uint32_t STATUS_SERVER_HELLO = 5;
+	static const uint32_t STATUS_CONTROL_ACK = 6;
+	static const uint32_t STATUS_DATA = 7;
 
 private:
-	bool compare_ip(ipaddr_t ip_1, ipaddr_t ip_2, uint8_t ip_version);
-	bool check_ssl_client_hello(const Packet& pkt, uint8_t opcodeindex);
-	bool check_ssl_server_hello(const Packet& pkt, uint8_t opcodeindex);
+	bool compareIp(ipaddr_t ip1, ipaddr_t ip2, uint8_t ipVersion);
+	bool checkSslClientHello(const Packet& pkt, uint8_t opcodeindex);
+	bool checkSslServerHello(const Packet& pkt, uint8_t opcodeindex);
 };
 
 } // namespace ipxp

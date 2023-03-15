@@ -34,7 +34,7 @@
 
 #define BUFF_SIZE 255
 
-namespace ipxp {
+namespace Ipxp {
 #define TLS_UNIREC_TEMPLATE "TLS_SNI,TLS_JA3,TLS_ALPN,TLS_VERSION"
 
 UR_FIELDS(string TLS_SNI, string TLS_ALPN, uint16 TLS_VERSION, bytes TLS_JA3)
@@ -43,77 +43,77 @@ UR_FIELDS(string TLS_SNI, string TLS_ALPN, uint16 TLS_VERSION, bytes TLS_JA3)
  * \brief Flow record extension header for storing parsed HTTPS packets.
  */
 struct RecordExtTLS : public RecordExt {
-	static int REGISTERED_ID;
+	static int s_registeredId;
 
 	uint16_t version;
 	char alpn[BUFF_SIZE] = {0};
 	char sni[BUFF_SIZE] = {0};
-	char ja3_hash[33] = {0};
-	uint8_t ja3_hash_bin[16] = {0};
+	char ja3Hash[33] = {0};
+	uint8_t ja3HashBin[16] = {0};
 	std::string ja3;
 
 	/**
 	 * \brief Constructor.
 	 */
 	RecordExtTLS()
-		: RecordExt(REGISTERED_ID)
+		: RecordExt(s_registeredId)
 		, version(0)
 	{
 		alpn[0] = 0;
 		sni[0] = 0;
-		ja3_hash[0] = 0;
+		ja3Hash[0] = 0;
 	}
 
 #ifdef WITH_NEMEA
-	virtual void fill_unirec(ur_template_t* tmplt, void* record)
+	virtual void fillUnirec(ur_template_t* tmplt, void* record)
 	{
 		ur_set(tmplt, record, F_TLS_VERSION, version);
 		ur_set_string(tmplt, record, F_TLS_SNI, sni);
 		ur_set_string(tmplt, record, F_TLS_ALPN, alpn);
-		ur_set_var(tmplt, record, F_TLS_JA3, ja3_hash_bin, 16);
+		ur_set_var(tmplt, record, F_TLS_JA3, ja3HashBin, 16);
 	}
 
-	const char* get_unirec_tmplt() const
+	const char* getUnirecTmplt() const
 	{
 		return TLS_UNIREC_TEMPLATE;
 	}
 
 #endif // ifdef WITH_NEMEA
 
-	virtual int fill_ipfix(uint8_t* buffer, int size)
+	virtual int fillIpfix(uint8_t* buffer, int size)
 	{
-		uint16_t sni_len = strlen(sni);
-		uint16_t alpn_len = strlen(alpn);
+		uint16_t sniLen = strlen(sni);
+		uint16_t alpnLen = strlen(alpn);
 
 		uint32_t pos = 0;
-		uint32_t req_buff_len
-			= (sni_len + 3) + (alpn_len + 3) + (2) + (16 + 3); // (SNI) + (ALPN) + (VERSION) + (JA3)
+		uint32_t reqBuffLen
+			= (sniLen + 3) + (alpnLen + 3) + (2) + (16 + 3); // (SNI) + (ALPN) + (VERSION) + (JA3)
 
-		if (req_buff_len > (uint32_t) size) {
+		if (reqBuffLen > (uint32_t) size) {
 			return -1;
 		}
 
 		*(uint16_t*) buffer = ntohs(version);
 		pos += 2;
 
-		pos += variable2ipfix_buffer(buffer + pos, (uint8_t*) sni, sni_len);
-		pos += variable2ipfix_buffer(buffer + pos, (uint8_t*) alpn, alpn_len);
+		pos += variable2ipfixBuffer(buffer + pos, (uint8_t*) sni, sniLen);
+		pos += variable2ipfixBuffer(buffer + pos, (uint8_t*) alpn, alpnLen);
 
 		buffer[pos++] = 16;
-		memcpy(buffer + pos, ja3_hash_bin, 16);
+		memcpy(buffer + pos, ja3HashBin, 16);
 		pos += 16;
 
 		return pos;
 	}
 
-	const char** get_ipfix_tmplt() const
+	const char** getIpfixTmplt() const
 	{
-		static const char* ipfix_template[] = {IPFIX_TLS_TEMPLATE(IPFIX_FIELD_NAMES) nullptr};
+		static const char* ipfixTemplate[] = {IPFIX_TLS_TEMPLATE(IPFIX_FIELD_NAMES) nullptr};
 
-		return ipfix_template;
+		return ipfixTemplate;
 	}
 
-	std::string get_text() const
+	std::string getText() const
 	{
 		std::ostringstream out;
 
@@ -122,7 +122,7 @@ struct RecordExtTLS : public RecordExt {
 			<< ",tlsversion=0x" << std::hex << std::setw(4) << std::setfill('0') << version
 			<< ",tlsja3=";
 		for (int i = 0; i < 16; i++) {
-			out << std::hex << std::setw(2) << std::setfill('0') << (unsigned) ja3_hash_bin[i];
+			out << std::hex << std::setw(2) << std::setfill('0') << (unsigned) ja3HashBin[i];
 		}
 		return out.str();
 	}
@@ -145,30 +145,30 @@ public:
 	~TLSPlugin();
 	void init(const char* params);
 	void close();
-	OptionsParser* get_parser() const
+	OptionsParser* getParser() const
 	{
 		return new OptionsParser("tls", "Parse SNI from TLS traffic");
 	}
 
-	std::string get_name() const { return "tls"; }
+	std::string getName() const { return "tls"; }
 
-	RecordExtTLS* get_ext() const { return new RecordExtTLS(); }
+	RecordExtTLS* getExt() const { return new RecordExtTLS(); }
 
 	ProcessPlugin* copy();
 
-	int post_create(Flow& rec, const Packet& pkt);
-	int pre_update(Flow& rec, Packet& pkt);
-	void finish(bool print_stats);
+	int postCreate(Flow& rec, const Packet& pkt);
+	int preUpdate(Flow& rec, Packet& pkt);
+	void finish(bool printStats);
 
 private:
-	void add_tls_record(Flow&, const Packet&);
-	bool parse_tls(const uint8_t*, uint16_t, RecordExtTLS*);
-	bool obtain_tls_data(TLSData&, RecordExtTLS*, std::string&, uint8_t);
+	void addTlsRecord(Flow&, const Packet&);
+	bool parseTls(const uint8_t*, uint16_t, RecordExtTLS*);
+	bool obtainTlsData(TLSData&, RecordExtTLS*, std::string&, uint8_t);
 
-	RecordExtTLS* ext_ptr;
-	TLSParser tls_parser;
-	uint32_t parsed_sni;
-	bool flow_flush;
+	RecordExtTLS* m_ext_ptr;
+	TLSParser m_tls_parser;
+	uint32_t m_parsed_sni;
+	bool m_flow_flush;
 };
 } // namespace ipxp
 #endif /* IPXP_PROCESS_TLS_HPP */

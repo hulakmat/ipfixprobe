@@ -52,7 +52,7 @@
 #include "packet.hpp"
 #include "plugin.hpp"
 
-namespace ipxp {
+namespace Ipxp {
 
 /**
  * \brief Tell storage plugin to flush (immediately export) current flow.
@@ -78,14 +78,14 @@ public:
 	virtual ~ProcessPlugin() {}
 	virtual ProcessPlugin* copy() = 0;
 
-	virtual RecordExt* get_ext() const { return nullptr; }
+	virtual RecordExt* getExt() const { return nullptr; }
 
 	/**
 	 * \brief Called before a new flow record is created.
 	 * \param [in] pkt Parsed packet.
 	 * \return 0 on success or FLOW_FLUSH option.
 	 */
-	virtual int pre_create(Packet& pkt) { return 0; }
+	virtual int preCreate(Packet& pkt) { return 0; }
 
 	/**
 	 * \brief Called after a new flow record is created.
@@ -93,7 +93,7 @@ public:
 	 * \param [in] pkt Parsed packet.
 	 * \return 0 on success or FLOW_FLUSH option.
 	 */
-	virtual int post_create(Flow& rec, const Packet& pkt) { return 0; }
+	virtual int postCreate(Flow& rec, const Packet& pkt) { return 0; }
 
 	/**
 	 * \brief Called before an existing record is update.
@@ -101,7 +101,7 @@ public:
 	 * \param [in,out] pkt Parsed packet.
 	 * \return 0 on success or FLOW_FLUSH option.
 	 */
-	virtual int pre_update(Flow& rec, Packet& pkt) { return 0; }
+	virtual int preUpdate(Flow& rec, Packet& pkt) { return 0; }
 
 	/**
 	 * \brief Called after an existing record is updated.
@@ -109,13 +109,13 @@ public:
 	 * \param [in,out] pkt Parsed packet.
 	 * \return 0 on success or FLOW_FLUSH option.
 	 */
-	virtual int post_update(Flow& rec, const Packet& pkt) { return 0; }
+	virtual int postUpdate(Flow& rec, const Packet& pkt) { return 0; }
 
 	/**
 	 * \brief Called before a flow record is exported from the cache.
 	 * \param [in,out] rec Reference to flow record.
 	 */
-	virtual void pre_export(Flow& rec) {}
+	virtual void preExport(Flow& rec) {}
 };
 
 } // namespace ipxp

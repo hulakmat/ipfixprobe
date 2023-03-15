@@ -58,7 +58,7 @@
 #include <ipfixprobe/packet.hpp>
 #include <ipfixprobe/process.hpp>
 
-namespace ipxp {
+namespace Ipxp {
 
 #ifndef PHISTS_MINLEN
 #define PHISTS_MINLEN 1
@@ -76,22 +76,22 @@ UR_FIELDS(
 
 class PHISTSOptParser : public OptionsParser {
 public:
-	bool m_include_zeroes;
+	bool mIncludeZeroes;
 
 	PHISTSOptParser()
 		: OptionsParser("phists", "Processing plugin for packet histograms")
-		, m_include_zeroes(false)
+		, mIncludeZeroes(false)
 	{
-		register_option(
+		registerOption(
 			"i",
 			"includezeroes",
 			"",
 			"Include zero payload packets",
 			[this](const char* arg) {
-				m_include_zeroes = true;
+				mIncludeZeroes = true;
 				return true;
 			},
-			OptionFlags::NoArgument);
+			OptionFlags::NO_ARGUMENT);
 	}
 };
 
@@ -99,7 +99,7 @@ public:
  * \brief Flow record extension header for storing parsed PHISTS packets.
  */
 struct RecordExtPHISTS : public RecordExt {
-	static int REGISTERED_ID;
+	static int s_registeredId;
 
 	typedef enum eHdrFieldID {
 		SPhistsSizes = 1060,
@@ -108,101 +108,101 @@ struct RecordExtPHISTS : public RecordExt {
 		DPhistsIpt = 1063
 	} eHdrSemantic;
 
-	uint32_t size_hist[2][HISTOGRAM_SIZE];
-	uint32_t ipt_hist[2][HISTOGRAM_SIZE];
-	uint32_t last_ts[2];
+	uint32_t sizeHist[2][HISTOGRAM_SIZE];
+	uint32_t iptHist[2][HISTOGRAM_SIZE];
+	uint32_t lastTs[2];
 
 	RecordExtPHISTS()
-		: RecordExt(REGISTERED_ID)
+		: RecordExt(s_registeredId)
 	{
 		// inicializing histograms with zeros
 		for (int i = 0; i < 2; i++) {
-			memset(size_hist[i], 0, sizeof(uint32_t) * HISTOGRAM_SIZE);
-			memset(ipt_hist[i], 0, sizeof(uint32_t) * HISTOGRAM_SIZE);
-			last_ts[i] = 0;
+			memset(sizeHist[i], 0, sizeof(uint32_t) * HISTOGRAM_SIZE);
+			memset(iptHist[i], 0, sizeof(uint32_t) * HISTOGRAM_SIZE);
+			lastTs[i] = 0;
 		}
 	}
 
 #ifdef WITH_NEMEA
-	virtual void fill_unirec(ur_template_t* tmplt, void* record)
+	virtual void fillUnirec(ur_template_t* tmplt, void* record)
 	{
 		ur_array_allocate(tmplt, record, F_S_PHISTS_SIZES, HISTOGRAM_SIZE);
 		ur_array_allocate(tmplt, record, F_S_PHISTS_IPT, HISTOGRAM_SIZE);
 		ur_array_allocate(tmplt, record, F_D_PHISTS_SIZES, HISTOGRAM_SIZE);
 		ur_array_allocate(tmplt, record, F_D_PHISTS_IPT, HISTOGRAM_SIZE);
 		for (int i = 0; i < HISTOGRAM_SIZE; i++) {
-			ur_array_set(tmplt, record, F_S_PHISTS_SIZES, i, size_hist[0][i]);
-			ur_array_set(tmplt, record, F_S_PHISTS_IPT, i, ipt_hist[0][i]);
-			ur_array_set(tmplt, record, F_D_PHISTS_SIZES, i, size_hist[1][i]);
-			ur_array_set(tmplt, record, F_D_PHISTS_IPT, i, ipt_hist[1][i]);
+			ur_array_set(tmplt, record, F_S_PHISTS_SIZES, i, sizeHist[0][i]);
+			ur_array_set(tmplt, record, F_S_PHISTS_IPT, i, iptHist[0][i]);
+			ur_array_set(tmplt, record, F_D_PHISTS_SIZES, i, sizeHist[1][i]);
+			ur_array_set(tmplt, record, F_D_PHISTS_IPT, i, iptHist[1][i]);
 		}
 	}
 
-	const char* get_unirec_tmplt() const
+	const char* getUnirecTmplt() const
 	{
 		return PHISTS_UNIREC_TEMPLATE;
 	}
 #endif // ifdef WITH_NEMEA
 
-	virtual int fill_ipfix(uint8_t* buffer, int size)
+	virtual int fillIpfix(uint8_t* buffer, int size)
 	{
 		int32_t bufferPtr;
 		IpfixBasicList basiclist;
 
-		basiclist.hdrEnterpriseNum = IpfixBasicList::CesnetPEM;
+		basiclist.hdrEnterpriseNum = IpfixBasicList::CESNET_PEM;
 		// Check sufficient size of buffer
-		int req_size = 4 * basiclist.HeaderSize() /* sizes, times, flags, dirs */
+		int reqSize = 4 * basiclist.headerSize() /* sizes, times, flags, dirs */
 			+ 4 * HISTOGRAM_SIZE * sizeof(uint32_t); /* sizes */
 
-		if (req_size > size) {
+		if (reqSize > size) {
 			return -1;
 		}
 		// Fill sizes
 		// fill buffer with basic list header and SPhistsSizes
 		bufferPtr
-			= basiclist.FillBuffer(buffer, size_hist[0], HISTOGRAM_SIZE, (uint32_t) SPhistsSizes);
-		bufferPtr += basiclist.FillBuffer(
+			= basiclist.fillBuffer(buffer, sizeHist[0], HISTOGRAM_SIZE, (uint32_t) SPhistsSizes);
+		bufferPtr += basiclist.fillBuffer(
 			buffer + bufferPtr,
-			size_hist[1],
+			sizeHist[1],
 			HISTOGRAM_SIZE,
 			(uint32_t) DPhistsSizes);
-		bufferPtr += basiclist.FillBuffer(
+		bufferPtr += basiclist.fillBuffer(
 			buffer + bufferPtr,
-			ipt_hist[0],
+			iptHist[0],
 			HISTOGRAM_SIZE,
 			(uint32_t) SPhistsIpt);
-		bufferPtr += basiclist.FillBuffer(
+		bufferPtr += basiclist.fillBuffer(
 			buffer + bufferPtr,
-			ipt_hist[1],
+			iptHist[1],
 			HISTOGRAM_SIZE,
 			(uint32_t) DPhistsIpt);
 
 		return bufferPtr;
 	} // fill_ipfix
 
-	const char** get_ipfix_tmplt() const
+	const char** getIpfixTmplt() const
 	{
-		static const char* ipfix_tmplt[] = {IPFIX_PHISTS_TEMPLATE(IPFIX_FIELD_NAMES) nullptr};
+		static const char* ipfixTmplt[] = {IPFIX_PHISTS_TEMPLATE(IPFIX_FIELD_NAMES) nullptr};
 
-		return ipfix_tmplt;
+		return ipfixTmplt;
 	}
 
-	std::string get_text() const
+	std::string getText() const
 	{
 		std::ostringstream out;
-		char dirs_c[2] = {'s', 'd'};
+		char dirsC[2] = {'s', 'd'};
 
 		for (int dir = 0; dir < 2; dir++) {
-			out << dirs_c[dir] << "phistsize=(";
+			out << dirsC[dir] << "phistsize=(";
 			for (int i = 0; i < HISTOGRAM_SIZE; i++) {
-				out << size_hist[dir][i];
+				out << sizeHist[dir][i];
 				if (i != HISTOGRAM_SIZE - 1) {
 					out << ",";
 				}
 			}
-			out << ")," << dirs_c[dir] << "phistipt=(";
+			out << ")," << dirsC[dir] << "phistipt=(";
 			for (int i = 0; i < HISTOGRAM_SIZE; i++) {
-				out << ipt_hist[dir][i];
+				out << iptHist[dir][i];
 				if (i != HISTOGRAM_SIZE - 1) {
 					out << ",";
 				}
@@ -222,36 +222,36 @@ public:
 	~PHISTSPlugin();
 	void init(const char* params);
 	void close();
-	OptionsParser* get_parser() const { return new PHISTSOptParser(); }
-	std::string get_name() const { return "phists"; }
-	RecordExt* get_ext() const { return new RecordExtPHISTS(); }
+	OptionsParser* getParser() const { return new PHISTSOptParser(); }
+	std::string getName() const { return "phists"; }
+	RecordExt* getExt() const { return new RecordExtPHISTS(); }
 	ProcessPlugin* copy();
 
-	int post_create(Flow& rec, const Packet& pkt);
-	int post_update(Flow& rec, const Packet& pkt);
+	int postCreate(Flow& rec, const Packet& pkt);
+	int postUpdate(Flow& rec, const Packet& pkt);
 
 private:
-	bool use_zeros;
+	bool m_use_zeros;
 
-	void update_record(RecordExtPHISTS* phists_data, const Packet& pkt);
-	void update_hist(RecordExtPHISTS* phists_data, uint32_t value, uint32_t* histogram);
-	void pre_export(Flow& rec);
+	void updateRecord(RecordExtPHISTS* phistsData, const Packet& pkt);
+	void updateHist(RecordExtPHISTS* phistsData, uint32_t value, uint32_t* histogram);
+	void preExport(Flow& rec);
 	uint64_t
-	calculate_ipt(RecordExtPHISTS* phists_data, const struct timeval tv, uint8_t direction);
+	calculateIpt(RecordExtPHISTS* phistsData, const struct timeval tv, uint8_t direction);
 
-	static const uint32_t log2_lookup32[32];
+	static const uint32_t LOG2_LOOKUP32[32];
 
-	static inline uint32_t fastlog2_32(uint32_t value)
+	static inline uint32_t fastlog232(uint32_t value)
 	{
 		value |= value >> 1;
 		value |= value >> 2;
 		value |= value >> 4;
 		value |= value >> 8;
 		value |= value >> 16;
-		return log2_lookup32[(uint32_t) (value * 0x07C4ACDD) >> 27];
+		return LOG2_LOOKUP32[(uint32_t) (value * 0x07C4ACDD) >> 27];
 	}
 
-	static inline uint32_t no_overflow_increment(uint32_t value)
+	static inline uint32_t noOverflowIncrement(uint32_t value)
 	{
 		if (value == std::numeric_limits<uint32_t>::max()) {
 			return value;

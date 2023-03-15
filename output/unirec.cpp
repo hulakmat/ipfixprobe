@@ -57,12 +57,12 @@
 #include "fields.h"
 #include "unirec.hpp"
 
-namespace ipxp {
+namespace Ipxp {
 
-__attribute__((constructor)) static void register_this_plugin()
+__attribute__((constructor)) static void registerThisPlugin()
 {
 	static PluginRecord rec = PluginRecord("unirec", []() { return new UnirecExporter(); });
-	register_plugin(&rec);
+	registerPlugin(&rec);
 }
 
 #define BASIC_FLOW_TEMPLATE                                                                        \
@@ -122,55 +122,55 @@ UnirecExporter::~UnirecExporter()
  * \param [in] argv Pointer to parameters.
  * \return Number of trap interfaces.
  */
-static int count_trap_interfaces(const char* spec)
+static int countTrapInterfaces(const char* spec)
 {
-	int ifc_cnt = 1;
+	int ifcCnt = 1;
 	if (spec != nullptr) {
 		while (*spec) { // Count number of specified interfaces.
 			if (*(spec++) == TRAP_IFC_DELIMITER) {
-				ifc_cnt++;
+				ifcCnt++;
 			}
 		}
-		return ifc_cnt;
+		return ifcCnt;
 	}
 
-	return ifc_cnt;
+	return ifcCnt;
 }
 
-int UnirecExporter::init_trap(std::string& ifcs, int verbosity)
+int UnirecExporter::initTrap(std::string& ifcs, int verbosity)
 {
-	trap_ifc_spec_t ifc_spec;
-	std::vector<char> spec_str(ifcs.c_str(), ifcs.c_str() + ifcs.size() + 1);
-	char* argv[] = {"-i", spec_str.data()};
+	trap_ifc_spec_t ifcSpec;
+	std::vector<char> specStr(ifcs.c_str(), ifcs.c_str() + ifcs.size() + 1);
+	char* argv[] = {"-i", specStr.data()};
 	int argc = 2;
-	int ifc_cnt = count_trap_interfaces(ifcs.c_str());
+	int ifcCnt = countTrapInterfaces(ifcs.c_str());
 
-	if (trap_parse_params(&argc, argv, &ifc_spec) != TRAP_E_OK) {
-		trap_free_ifc_spec(ifc_spec);
-		std::string err_msg = "parsing parameters for TRAP failed";
+	if (trap_parse_params(&argc, argv, &ifcSpec) != TRAP_E_OK) {
+		trap_free_ifc_spec(ifcSpec);
+		std::string errMsg = "parsing parameters for TRAP failed";
 		if (trap_last_error_msg) {
-			err_msg += std::string(": ") + trap_last_error_msg;
+			errMsg += std::string(": ") + trap_last_error_msg;
 		}
-		throw PluginError(err_msg);
+		throw PluginError(errMsg);
 	}
-	trap_module_info_t module_info = {"ipfixprobe", "Output plugin for ipfixprobe", 0, ifc_cnt};
-	if (trap_init(&module_info, ifc_spec) != TRAP_E_OK) {
-		trap_free_ifc_spec(ifc_spec);
-		std::string err_msg = "error in TRAP initialization: ";
+	trap_module_info_t moduleInfo = {"ipfixprobe", "Output plugin for ipfixprobe", 0, ifcCnt};
+	if (trap_init(&moduleInfo, ifcSpec) != TRAP_E_OK) {
+		trap_free_ifc_spec(ifcSpec);
+		std::string errMsg = "error in TRAP initialization: ";
 		if (trap_last_error_msg) {
-			err_msg += std::string(": ") + trap_last_error_msg;
+			errMsg += std::string(": ") + trap_last_error_msg;
 		}
-		throw PluginError(err_msg);
+		throw PluginError(errMsg);
 	}
-	trap_free_ifc_spec(ifc_spec);
+	trap_free_ifc_spec(ifcSpec);
 
 	if (verbosity > 0) {
 		trap_set_verbose_level(verbosity - 1);
 	}
-	for (int i = 0; i < ifc_cnt; i++) {
+	for (int i = 0; i < ifcCnt; i++) {
 		trap_ifcctl(TRAPIFC_OUTPUT, i, TRAPCTL_SETTIMEOUT, TRAP_HALFWAIT);
 	}
-	return ifc_cnt;
+	return ifcCnt;
 }
 
 void UnirecExporter::init(const char* params)
@@ -182,20 +182,20 @@ void UnirecExporter::init(const char* params)
 		throw PluginError(e.what());
 	}
 
-	if (parser.m_help) {
+	if (parser.mHelp) {
 		trap_print_ifc_spec_help();
 		throw PluginExit();
 	}
-	if (parser.m_ifc.empty()) {
+	if (parser.mIfc.empty()) {
 		throw PluginError("specify libtrap interface specifier");
 	}
-	m_odid = parser.m_odid;
-	m_eof = parser.m_eof;
-	m_link_bit_field = parser.m_id;
-	m_dir_bit_field = parser.m_dir;
-	m_group_map = parser.m_ifc_map;
-	m_ifc_cnt = init_trap(parser.m_ifc, parser.m_verbose);
-	m_ext_cnt = get_extension_cnt();
+	m_odid = parser.mOdid;
+	m_eof = parser.mEof;
+	m_link_bit_field = parser.mId;
+	m_dir_bit_field = parser.mDir;
+	m_group_map = parser.mIfcMap;
+	m_ifc_cnt = initTrap(parser.mIfc, parser.mVerbose);
+	m_ext_cnt = getExtensionCnt();
 
 	try {
 		m_tmplts = new ur_template_t*[m_ifc_cnt];
@@ -214,14 +214,14 @@ void UnirecExporter::init(const char* params)
 	}
 }
 
-void UnirecExporter::create_tmplt(int ifc_idx, const char* tmplt_str)
+void UnirecExporter::createTmplt(int ifcIdx, const char* tmpltStr)
 {
 	char* error = nullptr;
-	m_tmplts[ifc_idx] = ur_create_output_template(ifc_idx, tmplt_str, &error);
-	if (m_tmplts[ifc_idx] == nullptr) {
+	m_tmplts[ifcIdx] = ur_create_output_template(ifcIdx, tmpltStr, &error);
+	if (m_tmplts[ifcIdx] == nullptr) {
 		std::string tmp = error;
 		free(error);
-		free_unirec_resources();
+		freeUnirecResources();
 		throw PluginError(tmp);
 	}
 }
@@ -230,18 +230,18 @@ void UnirecExporter::init(const char* params, Plugins& plugins)
 {
 	init(params);
 
-	std::string basic_tmplt = BASIC_FLOW_TEMPLATE;
+	std::string basicTmplt = BASIC_FLOW_TEMPLATE;
 	if (m_odid) {
-		basic_tmplt += ",ODID";
+		basicTmplt += ",ODID";
 	} else {
-		basic_tmplt += ",LINK_BIT_FIELD";
+		basicTmplt += ",LINK_BIT_FIELD";
 	}
 
 	if (m_group_map.empty()) {
 		if (m_ifc_cnt == 1 && plugins.empty()) {
 			m_basic_idx = 0;
 
-			create_tmplt(m_basic_idx, basic_tmplt.c_str());
+			createTmplt(m_basic_idx, basicTmplt.c_str());
 		} else if (m_ifc_cnt == 1 && plugins.size() == 1) {
 			m_group_map[0] = std::vector<std::string>({plugins[0].first});
 		} else {
@@ -254,11 +254,11 @@ void UnirecExporter::init(const char* params, Plugins& plugins)
 	}
 
 	for (auto& m : m_group_map) {
-		unsigned ifc_idx = m.first;
+		unsigned ifcIdx = m.first;
 		std::vector<std::string>& group = m.second;
 
 		// Find plugin for each plugin in group
-		std::vector<ProcessPlugin*> plugin_group;
+		std::vector<ProcessPlugin*> pluginGroup;
 		for (auto& g : group) {
 			ProcessPlugin* plugin = nullptr;
 			for (auto& p : plugins) {
@@ -268,37 +268,37 @@ void UnirecExporter::init(const char* params, Plugins& plugins)
 					break;
 				}
 			}
-			if (m_tmplts[ifc_idx] != nullptr || (m_basic_idx >= 0 && g == BASIC_PLUGIN_NAME)) {
+			if (m_tmplts[ifcIdx] != nullptr || (m_basic_idx >= 0 && g == BASIC_PLUGIN_NAME)) {
 				throw PluginError("plugin can be specified only one time");
 			}
 			if (group.size() == 1 && g == BASIC_PLUGIN_NAME) {
-				m_basic_idx = ifc_idx;
+				m_basic_idx = ifcIdx;
 				break;
 			}
 			if (plugin == nullptr) {
 				throw PluginError(g + " plugin is not activated");
 			}
-			plugin_group.push_back(plugin);
+			pluginGroup.push_back(plugin);
 		}
 
 		// Create output template string and extension->ifc map
-		std::string tmplt_str = basic_tmplt;
-		for (auto& p : plugin_group) {
-			RecordExt* ext = p->get_ext();
-			tmplt_str += std::string(",") + ext->get_unirec_tmplt();
-			int ext_id = ext->m_ext_id;
+		std::string tmpltStr = basicTmplt;
+		for (auto& p : pluginGroup) {
+			RecordExt* ext = p->getExt();
+			tmpltStr += std::string(",") + ext->getUnirecTmplt();
+			int extId = ext->mExtId;
 			delete ext;
-			if (ext_id < 0) {
+			if (extId < 0) {
 				continue;
 			}
-			if (m_ifc_map[ext_id] >= 0) {
+			if (m_ifc_map[extId] >= 0) {
 				throw PluginError(
 					"plugin output can be exported only to one interface at the moment");
 			}
-			m_ifc_map[ext_id] = ifc_idx;
+			m_ifc_map[extId] = ifcIdx;
 		}
 
-		create_tmplt(ifc_idx, tmplt_str.c_str());
+		createTmplt(ifcIdx, tmpltStr.c_str());
 	}
 
 	for (size_t i = 0; i < m_ifc_cnt; i++) { // Create unirec records.
@@ -307,7 +307,7 @@ void UnirecExporter::init(const char* params, Plugins& plugins)
 			(static_cast<ssize_t>(i) == m_basic_idx ? 0 : UR_MAX_SIZE));
 
 		if (m_records[i] == nullptr) {
-			free_unirec_resources();
+			freeUnirecResources();
 			throw PluginError("not enough memory");
 		}
 	}
@@ -323,7 +323,7 @@ void UnirecExporter::close()
 		}
 	}
 	trap_finalize();
-	free_unirec_resources();
+	freeUnirecResources();
 
 	m_basic_idx = -1;
 	m_ifc_cnt = 0;
@@ -333,7 +333,7 @@ void UnirecExporter::close()
 /**
  * \brief Free unirec templates and unirec records.
  */
-void UnirecExporter::free_unirec_resources()
+void UnirecExporter::freeUnirecResources()
 {
 	if (m_tmplts) {
 		for (size_t i = 0; i < m_ifc_cnt; i++) {
@@ -359,67 +359,67 @@ void UnirecExporter::free_unirec_resources()
 	}
 }
 
-int UnirecExporter::export_flow(const Flow& flow)
+int UnirecExporter::exportFlow(const Flow& flow)
 {
-	RecordExt* ext = flow.m_exts;
-	ur_template_t* tmplt_ptr = nullptr;
-	void* record_ptr = nullptr;
+	RecordExt* ext = flow.mExts;
+	ur_template_t* tmpltPtr = nullptr;
+	void* recordPtr = nullptr;
 
 	if (m_basic_idx >= 0) { // Process basic flow.
-		tmplt_ptr = m_tmplts[m_basic_idx];
-		record_ptr = m_records[m_basic_idx];
+		tmpltPtr = m_tmplts[m_basic_idx];
+		recordPtr = m_records[m_basic_idx];
 
-		ur_clear_varlen(tmplt_ptr, record_ptr);
-		fill_basic_flow(flow, tmplt_ptr, record_ptr);
+		ur_clear_varlen(tmpltPtr, recordPtr);
+		fillBasicFlow(flow, tmpltPtr, recordPtr);
 		trap_send(
 			m_basic_idx,
-			record_ptr,
-			ur_rec_fixlen_size(tmplt_ptr) + ur_rec_varlen_size(tmplt_ptr, record_ptr));
+			recordPtr,
+			ur_rec_fixlen_size(tmpltPtr) + ur_rec_varlen_size(tmpltPtr, recordPtr));
 	}
 
-	m_flows_seen++;
-	uint64_t tmplt_dbits = 0; // templates dirty bits
+	mFlowsSeen++;
+	uint64_t tmpltDbits = 0; // templates dirty bits
 	memset(
 		m_ext_id_flgs,
 		0,
 		sizeof(int) * m_ext_cnt); // in case one flow has multiple extension of same type
-	int ext_processed_cnd = 0;
+	int extProcessedCnd = 0;
 	while (ext != nullptr) {
-		if (ext->m_ext_id >= static_cast<int>(m_ext_cnt)) {
+		if (ext->mExtId >= static_cast<int>(m_ext_cnt)) {
 			throw PluginError("encountered invalid extension id");
 		}
-		ext_processed_cnd++;
-		int ifc_num = m_ifc_map[ext->m_ext_id];
-		if (ifc_num >= 0) {
-			tmplt_ptr = m_tmplts[ifc_num];
-			record_ptr = m_records[ifc_num];
+		extProcessedCnd++;
+		int ifcNum = m_ifc_map[ext->mExtId];
+		if (ifcNum >= 0) {
+			tmpltPtr = m_tmplts[ifcNum];
+			recordPtr = m_records[ifcNum];
 
-			if ((tmplt_dbits & (1 << ifc_num)) == 0) {
-				ur_clear_varlen(tmplt_ptr, record_ptr);
-				memset(record_ptr, 0, ur_rec_fixlen_size(tmplt_ptr));
-				tmplt_dbits |= (1 << ifc_num);
+			if ((tmpltDbits & (1 << ifcNum)) == 0) {
+				ur_clear_varlen(tmpltPtr, recordPtr);
+				memset(recordPtr, 0, ur_rec_fixlen_size(tmpltPtr));
+				tmpltDbits |= (1 << ifcNum);
 			}
 
-			if (m_ext_id_flgs[ext->m_ext_id] == 1) {
+			if (m_ext_id_flgs[ext->mExtId] == 1) {
 				// send the previously filled unirec record
-				trap_send(ifc_num, record_ptr, ur_rec_size(tmplt_ptr, record_ptr));
+				trap_send(ifcNum, recordPtr, ur_rec_size(tmpltPtr, recordPtr));
 			} else {
-				m_ext_id_flgs[ext->m_ext_id] = 1;
+				m_ext_id_flgs[ext->mExtId] = 1;
 			}
 
-			fill_basic_flow(flow, tmplt_ptr, record_ptr);
-			ext->fill_unirec(
-				tmplt_ptr,
-				record_ptr); /* Add each extension header into unirec record. */
+			fillBasicFlow(flow, tmpltPtr, recordPtr);
+			ext->fillUnirec(
+				tmpltPtr,
+				recordPtr); /* Add each extension header into unirec record. */
 		}
-		ext = ext->m_next;
+		ext = ext->mNext;
 	}
 	// send the last record with all plugin data
-	for (size_t ifc_num = 0; ifc_num < m_ifc_cnt && !(m_basic_idx >= 0) && ext_processed_cnd > 0;
-		 ifc_num++) {
-		tmplt_ptr = m_tmplts[ifc_num];
-		record_ptr = m_records[ifc_num];
-		trap_send(ifc_num, record_ptr, ur_rec_size(tmplt_ptr, record_ptr));
+	for (size_t ifcNum = 0; ifcNum < m_ifc_cnt && !(m_basic_idx >= 0) && extProcessedCnd > 0;
+		 ifcNum++) {
+		tmpltPtr = m_tmplts[ifcNum];
+		recordPtr = m_records[ifcNum];
+		trap_send(ifcNum, recordPtr, ur_rec_size(tmpltPtr, recordPtr));
 	}
 	return 0;
 }
@@ -430,42 +430,42 @@ int UnirecExporter::export_flow(const Flow& flow)
  * \param [in] tmplt_ptr Pointer to unirec template.
  * \param [out] record_ptr Pointer to unirec record.
  */
-void UnirecExporter::fill_basic_flow(const Flow& flow, ur_template_t* tmplt_ptr, void* record_ptr)
+void UnirecExporter::fillBasicFlow(const Flow& flow, ur_template_t* tmpltPtr, void* recordPtr)
 {
-	ur_time_t tmp_time;
+	ur_time_t tmpTime;
 
-	if (flow.ip_version == IP::v4) {
-		ur_set(tmplt_ptr, record_ptr, F_SRC_IP, ip_from_4_bytes_be((char*) &flow.src_ip.v4));
-		ur_set(tmplt_ptr, record_ptr, F_DST_IP, ip_from_4_bytes_be((char*) &flow.dst_ip.v4));
+	if (flow.ipVersion == IP::V4) {
+		ur_set(tmpltPtr, recordPtr, F_SRC_IP, ip_from_4_bytes_be((char*) &flow.srcIp.v4));
+		ur_set(tmpltPtr, recordPtr, F_DST_IP, ip_from_4_bytes_be((char*) &flow.dstIp.v4));
 	} else {
-		ur_set(tmplt_ptr, record_ptr, F_SRC_IP, ip_from_16_bytes_be((char*) flow.src_ip.v6));
-		ur_set(tmplt_ptr, record_ptr, F_DST_IP, ip_from_16_bytes_be((char*) flow.dst_ip.v6));
+		ur_set(tmpltPtr, recordPtr, F_SRC_IP, ip_from_16_bytes_be((char*) flow.srcIp.v6));
+		ur_set(tmpltPtr, recordPtr, F_DST_IP, ip_from_16_bytes_be((char*) flow.dstIp.v6));
 	}
 
-	tmp_time = ur_time_from_sec_usec(flow.time_first.tv_sec, flow.time_first.tv_usec);
-	ur_set(tmplt_ptr, record_ptr, F_TIME_FIRST, tmp_time);
+	tmpTime = ur_time_from_sec_usec(flow.timeFirst.tv_sec, flow.timeFirst.tv_usec);
+	ur_set(tmpltPtr, recordPtr, F_TIME_FIRST, tmpTime);
 
-	tmp_time = ur_time_from_sec_usec(flow.time_last.tv_sec, flow.time_last.tv_usec);
-	ur_set(tmplt_ptr, record_ptr, F_TIME_LAST, tmp_time);
+	tmpTime = ur_time_from_sec_usec(flow.timeLast.tv_sec, flow.timeLast.tv_usec);
+	ur_set(tmpltPtr, recordPtr, F_TIME_LAST, tmpTime);
 
 	if (m_odid) {
-		ur_set(tmplt_ptr, record_ptr, F_ODID, m_link_bit_field);
+		ur_set(tmpltPtr, recordPtr, F_ODID, m_link_bit_field);
 	} else {
-		ur_set(tmplt_ptr, record_ptr, F_LINK_BIT_FIELD, m_link_bit_field);
+		ur_set(tmpltPtr, recordPtr, F_LINK_BIT_FIELD, m_link_bit_field);
 	}
-	ur_set(tmplt_ptr, record_ptr, F_DIR_BIT_FIELD, m_dir_bit_field);
-	ur_set(tmplt_ptr, record_ptr, F_PROTOCOL, flow.ip_proto);
-	ur_set(tmplt_ptr, record_ptr, F_SRC_PORT, flow.src_port);
-	ur_set(tmplt_ptr, record_ptr, F_DST_PORT, flow.dst_port);
-	ur_set(tmplt_ptr, record_ptr, F_PACKETS, flow.src_packets);
-	ur_set(tmplt_ptr, record_ptr, F_BYTES, flow.src_bytes);
-	ur_set(tmplt_ptr, record_ptr, F_TCP_FLAGS, flow.src_tcp_flags);
-	ur_set(tmplt_ptr, record_ptr, F_PACKETS_REV, flow.dst_packets);
-	ur_set(tmplt_ptr, record_ptr, F_BYTES_REV, flow.dst_bytes);
-	ur_set(tmplt_ptr, record_ptr, F_TCP_FLAGS_REV, flow.dst_tcp_flags);
+	ur_set(tmpltPtr, recordPtr, F_DIR_BIT_FIELD, m_dir_bit_field);
+	ur_set(tmpltPtr, recordPtr, F_PROTOCOL, flow.ipProto);
+	ur_set(tmpltPtr, recordPtr, F_SRC_PORT, flow.srcPort);
+	ur_set(tmpltPtr, recordPtr, F_DST_PORT, flow.dstPort);
+	ur_set(tmpltPtr, recordPtr, F_PACKETS, flow.srcPackets);
+	ur_set(tmpltPtr, recordPtr, F_BYTES, flow.srcBytes);
+	ur_set(tmpltPtr, recordPtr, F_TCP_FLAGS, flow.srcTcpFlags);
+	ur_set(tmpltPtr, recordPtr, F_PACKETS_REV, flow.dstPackets);
+	ur_set(tmpltPtr, recordPtr, F_BYTES_REV, flow.dstBytes);
+	ur_set(tmpltPtr, recordPtr, F_TCP_FLAGS_REV, flow.dstTcpFlags);
 
-	ur_set(tmplt_ptr, record_ptr, F_DST_MAC, mac_from_bytes(const_cast<uint8_t*>(flow.dst_mac)));
-	ur_set(tmplt_ptr, record_ptr, F_SRC_MAC, mac_from_bytes(const_cast<uint8_t*>(flow.src_mac)));
+	ur_set(tmpltPtr, recordPtr, F_DST_MAC, mac_from_bytes(const_cast<uint8_t*>(flow.dstMac)));
+	ur_set(tmpltPtr, recordPtr, F_SRC_MAC, mac_from_bytes(const_cast<uint8_t*>(flow.srcMac)));
 }
 
 } // namespace ipxp

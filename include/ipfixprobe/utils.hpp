@@ -53,16 +53,16 @@
 #include <type_traits>
 #include <utility>
 
-namespace ipxp {
+namespace Ipxp {
 
-void parse_range(
+void parseRange(
 	const std::string& arg,
 	std::string& from,
 	std::string& to,
 	const std::string& delim = "-");
 bool str2bool(std::string str);
-void trim_str(std::string& str);
-uint32_t variable2ipfix_buffer(uint8_t* buffer2write, uint8_t* buffer2read, uint16_t len);
+void trimStr(std::string& str);
+uint32_t variable2ipfixBuffer(uint8_t* buffer2write, uint8_t* buffer2read, uint16_t len);
 
 template<typename T>
 constexpr T const& max(const T& a, const T& b)
@@ -83,19 +83,19 @@ static constexpr unsigned bitcount(T num)
 }
 
 template<typename T>
-static constexpr bool is_fpoint()
+static constexpr bool isFpoint()
 {
 	return std::is_floating_point<T>();
 }
 
 template<typename T>
-static constexpr bool is_uint()
+static constexpr bool isUint()
 {
 	return std::is_integral<T>() && std::is_unsigned<T>();
 }
 
 template<typename T>
-static constexpr bool is_sint()
+static constexpr bool isSint()
 {
 	return std::is_integral<T>() && std::is_signed<T>();
 }
@@ -103,12 +103,12 @@ static constexpr bool is_sint()
 // Use of SFINAE to implement specific conversion function variants
 
 template<typename T>
-T str2num(std::string str, typename std::enable_if<is_fpoint<T>()>::type* = nullptr)
+T str2num(std::string str, typename std::enable_if<isFpoint<T>()>::type* = nullptr)
 {
 	size_t pos;
 	double tmp;
 
-	trim_str(str);
+	trimStr(str);
 	try {
 		tmp = std::stold(str, &pos);
 	} catch (std::out_of_range& e) {
@@ -123,12 +123,12 @@ T str2num(std::string str, typename std::enable_if<is_fpoint<T>()>::type* = null
 }
 
 template<typename T>
-T str2num(std::string str, typename std::enable_if<is_sint<T>()>::type* = nullptr)
+T str2num(std::string str, typename std::enable_if<isSint<T>()>::type* = nullptr)
 {
 	long long tmp;
 	size_t pos;
 
-	trim_str(str);
+	trimStr(str);
 	try {
 		tmp = std::stoll(str, &pos, 0);
 	} catch (std::out_of_range& e) {
@@ -143,12 +143,12 @@ T str2num(std::string str, typename std::enable_if<is_sint<T>()>::type* = nullpt
 }
 
 template<typename T>
-T str2num(std::string str, typename std::enable_if<is_uint<T>()>::type* = nullptr)
+T str2num(std::string str, typename std::enable_if<isUint<T>()>::type* = nullptr)
 {
 	unsigned long long tmp;
 	size_t pos;
 
-	trim_str(str);
+	trimStr(str);
 	try {
 		tmp = std::stoull(str, &pos, 0);
 	} catch (std::out_of_range& e) {
@@ -162,5 +162,5 @@ T str2num(std::string str, typename std::enable_if<is_uint<T>()>::type* = nullpt
 	return static_cast<T>(tmp);
 }
 
-} // namespace ipxp
+} // namespace Ipxp
 #endif /* IPXP_UTILS_HPP */

@@ -57,7 +57,7 @@
 #include <ipfixprobe/packet.hpp>
 #include <ipfixprobe/process.hpp>
 
-namespace ipxp {
+namespace Ipxp {
 
 #define BASICPLUS_UNIREC_TEMPLATE                                                                  \
 	"IP_TTL,IP_TTL_REV,IP_FLG,IP_FLG_REV,TCP_WIN,TCP_WIN_REV,TCP_OPT,TCP_OPT_REV,TCP_MSS,TCP_MSS_" \
@@ -80,92 +80,92 @@ UR_FIELDS(
  * \brief Flow record extension header for storing parsed BASICPLUS packets.
  */
 struct RecordExtBASICPLUS : public RecordExt {
-	static int REGISTERED_ID;
+	static int s_registeredId;
 
-	uint8_t ip_ttl[2];
-	uint8_t ip_flg[2];
-	uint16_t tcp_win[2];
-	uint64_t tcp_opt[2];
-	uint32_t tcp_mss[2];
-	uint16_t tcp_syn_size;
+	uint8_t ipTtl[2];
+	uint8_t ipFlg[2];
+	uint16_t tcpWin[2];
+	uint64_t tcpOpt[2];
+	uint32_t tcpMss[2];
+	uint16_t tcpSynSize;
 
-	bool dst_filled;
+	bool dstFilled;
 
 	RecordExtBASICPLUS()
-		: RecordExt(REGISTERED_ID)
+		: RecordExt(s_registeredId)
 	{
-		ip_ttl[0] = 0;
-		ip_ttl[1] = 0;
-		ip_flg[0] = 0;
-		ip_flg[1] = 0;
-		tcp_win[0] = 0;
-		tcp_win[1] = 0;
-		tcp_opt[0] = 0;
-		tcp_opt[1] = 0;
-		tcp_mss[0] = 0;
-		tcp_mss[1] = 0;
-		tcp_syn_size = 0;
+		ipTtl[0] = 0;
+		ipTtl[1] = 0;
+		ipFlg[0] = 0;
+		ipFlg[1] = 0;
+		tcpWin[0] = 0;
+		tcpWin[1] = 0;
+		tcpOpt[0] = 0;
+		tcpOpt[1] = 0;
+		tcpMss[0] = 0;
+		tcpMss[1] = 0;
+		tcpSynSize = 0;
 
-		dst_filled = false;
+		dstFilled = false;
 	}
 
 #ifdef WITH_NEMEA
-	virtual void fill_unirec(ur_template_t* tmplt, void* record)
+	virtual void fillUnirec(ur_template_t* tmplt, void* record)
 	{
-		ur_set(tmplt, record, F_IP_TTL, ip_ttl[0]);
-		ur_set(tmplt, record, F_IP_TTL_REV, ip_ttl[1]);
-		ur_set(tmplt, record, F_IP_FLG, ip_flg[0]);
-		ur_set(tmplt, record, F_IP_FLG_REV, ip_flg[1]);
-		ur_set(tmplt, record, F_TCP_WIN, tcp_win[0]);
-		ur_set(tmplt, record, F_TCP_WIN_REV, tcp_win[1]);
-		ur_set(tmplt, record, F_TCP_OPT, tcp_opt[0]);
-		ur_set(tmplt, record, F_TCP_OPT_REV, tcp_opt[1]);
-		ur_set(tmplt, record, F_TCP_MSS, tcp_mss[0]);
-		ur_set(tmplt, record, F_TCP_MSS_REV, tcp_mss[1]);
-		ur_set(tmplt, record, F_TCP_SYN_SIZE, tcp_syn_size);
+		ur_set(tmplt, record, F_IP_TTL, ipTtl[0]);
+		ur_set(tmplt, record, F_IP_TTL_REV, ipTtl[1]);
+		ur_set(tmplt, record, F_IP_FLG, ipFlg[0]);
+		ur_set(tmplt, record, F_IP_FLG_REV, ipFlg[1]);
+		ur_set(tmplt, record, F_TCP_WIN, tcpWin[0]);
+		ur_set(tmplt, record, F_TCP_WIN_REV, tcpWin[1]);
+		ur_set(tmplt, record, F_TCP_OPT, tcpOpt[0]);
+		ur_set(tmplt, record, F_TCP_OPT_REV, tcpOpt[1]);
+		ur_set(tmplt, record, F_TCP_MSS, tcpMss[0]);
+		ur_set(tmplt, record, F_TCP_MSS_REV, tcpMss[1]);
+		ur_set(tmplt, record, F_TCP_SYN_SIZE, tcpSynSize);
 	}
 
-	const char* get_unirec_tmplt() const
+	const char* getUnirecTmplt() const
 	{
 		return BASICPLUS_UNIREC_TEMPLATE;
 	}
 #endif // ifdef WITH_NEMEA
 
-	virtual int fill_ipfix(uint8_t* buffer, int size)
+	virtual int fillIpfix(uint8_t* buffer, int size)
 	{
 		if (size < 34) {
 			return -1;
 		}
 
-		buffer[0] = ip_ttl[0];
-		buffer[1] = ip_ttl[1];
-		buffer[2] = ip_flg[0];
-		buffer[3] = ip_flg[1];
-		*(uint16_t*) (buffer + 4) = ntohs(tcp_win[0]);
-		*(uint16_t*) (buffer + 6) = ntohs(tcp_win[1]);
-		*(uint64_t*) (buffer + 8) = swap_uint64(tcp_opt[0]);
-		*(uint64_t*) (buffer + 16) = swap_uint64(tcp_opt[1]);
-		*(uint32_t*) (buffer + 24) = ntohl(tcp_mss[0]);
-		*(uint32_t*) (buffer + 28) = ntohl(tcp_mss[1]);
-		*(uint16_t*) (buffer + 32) = ntohs(tcp_syn_size);
+		buffer[0] = ipTtl[0];
+		buffer[1] = ipTtl[1];
+		buffer[2] = ipFlg[0];
+		buffer[3] = ipFlg[1];
+		*(uint16_t*) (buffer + 4) = ntohs(tcpWin[0]);
+		*(uint16_t*) (buffer + 6) = ntohs(tcpWin[1]);
+		*(uint64_t*) (buffer + 8) = swapUint64(tcpOpt[0]);
+		*(uint64_t*) (buffer + 16) = swapUint64(tcpOpt[1]);
+		*(uint32_t*) (buffer + 24) = ntohl(tcpMss[0]);
+		*(uint32_t*) (buffer + 28) = ntohl(tcpMss[1]);
+		*(uint16_t*) (buffer + 32) = ntohs(tcpSynSize);
 
 		return 34;
 	}
 
-	const char** get_ipfix_tmplt() const
+	const char** getIpfixTmplt() const
 	{
-		static const char* ipfix_tmplt[] = {IPFIX_BASICPLUS_TEMPLATE(IPFIX_FIELD_NAMES) nullptr};
-		return ipfix_tmplt;
+		static const char* ipfixTmplt[] = {IPFIX_BASICPLUS_TEMPLATE(IPFIX_FIELD_NAMES) nullptr};
+		return ipfixTmplt;
 	}
 
-	std::string get_text() const
+	std::string getText() const
 	{
 		std::ostringstream out;
-		out << "sttl=" << (uint16_t) ip_ttl[0] << ",dttl=" << (uint16_t) ip_ttl[1]
-			<< ",sflg=" << (uint16_t) ip_flg[0] << ",dflg=" << (uint16_t) ip_flg[1]
-			<< ",stcpw=" << tcp_win[0] << ",dtcpw=" << tcp_win[1] << ",stcpo=" << tcp_opt[0]
-			<< ",dtcpo=" << tcp_opt[1] << ",stcpm=" << tcp_mss[0] << ",dtcpm=" << tcp_mss[1]
-			<< ",tcpsynsize=" << tcp_syn_size;
+		out << "sttl=" << (uint16_t) ipTtl[0] << ",dttl=" << (uint16_t) ipTtl[1]
+			<< ",sflg=" << (uint16_t) ipFlg[0] << ",dflg=" << (uint16_t) ipFlg[1]
+			<< ",stcpw=" << tcpWin[0] << ",dtcpw=" << tcpWin[1] << ",stcpo=" << tcpOpt[0]
+			<< ",dtcpo=" << tcpOpt[1] << ",stcpm=" << tcpMss[0] << ",dtcpm=" << tcpMss[1]
+			<< ",tcpsynsize=" << tcpSynSize;
 		return out.str();
 	}
 };
@@ -179,18 +179,18 @@ public:
 	~BASICPLUSPlugin();
 	void init(const char* params);
 	void close();
-	OptionsParser* get_parser() const
+	OptionsParser* getParser() const
 	{
 		return new OptionsParser(
 			"basicplus",
 			"Extend basic fields with TTL, TCP window, options, MSS and SYN size");
 	}
-	std::string get_name() const { return "basicplus"; }
-	RecordExt* get_ext() const { return new RecordExtBASICPLUS(); }
+	std::string getName() const { return "basicplus"; }
+	RecordExt* getExt() const { return new RecordExtBASICPLUS(); }
 	ProcessPlugin* copy();
 
-	int post_create(Flow& rec, const Packet& pkt);
-	int pre_update(Flow& rec, Packet& pkt);
+	int postCreate(Flow& rec, const Packet& pkt);
+	int preUpdate(Flow& rec, Packet& pkt);
 };
 
 } // namespace ipxp

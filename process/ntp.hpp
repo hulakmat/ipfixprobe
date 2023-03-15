@@ -59,7 +59,7 @@
 #include <ipfixprobe/packet.hpp>
 #include <ipfixprobe/process.hpp>
 
-namespace ipxp {
+namespace Ipxp {
 
 #define NTP_UNIREC_TEMPLATE                                                                        \
 	"NTP_LEAP,NTP_VERSION,NTP_MODE,NTP_STRATUM,NTP_POLL,NTP_PRECISION,NTP_DELAY,NTP_DISPERSION,"   \
@@ -83,21 +83,21 @@ UR_FIELDS(
 #define NTP_FIELD_IP 16
 #define NTP_FIELD_LEN64 30
 
-const char NTP_RefID_INIT[] = "73.78.73.84"; /*Value of NTP reference ID INIT*/
-const char INIT[] = "INIT";
-const char NTP_RefID_STEP[] = "83.84.69.80"; /*Value of NTP reference ID STEP*/
-const char STEP[] = "STEP";
-const char NTP_RefID_DENY[] = "68.69.78.89"; /*Value of NTP reference ID DENY*/
-const char DENY[] = "DENY";
-const char NTP_RefID_RATE[] = "82.65.84.69"; /*Value of NTP reference ID RATE*/
-const char RATE[] = "RATE";
-const char OTHER[] = "OTHER"; /*OTHER Value of NTP reference ID*/
+const char g_NTP_RefID_INIT[] = "73.78.73.84"; /*Value of NTP reference ID INIT*/
+const char g_INIT[] = "INIT";
+const char g_NTP_RefID_STEP[] = "83.84.69.80"; /*Value of NTP reference ID STEP*/
+const char g_STEP[] = "STEP";
+const char g_NTP_RefID_DENY[] = "68.69.78.89"; /*Value of NTP reference ID DENY*/
+const char g_DENY[] = "DENY";
+const char g_NTP_RefID_RATE[] = "82.65.84.69"; /*Value of NTP reference ID RATE*/
+const char g_RATE[] = "RATE";
+const char g_OTHER[] = "OTHER"; /*OTHER Value of NTP reference ID*/
 
 /**
  *\brief Flow record extension header for storing NTP fields.
  */
 struct RecordExtNTP : public RecordExt {
-	static int REGISTERED_ID;
+	static int s_registeredId;
 
 	uint8_t leap;
 	uint8_t version;
@@ -107,7 +107,7 @@ struct RecordExtNTP : public RecordExt {
 	uint8_t precision;
 	uint32_t delay;
 	uint32_t dispersion;
-	char reference_id[NTP_FIELD_IP];
+	char referenceId[NTP_FIELD_IP];
 	char reference[NTP_FIELD_LEN64];
 	char origin[NTP_FIELD_LEN64];
 	char receive[NTP_FIELD_LEN64];
@@ -117,7 +117,7 @@ struct RecordExtNTP : public RecordExt {
 	 *\brief Constructor.
 	 */
 	RecordExtNTP()
-		: RecordExt(REGISTERED_ID)
+		: RecordExt(s_registeredId)
 	{
 		leap = 9;
 		version = 9;
@@ -127,7 +127,7 @@ struct RecordExtNTP : public RecordExt {
 		precision = 9;
 		delay = 9;
 		dispersion = 9;
-		reference_id[0] = 9;
+		referenceId[0] = 9;
 		reference[0] = 9;
 		origin[0] = 9;
 		receive[0] = 9;
@@ -135,7 +135,7 @@ struct RecordExtNTP : public RecordExt {
 	}
 
 #ifdef WITH_NEMEA
-	virtual void fill_unirec(ur_template_t* tmplt, void* record)
+	virtual void fillUnirec(ur_template_t* tmplt, void* record)
 	{
 		ur_set(tmplt, record, F_NTP_LEAP, leap);
 		ur_set(tmplt, record, F_NTP_VERSION, version);
@@ -145,24 +145,24 @@ struct RecordExtNTP : public RecordExt {
 		ur_set(tmplt, record, F_NTP_PRECISION, precision);
 		ur_set(tmplt, record, F_NTP_DELAY, delay);
 		ur_set(tmplt, record, F_NTP_DISPERSION, dispersion);
-		ur_set_string(tmplt, record, F_NTP_REF_ID, reference_id);
+		ur_set_string(tmplt, record, F_NTP_REF_ID, referenceId);
 		ur_set_string(tmplt, record, F_NTP_REF, reference);
 		ur_set_string(tmplt, record, F_NTP_ORIG, origin);
 		ur_set_string(tmplt, record, F_NTP_RECV, receive);
 		ur_set_string(tmplt, record, F_NTP_SENT, sent);
 	}
 
-	const char* get_unirec_tmplt() const
+	const char* getUnirecTmplt() const
 	{
 		return NTP_UNIREC_TEMPLATE;
 	}
 #endif
 
-	virtual int fill_ipfix(uint8_t* buffer, int size)
+	virtual int fillIpfix(uint8_t* buffer, int size)
 	{
-		int length, total_length = 14;
+		int length, totalLength = 14;
 
-		if (total_length > size) {
+		if (totalLength > size) {
 			return -1;
 		}
 		*(uint8_t*) (buffer) = leap;
@@ -174,64 +174,64 @@ struct RecordExtNTP : public RecordExt {
 		*(uint32_t*) (buffer + 6) = ntohl(delay);
 		*(uint32_t*) (buffer + 10) = ntohl(dispersion);
 
-		length = strlen(reference_id);
-		if (total_length + length + 1 > size) {
+		length = strlen(referenceId);
+		if (totalLength + length + 1 > size) {
 			return -1;
 		}
-		buffer[total_length] = length;
-		memcpy(buffer + total_length + 1, reference_id, length);
-		total_length += length + 1;
+		buffer[totalLength] = length;
+		memcpy(buffer + totalLength + 1, referenceId, length);
+		totalLength += length + 1;
 
 		length = strlen(reference);
-		if (total_length + length + 1 > size) {
+		if (totalLength + length + 1 > size) {
 			return -1;
 		}
-		buffer[total_length] = length;
-		memcpy(buffer + total_length + 1, reference, length);
-		total_length += length + 1;
+		buffer[totalLength] = length;
+		memcpy(buffer + totalLength + 1, reference, length);
+		totalLength += length + 1;
 
 		length = strlen(origin);
-		if (total_length + length + 1 > size) {
+		if (totalLength + length + 1 > size) {
 			return -1;
 		}
-		buffer[total_length] = length;
-		memcpy(buffer + total_length + 1, origin, length);
-		total_length += length + 1;
+		buffer[totalLength] = length;
+		memcpy(buffer + totalLength + 1, origin, length);
+		totalLength += length + 1;
 
 		length = strlen(receive);
-		if (total_length + length + 1 > size) {
+		if (totalLength + length + 1 > size) {
 			return -1;
 		}
-		buffer[total_length] = length;
-		memcpy(buffer + total_length + 1, receive, length);
-		total_length += length + 1;
+		buffer[totalLength] = length;
+		memcpy(buffer + totalLength + 1, receive, length);
+		totalLength += length + 1;
 
 		length = strlen(sent);
-		if (total_length + length + 1 > size) {
+		if (totalLength + length + 1 > size) {
 			return -1;
 		}
-		buffer[total_length] = length;
-		memcpy(buffer + total_length + 1, sent, length);
-		total_length += length + 1;
+		buffer[totalLength] = length;
+		memcpy(buffer + totalLength + 1, sent, length);
+		totalLength += length + 1;
 
-		return total_length;
+		return totalLength;
 	}
 
-	const char** get_ipfix_tmplt() const
+	const char** getIpfixTmplt() const
 	{
-		static const char* ipfix_tmplt[] = {IPFIX_NTP_TEMPLATE(IPFIX_FIELD_NAMES) nullptr};
+		static const char* ipfixTmplt[] = {IPFIX_NTP_TEMPLATE(IPFIX_FIELD_NAMES) nullptr};
 
-		return ipfix_tmplt;
+		return ipfixTmplt;
 	}
 
-	std::string get_text() const
+	std::string getText() const
 	{
 		std::ostringstream out;
 		out << "leap=" << (uint16_t) leap << ",version=" << (uint16_t) version
 			<< ",mode=" << (uint16_t) mode << ",stratum=" << (uint16_t) stratum
 			<< ",poll=" << (uint16_t) poll << ",precision=" << (uint16_t) precision
 			<< ",delay=" << delay << ",dispersion=" << dispersion << ",referenceid=\""
-			<< reference_id << "\""
+			<< referenceId << "\""
 			<< ",reference=\"" << reference << "\""
 			<< ",origin=\"" << origin << "\""
 			<< ",receive=\"" << receive << "\""
@@ -249,23 +249,23 @@ public:
 	~NTPPlugin();
 	void init(const char* params);
 	void close();
-	OptionsParser* get_parser() const { return new OptionsParser("ntp", "Parse NTP traffic"); }
-	std::string get_name() const { return "ntp"; }
-	RecordExt* get_ext() const { return new RecordExtNTP(); }
+	OptionsParser* getParser() const { return new OptionsParser("ntp", "Parse NTP traffic"); }
+	std::string getName() const { return "ntp"; }
+	RecordExt* getExt() const { return new RecordExtNTP(); }
 	ProcessPlugin* copy();
 
-	int post_create(Flow& rec, const Packet& pkt);
-	void finish(bool print_stats);
+	int postCreate(Flow& rec, const Packet& pkt);
+	void finish(bool printStats);
 
 private:
-	uint32_t requests; /**< Total number of parsed NTP queries. */
-	uint32_t responses; /**< Total number of parsed NTP responses. */
-	uint32_t total; /**< Total number of parsed DNS packets. */
+	uint32_t m_requests; /**< Total number of parsed NTP queries. */
+	uint32_t m_responses; /**< Total number of parsed NTP responses. */
+	uint32_t m_total; /**< Total number of parsed DNS packets. */
 
-	bool parse_ntp(const Packet& pkt, RecordExtNTP* ntp_data_ext);
-	void add_ext_ntp(Flow& rec, const Packet& pkt);
+	bool parseNtp(const Packet& pkt, RecordExtNTP* ntpDataExt);
+	void addExtNtp(Flow& rec, const Packet& pkt);
 	std::string
-	parse_timestamp(const Packet& pkt, uint16_t p1, uint16_t p4, uint16_t p5, uint16_t p8);
+	parseTimestamp(const Packet& pkt, uint16_t p1, uint16_t p4, uint16_t p5, uint16_t p8);
 };
 
 } // namespace ipxp

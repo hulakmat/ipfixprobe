@@ -52,15 +52,15 @@
 
 #include "ntp.hpp"
 
-namespace ipxp {
+namespace Ipxp {
 
-int RecordExtNTP::REGISTERED_ID = -1;
+int RecordExtNTP::s_registeredId = -1;
 
-__attribute__((constructor)) static void register_this_plugin()
+__attribute__((constructor)) static void registerThisPlugin()
 {
 	static PluginRecord rec = PluginRecord("ntp", []() { return new NTPPlugin(); });
-	register_plugin(&rec);
-	RecordExtNTP::REGISTERED_ID = register_extension();
+	registerPlugin(&rec);
+	RecordExtNTP::s_registeredId = registerExtension();
 }
 
 //#define DEBUG_NTP
@@ -73,9 +73,9 @@ __attribute__((constructor)) static void register_this_plugin()
 #endif
 
 NTPPlugin::NTPPlugin()
-	: requests(0)
-	, responses(0)
-	, total(0)
+	: m_requests(0)
+	, m_responses(0)
+	, m_total(0)
 {
 }
 
@@ -99,10 +99,10 @@ ProcessPlugin* NTPPlugin::copy()
  *\param [in] pkt Parsed packet.
  *\return 0 on success or FLOW_FLUSH option.
  */
-int NTPPlugin::post_create(Flow& rec, const Packet& pkt)
+int NTPPlugin::postCreate(Flow& rec, const Packet& pkt)
 {
-	if (pkt.dst_port == 123 || pkt.src_port == 123) {
-		add_ext_ntp(rec, pkt);
+	if (pkt.dstPort == 123 || pkt.srcPort == 123) {
+		addExtNtp(rec, pkt);
 		return FLOW_FLUSH;
 	}
 
@@ -112,13 +112,13 @@ int NTPPlugin::post_create(Flow& rec, const Packet& pkt)
 /**
  *\brief Called when everything is processed.
  */
-void NTPPlugin::finish(bool print_stats)
+void NTPPlugin::finish(bool printStats)
 {
-	if (print_stats) {
+	if (printStats) {
 		std::cout << "NTP plugin stats:" << std::endl;
-		std::cout << "   Parsed NTP requests: " << requests << std::endl;
-		std::cout << "   Parsed NTP responses: " << responses << std::endl;
-		std::cout << "   Total NTP packets processed: " << total << std::endl;
+		std::cout << "   Parsed NTP requests: " << m_requests << std::endl;
+		std::cout << "   Parsed NTP responses: " << m_responses << std::endl;
+		std::cout << "   Total NTP packets processed: " << m_total << std::endl;
 	}
 }
 
@@ -127,13 +127,13 @@ void NTPPlugin::finish(bool print_stats)
  *\param [in] packet.
  *\param [out] rec Destination Flow.
  */
-void NTPPlugin::add_ext_ntp(Flow& rec, const Packet& pkt)
+void NTPPlugin::addExtNtp(Flow& rec, const Packet& pkt)
 {
-	RecordExtNTP* ntp_data_ext = new RecordExtNTP();
-	if (!parse_ntp(pkt, ntp_data_ext)) {
-		delete ntp_data_ext; /*Don't add new extension packet.*/
+	RecordExtNTP* ntpDataExt = new RecordExtNTP();
+	if (!parseNtp(pkt, ntpDataExt)) {
+		delete ntpDataExt; /*Don't add new extension packet.*/
 	} else {
-		rec.add_extension(ntp_data_ext); /*Add extension to  packet.*/
+		rec.addExtension(ntpDataExt); /*Add extension to  packet.*/
 	}
 }
 
@@ -143,10 +143,10 @@ void NTPPlugin::add_ext_ntp(Flow& rec, const Packet& pkt)
  *\param [out] rec Output Flow extension header RecordExtNTP.
  *\return True if NTP was parsed.
  */
-bool NTPPlugin::parse_ntp(const Packet& pkt, RecordExtNTP* ntp_data_ext)
+bool NTPPlugin::parseNtp(const Packet& pkt, RecordExtNTP* ntpDataExt)
 {
 	size_t i = 0;
-	int number = 0, ch_counter = 0;
+	int number = 0, chCounter = 0;
 	const unsigned char* payload = nullptr;
 	unsigned char aux = '.';
 	std::string result = "", result2 = "";
@@ -154,7 +154,7 @@ bool NTPPlugin::parse_ntp(const Packet& pkt, RecordExtNTP* ntp_data_ext)
 	std::string str;
 	payload = (unsigned char*) pkt.payload;
 
-	if (pkt.payload_len == 0) {
+	if (pkt.payloadLen == 0) {
 		DEBUG_MSG("Parser quits:\tpayload length = 0\n");
 		return false; /*Don't add extension to  paket.*/
 	}
@@ -165,10 +165,10 @@ bool NTPPlugin::parse_ntp(const Packet& pkt, RecordExtNTP* ntp_data_ext)
 		/******************
 		 * PARSE NTP_LEAP.*
 		 * ****************/
-		total++;
+		m_total++;
 		aux = payload[0];
 		aux = aux >> 6;
-		ntp_data_ext->leap = (uint8_t) aux;
+		ntpDataExt->leap = (uint8_t) aux;
 		DEBUG_MSG("\tntp leap:\t\t%d\n", ntp_data_ext->leap);
 
 		/*******************
@@ -177,8 +177,8 @@ bool NTPPlugin::parse_ntp(const Packet& pkt, RecordExtNTP* ntp_data_ext)
 		aux = payload[0];
 		aux = aux << 2;
 		aux = aux >> 5;
-		ntp_data_ext->version = (uint8_t) aux;
-		if (ntp_data_ext->version != 4) {
+		ntpDataExt->version = (uint8_t) aux;
+		if (ntpDataExt->version != 4) {
 			throw "Error: Bad number of version or NTP exploit detected.";
 		}
 		DEBUG_MSG("\tntp version:\t\t%d\n", ntp_data_ext->version);
@@ -189,15 +189,15 @@ bool NTPPlugin::parse_ntp(const Packet& pkt, RecordExtNTP* ntp_data_ext)
 		aux = payload[0];
 		aux = aux << 5;
 		aux = aux >> 5;
-		ntp_data_ext->mode = (uint8_t) aux;
-		if (ntp_data_ext->mode < 3 || ntp_data_ext->mode > 4) {
+		ntpDataExt->mode = (uint8_t) aux;
+		if (ntpDataExt->mode < 3 || ntpDataExt->mode > 4) {
 			throw "Error: Bad NTP mode or NTP exploit detected.";
 		}
-		if (ntp_data_ext->mode == 3) {
-			requests++;
+		if (ntpDataExt->mode == 3) {
+			m_requests++;
 		}
-		if (ntp_data_ext->mode == 4) {
-			responses++;
+		if (ntpDataExt->mode == 4) {
+			m_responses++;
 		}
 		DEBUG_MSG("\tntp mode:\t\t%d\n", ntp_data_ext->mode);
 
@@ -205,8 +205,8 @@ bool NTPPlugin::parse_ntp(const Packet& pkt, RecordExtNTP* ntp_data_ext)
 		 * PARSE NTP_STRATUM.*
 		 * *******************/
 		aux = payload[1];
-		ntp_data_ext->stratum = (uint8_t) aux;
-		if (ntp_data_ext->stratum > 16) {
+		ntpDataExt->stratum = (uint8_t) aux;
+		if (ntpDataExt->stratum > 16) {
 			throw "Error: Bad NTP Stratum or NTP exploit detected.";
 		}
 		DEBUG_MSG("\tntp stratum:\t\t%d\n", ntp_data_ext->stratum);
@@ -215,8 +215,8 @@ bool NTPPlugin::parse_ntp(const Packet& pkt, RecordExtNTP* ntp_data_ext)
 		 * PARSE NTP_POLL.*
 		 * ****************/
 		aux = payload[2];
-		ntp_data_ext->poll = (uint8_t) aux;
-		if (ntp_data_ext->poll > 17) {
+		ntpDataExt->poll = (uint8_t) aux;
+		if (ntpDataExt->poll > 17) {
 			throw "Error: Bad NTP Poll or NTP exploit detected.";
 		}
 		DEBUG_MSG("\tntp poll:\t\t%d\n", ntp_data_ext->poll);
@@ -225,7 +225,7 @@ bool NTPPlugin::parse_ntp(const Packet& pkt, RecordExtNTP* ntp_data_ext)
 		 * PARSE NTP_PRECISION         not used   *
 		 ******************************************/
 		aux = payload[3];
-		ntp_data_ext->precision = (uint8_t) aux;
+		ntpDataExt->precision = (uint8_t) aux;
 		DEBUG_MSG("\tntp precision:\t\t%d\n", ntp_data_ext->precision);
 
 		/******************************************
@@ -246,15 +246,15 @@ bool NTPPlugin::parse_ntp(const Packet& pkt, RecordExtNTP* ntp_data_ext)
 		/********************************
 		 * First octect NTP reference ID.*
 		 * *******************************/
-		ch_counter = 0;
+		chCounter = 0;
 		number = (int) payload[12];
 		convert = std::to_string(number);
 		for (i = 0; i < convert.length(); i++) {
-			ntp_data_ext->reference_id[ch_counter] = convert[i];
-			ch_counter++;
+			ntpDataExt->referenceId[chCounter] = convert[i];
+			chCounter++;
 		}
-		ntp_data_ext->reference_id[ch_counter] = '.';
-		ch_counter++;
+		ntpDataExt->referenceId[chCounter] = '.';
+		chCounter++;
 
 		/*********************************
 		 * Second octect NTP reference ID.*
@@ -262,11 +262,11 @@ bool NTPPlugin::parse_ntp(const Packet& pkt, RecordExtNTP* ntp_data_ext)
 		number = (int) payload[13];
 		convert = std::to_string(number);
 		for (i = 0; i < convert.length(); i++) {
-			ntp_data_ext->reference_id[ch_counter] = convert[i];
-			ch_counter++;
+			ntpDataExt->referenceId[chCounter] = convert[i];
+			chCounter++;
 		}
-		ntp_data_ext->reference_id[ch_counter] = '.';
-		ch_counter++;
+		ntpDataExt->referenceId[chCounter] = '.';
+		chCounter++;
 
 		/********************************
 		 * Third octect NTP reference ID.*
@@ -274,11 +274,11 @@ bool NTPPlugin::parse_ntp(const Packet& pkt, RecordExtNTP* ntp_data_ext)
 		number = (int) payload[14];
 		convert = std::to_string(number);
 		for (i = 0; i < convert.length(); i++) {
-			ntp_data_ext->reference_id[ch_counter] = convert[i];
-			ch_counter++;
+			ntpDataExt->referenceId[chCounter] = convert[i];
+			chCounter++;
 		}
-		ntp_data_ext->reference_id[ch_counter] = '.';
-		ch_counter++;
+		ntpDataExt->referenceId[chCounter] = '.';
+		chCounter++;
 
 		/*********************************
 		 * Fourth octect NTP reference ID.*
@@ -286,22 +286,22 @@ bool NTPPlugin::parse_ntp(const Packet& pkt, RecordExtNTP* ntp_data_ext)
 		number = (int) payload[15];
 		convert = std::to_string(number);
 		for (i = 0; i < convert.length(); i++) {
-			ntp_data_ext->reference_id[ch_counter] = convert[i];
-			ch_counter++;
+			ntpDataExt->referenceId[chCounter] = convert[i];
+			chCounter++;
 		}
-		ntp_data_ext->reference_id[ch_counter] = '\0';
-		if (ntp_data_ext->stratum == 0) {
-			if (strcmp(ntp_data_ext->reference_id, NTP_RefID_INIT) == 0) {
-				strcpy(ntp_data_ext->reference_id, INIT);
+		ntpDataExt->referenceId[chCounter] = '\0';
+		if (ntpDataExt->stratum == 0) {
+			if (strcmp(ntpDataExt->referenceId, g_NTP_RefID_INIT) == 0) {
+				strcpy(ntpDataExt->referenceId, g_INIT);
 			}
-			if (strcmp(ntp_data_ext->reference_id, NTP_RefID_STEP) == 0) {
-				strcpy(ntp_data_ext->reference_id, STEP);
+			if (strcmp(ntpDataExt->referenceId, g_NTP_RefID_STEP) == 0) {
+				strcpy(ntpDataExt->referenceId, g_STEP);
 			}
-			if (strcmp(ntp_data_ext->reference_id, NTP_RefID_DENY) == 0) {
-				strcpy(ntp_data_ext->reference_id, DENY);
+			if (strcmp(ntpDataExt->referenceId, g_NTP_RefID_DENY) == 0) {
+				strcpy(ntpDataExt->referenceId, g_DENY);
 			}
-			if (strcmp(ntp_data_ext->reference_id, NTP_RefID_RATE) == 0) {
-				strcpy(ntp_data_ext->reference_id, RATE);
+			if (strcmp(ntpDataExt->referenceId, g_NTP_RefID_RATE) == 0) {
+				strcpy(ntpDataExt->referenceId, g_RATE);
 			}
 		}
 		DEBUG_MSG("\tntp reference id:\t\t%s\n", ntp_data_ext->reference_id);
@@ -313,13 +313,13 @@ bool NTPPlugin::parse_ntp(const Packet& pkt, RecordExtNTP* ntp_data_ext)
 		 * FRACTIONS [20][21][22][23].*
 		 * ****************************/
 		DEBUG_MSG("\tntp Reference Timestamp\n");
-		ch_counter = 0;
-		result = parse_timestamp(pkt, 16, 19, 20, 23);
+		chCounter = 0;
+		result = parseTimestamp(pkt, 16, 19, 20, 23);
 		for (i = 0; i < result.length(); i++) {
-			ntp_data_ext->reference[ch_counter] = result[i];
-			ch_counter++;
+			ntpDataExt->reference[chCounter] = result[i];
+			chCounter++;
 		}
-		ntp_data_ext->reference[ch_counter] = '\0';
+		ntpDataExt->reference[chCounter] = '\0';
 		DEBUG_MSG("\t\ttimestamp:\t\t%s\n", ntp_data_ext->reference);
 
 		/****************************
@@ -329,13 +329,13 @@ bool NTPPlugin::parse_ntp(const Packet& pkt, RecordExtNTP* ntp_data_ext)
 		 *FRACTIONS [28][29][30][31].*
 		 *****************************/
 		DEBUG_MSG("\tntp Origin Timestamp\n");
-		ch_counter = 0;
-		result = parse_timestamp(pkt, 24, 27, 28, 31);
+		chCounter = 0;
+		result = parseTimestamp(pkt, 24, 27, 28, 31);
 		for (i = 0; i < result.length(); i++) {
-			ntp_data_ext->origin[ch_counter] = result[i];
-			ch_counter++;
+			ntpDataExt->origin[chCounter] = result[i];
+			chCounter++;
 		}
-		ntp_data_ext->origin[ch_counter] = '\0';
+		ntpDataExt->origin[chCounter] = '\0';
 		DEBUG_MSG("\t\ttimestamp:\t\t%s\n", ntp_data_ext->origin);
 
 		/****************************
@@ -345,13 +345,13 @@ bool NTPPlugin::parse_ntp(const Packet& pkt, RecordExtNTP* ntp_data_ext)
 		 *FRACTIONS [36][37][38][39].*
 		 *****************************/
 		DEBUG_MSG("\tntp Receive Timestamp\n");
-		ch_counter = 0;
-		result = parse_timestamp(pkt, 32, 35, 36, 39);
+		chCounter = 0;
+		result = parseTimestamp(pkt, 32, 35, 36, 39);
 		for (i = 0; i < result.length(); i++) {
-			ntp_data_ext->receive[ch_counter] = result[i];
-			ch_counter++;
+			ntpDataExt->receive[chCounter] = result[i];
+			chCounter++;
 		}
-		ntp_data_ext->receive[ch_counter] = '\0';
+		ntpDataExt->receive[chCounter] = '\0';
 		DEBUG_MSG("\t\ttimestamp:\t\t%s\n", ntp_data_ext->receive);
 
 		/****************************
@@ -361,13 +361,13 @@ bool NTPPlugin::parse_ntp(const Packet& pkt, RecordExtNTP* ntp_data_ext)
 		 *FRACTIONS [44][45][46][47].*
 		 *****************************/
 		DEBUG_MSG("\tntp Transmit Timestamp\n");
-		ch_counter = 0;
-		result = parse_timestamp(pkt, 40, 43, 44, 47);
+		chCounter = 0;
+		result = parseTimestamp(pkt, 40, 43, 44, 47);
 		for (i = 0; i < result.length(); i++) {
-			ntp_data_ext->sent[ch_counter] = result[i];
-			ch_counter++;
+			ntpDataExt->sent[chCounter] = result[i];
+			chCounter++;
 		}
-		ntp_data_ext->sent[ch_counter] = '\0';
+		ntpDataExt->sent[chCounter] = '\0';
 		DEBUG_MSG("\t\ttimestamp:\t\t%s\n", ntp_data_ext->sent);
 
 	} catch (const char* err) {
@@ -388,7 +388,7 @@ bool NTPPlugin::parse_ntp(const Packet& pkt, RecordExtNTP* ntp_data_ext)
  *\return String of timestamp.
  */
 std::string
-NTPPlugin::parse_timestamp(const Packet& pkt, uint16_t p1, uint16_t p4, uint16_t p5, uint16_t p8)
+NTPPlugin::parseTimestamp(const Packet& pkt, uint16_t p1, uint16_t p4, uint16_t p5, uint16_t p8)
 {
 	size_t i = 0, k = 0;
 	int number = 0;
@@ -397,7 +397,7 @@ NTPPlugin::parse_timestamp(const Packet& pkt, uint16_t p1, uint16_t p4, uint16_t
 	std::string str;
 	std::string convert2;
 	std::string convert;
-	char hex_buf[3];
+	char hexBuf[3];
 	uint32_t time = 0;
 	uint32_t highestbit = 0x80000000;
 	double fract = 0.0f;
@@ -413,8 +413,8 @@ NTPPlugin::parse_timestamp(const Packet& pkt, uint16_t p1, uint16_t p4, uint16_t
 	convert = "0";
 	for (i = p1; i <= p4; i++) {
 		number = payload[i];
-		std::sprintf(hex_buf, "%x", number);
-		convert += hex_buf;
+		std::sprintf(hexBuf, "%x", number);
+		convert += hexBuf;
 	}
 	result = convert;
 	str = result;
@@ -431,8 +431,8 @@ NTPPlugin::parse_timestamp(const Packet& pkt, uint16_t p1, uint16_t p4, uint16_t
 	convert = "";
 	for (i = p5; i <= p8; i++) {
 		number = payload[i];
-		std::sprintf(hex_buf, "%x", number);
-		convert += hex_buf;
+		std::sprintf(hexBuf, "%x", number);
+		convert += hexBuf;
 	}
 	result = convert;
 	str = result;
