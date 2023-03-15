@@ -56,175 +56,200 @@
 namespace ipxp {
 class DpdkOptParser : public OptionsParser {
 private:
-    static constexpr size_t DEFAULT_MBUF_BURST_SIZE = 256;
-    static constexpr size_t DEFAULT_MBUF_POOL_SIZE = 16384;
-    size_t pkt_buffer_size_;
-    size_t pkt_mempool_size_;
-    std::uint16_t port_num_;
-    uint16_t rx_queues_ = 1;
-    std::string eal_;
+	static constexpr size_t DEFAULT_MBUF_BURST_SIZE = 256;
+	static constexpr size_t DEFAULT_MBUF_POOL_SIZE = 16384;
+	size_t pkt_buffer_size_;
+	size_t pkt_mempool_size_;
+	std::uint16_t port_num_;
+	uint16_t rx_queues_ = 1;
+	std::string eal_;
 
 public:
-    DpdkOptParser()
-        : OptionsParser("dpdk", "Input plugin for reading packets using DPDK interface")
-        , pkt_buffer_size_(DEFAULT_MBUF_BURST_SIZE)
-        , pkt_mempool_size_(DEFAULT_MBUF_POOL_SIZE)
-    {
-        register_option(
-            "b",
-            "bsize",
-            "SIZE",
-            "Size of the MBUF packet buffer. Default: " + std::to_string(DEFAULT_MBUF_BURST_SIZE),
-            [this](const char* arg) {try{pkt_buffer_size_ = str2num<decltype(pkt_buffer_size_)>(arg);} catch (std::invalid_argument&){return false;} return true; },
-            RequiredArgument);
-        register_option(
-            "p",
-            "port",
-            "PORT",
-            "DPDK port to be used as an input interface",
-            [this](const char* arg) {try{port_num_ = str2num<decltype(port_num_)>(arg);} catch (std::invalid_argument&){return false;} return true; },
-            RequiredArgument);
-        register_option(
-            "m",
-            "mem",
-            "SIZE",
-            "Size of the memory pool for received packets. Default: " + std::to_string(DEFAULT_MBUF_POOL_SIZE),
-            [this](const char* arg) {try{pkt_mempool_size_ = str2num<decltype(pkt_mempool_size_)>(arg);} catch (std::invalid_argument&){return false;} return true; },
-            RequiredArgument);
-        register_option(
-            "q",
-            "queue",
-            "COUNT",
-            "Number of RX queues. Default: 1",
-            [this](const char* arg) {try{rx_queues_ = str2num<decltype(rx_queues_)>(arg);} catch (std::invalid_argument&){return false;} return true; },
-            RequiredArgument);
-        register_option(
-            "e", 
-            "eal", 
-            "EAL", 
-            "DPDK eal", 
-            [this](const char *arg){eal_ = arg; return true;}, 
-            OptionFlags::RequiredArgument);
-    }
+	DpdkOptParser()
+		: OptionsParser("dpdk", "Input plugin for reading packets using DPDK interface")
+		, pkt_buffer_size_(DEFAULT_MBUF_BURST_SIZE)
+		, pkt_mempool_size_(DEFAULT_MBUF_POOL_SIZE)
+	{
+		register_option(
+			"b",
+			"bsize",
+			"SIZE",
+			"Size of the MBUF packet buffer. Default: " + std::to_string(DEFAULT_MBUF_BURST_SIZE),
+			[this](const char* arg) {
+				try {
+					pkt_buffer_size_ = str2num<decltype(pkt_buffer_size_)>(arg);
+				} catch (std::invalid_argument&) {
+					return false;
+				}
+				return true;
+			},
+			RequiredArgument);
+		register_option(
+			"p",
+			"port",
+			"PORT",
+			"DPDK port to be used as an input interface",
+			[this](const char* arg) {
+				try {
+					port_num_ = str2num<decltype(port_num_)>(arg);
+				} catch (std::invalid_argument&) {
+					return false;
+				}
+				return true;
+			},
+			RequiredArgument);
+		register_option(
+			"m",
+			"mem",
+			"SIZE",
+			"Size of the memory pool for received packets. Default: "
+				+ std::to_string(DEFAULT_MBUF_POOL_SIZE),
+			[this](const char* arg) {
+				try {
+					pkt_mempool_size_ = str2num<decltype(pkt_mempool_size_)>(arg);
+				} catch (std::invalid_argument&) {
+					return false;
+				}
+				return true;
+			},
+			RequiredArgument);
+		register_option(
+			"q",
+			"queue",
+			"COUNT",
+			"Number of RX queues. Default: 1",
+			[this](const char* arg) {
+				try {
+					rx_queues_ = str2num<decltype(rx_queues_)>(arg);
+				} catch (std::invalid_argument&) {
+					return false;
+				}
+				return true;
+			},
+			RequiredArgument);
+		register_option(
+			"e",
+			"eal",
+			"EAL",
+			"DPDK eal",
+			[this](const char* arg) {
+				eal_ = arg;
+				return true;
+			},
+			OptionFlags::RequiredArgument);
+	}
 
-    size_t pkt_buffer_size() const { return pkt_buffer_size_; }
+	size_t pkt_buffer_size() const { return pkt_buffer_size_; }
 
-    size_t pkt_mempool_size() const { return pkt_mempool_size_; }
+	size_t pkt_mempool_size() const { return pkt_mempool_size_; }
 
-    std::uint16_t port_num() const { return port_num_; }
+	std::uint16_t port_num() const { return port_num_; }
 
-    std::string eal_params() const { return eal_; }
+	std::string eal_params() const { return eal_; }
 
-    uint16_t rx_queues() const { return rx_queues_; }
+	uint16_t rx_queues() const { return rx_queues_; }
 };
 
 class DpdkCore {
 public:
-    /**
-     * @brief Configure dpdk port using user parameters
-     * 
-     * @param params user paramameters
-     */
-    void configure(const char* params);
+	/**
+	 * @brief Configure dpdk port using user parameters
+	 *
+	 * @param params user paramameters
+	 */
+	void configure(const char* params);
 
-    /**
-     * @brief Get the DpdkReader Queue Id 
-     * 
-     * @return uint16_t rx queue id
-     */
-    uint16_t getRxQueueId();
+	/**
+	 * @brief Get the DpdkReader Queue Id
+	 *
+	 * @return uint16_t rx queue id
+	 */
+	uint16_t getRxQueueId();
 
-    int getRxTimestampOffset();
+	int getRxTimestampOffset();
 
-    bool isNfbDpdkDriver();
+	bool isNfbDpdkDriver();
 
-    /**
-     * @brief Start receiving on port when all lcores are ready
-     * 
-     */
-    void startIfReady();
+	/**
+	 * @brief Start receiving on port when all lcores are ready
+	 *
+	 */
+	void startIfReady();
 
-    void deinit();
+	void deinit();
 
-    // ready flag
-    bool is_ifc_ready;
+	// ready flag
+	bool is_ifc_ready;
 
-    /**
-     * @brief Get the singleton dpdk core instance
-     */
-    static DpdkCore& getInstance();
+	/**
+	 * @brief Get the singleton dpdk core instance
+	 */
+	static DpdkCore& getInstance();
 
-    DpdkOptParser parser;
+	DpdkOptParser parser;
 
-    
 private:
-    void initInterface();
-    void validatePort();
-    struct rte_eth_conf createPortConfig();
-    void configurePort(const struct rte_eth_conf& portConfig);
-    void configureRSS();
-    void registerRxTimestamp();
-    void enablePort();
-    std::vector<char *> convertStringToArgvFormat(const std::string& ealParams);
-    void recognizeDriver();
-    void configureEal(const std::string& ealParams);
+	void initInterface();
+	void validatePort();
+	struct rte_eth_conf createPortConfig();
+	void configurePort(const struct rte_eth_conf& portConfig);
+	void configureRSS();
+	void registerRxTimestamp();
+	void enablePort();
+	std::vector<char*> convertStringToArgvFormat(const std::string& ealParams);
+	void recognizeDriver();
+	void configureEal(const std::string& ealParams);
 
-    ~DpdkCore();
+	~DpdkCore();
 
-    uint16_t m_portId;
-    uint16_t m_rxQueueCount;
-    uint16_t m_txQueueCount;
-    uint16_t m_currentRxId;
-    int m_rxTimestampOffset;
-    bool m_isNfbDpdkDriver;
-    bool m_supportedRSS;
-    bool m_supportedHWTimestamp;
-    
-    bool isConfigured = false;
-    static DpdkCore* m_instance;
+	uint16_t m_portId;
+	uint16_t m_rxQueueCount;
+	uint16_t m_txQueueCount;
+	uint16_t m_currentRxId;
+	int m_rxTimestampOffset;
+	bool m_isNfbDpdkDriver;
+	bool m_supportedRSS;
+	bool m_supportedHWTimestamp;
+
+	bool isConfigured = false;
+	static DpdkCore* m_instance;
 };
 
 class DpdkReader : public InputPlugin {
 public:
-    Result get(PacketBlock& packets) override;
+	Result get(PacketBlock& packets) override;
 
-    void init(const char* params) override;
+	void init(const char* params) override;
 
-    OptionsParser* get_parser() const override
-    {
-        return new DpdkOptParser();
-    }
+	OptionsParser* get_parser() const override { return new DpdkOptParser(); }
 
-    std::string get_name() const override
-    {
-        return "dpdk";
-    }
+	std::string get_name() const override { return "dpdk"; }
 
-    ~DpdkReader();
-    DpdkReader();
+	~DpdkReader();
+	DpdkReader();
 
 private:
-    rte_mempool* rteMempool;
-    std::vector<rte_mbuf*> mbufs_;
-    
-    std::uint16_t pkts_read_;
-    uint16_t rx_queue_id_;
-    uint16_t total_queues_cnt_;
+	rte_mempool* rteMempool;
+	std::vector<rte_mbuf*> mbufs_;
 
-    uint16_t m_rxQueueId;
-    uint16_t m_portId;
-    int m_rxTimestampOffset;
+	std::uint16_t pkts_read_;
+	uint16_t rx_queue_id_;
+	uint16_t total_queues_cnt_;
 
-    bool m_useHwRxTimestamp;
+	uint16_t m_rxQueueId;
+	uint16_t m_portId;
+	int m_rxTimestampOffset;
 
-    void createRteMempool(uint16_t mempoolSize);
-    void createRteMbufs(uint16_t mbufsSize);
-    void setupRxQueue();
-    struct timeval getTimestamp(rte_mbuf* mbuf);
+	bool m_useHwRxTimestamp;
 
-    DpdkCore& m_dpdkCore;
+	void createRteMempool(uint16_t mempoolSize);
+	void createRteMbufs(uint16_t mbufsSize);
+	void setupRxQueue();
+	struct timeval getTimestamp(rte_mbuf* mbuf);
+
+	DpdkCore& m_dpdkCore;
 };
-}
+} // namespace ipxp
 
 #endif // IPXP_DPDK_READER_H
 #endif
