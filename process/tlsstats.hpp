@@ -79,16 +79,6 @@ typedef struct __attribute__((packed)) tls_header {
    uint16_t length;
 } tls_header;
 
-typedef struct TLS_Lengths{
-   uint32_t seq;
-   uint32_t ack;
-   bool source_pkt;
-   uint16_t tls_size;
-   TLS_Lengths * left;
-   TLS_Lengths * right;
-}TLS_Lengths;
-
-
 #define TLSSTATS_UNIREC_TEMPLATE "PPI_PKT_LENGTHS,PPI_PKT_TIMES,PPI_PKT_FLAGS,PPI_PKT_DIRECTIONS" /* TODO: unirec template */
 
 UR_FIELDS (
@@ -155,12 +145,8 @@ public:
       TLSV1DOT3    =0x304
    };
 
-   TLS_Lengths * tls_tree = nullptr;
 
-   std::map<uint16_t, int> global_offsets;
 
-   uint8_t harvested_index = 0;
-   uint8_t total_tls_count = 0;
 
    TLSSTATSPlugin();
    ~TLSSTATSPlugin();
@@ -177,13 +163,6 @@ public:
    int post_update(Flow &rec, const Packet &pkt);
    void pre_export(Flow &rec);
 
-   void get_data(const Packet &);
-   void add_tree_node(const Packet &);
-   void add_node_stats(TLS_Lengths * ,const Packet &,uint16_t );
-   void fill_data(TLS_Lengths*,RecordExtTLSSTATS *);
-   bool check_global_offset(uint16_t &,const Packet &);
-   bool check_if_tls(tls_header*);
-   void check_overlap(const uint8_t *,const uint8_t *,tls_header *,uint16_t,const Packet &);
 
 };
 
