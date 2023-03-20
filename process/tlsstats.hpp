@@ -44,13 +44,10 @@
 #ifndef IPXP_PROCESS_TLSSTATS_HPP
 #define IPXP_PROCESS_TLSSTATS_HPP
 
-#include <cstring>
 #include <endian.h>
-#include <iostream>
-#include <map>
-
+#include <algorithm>
 #ifdef WITH_NEMEA
-  #include "fields.h"
+#include "fields.h"
 #endif
 
 #include <ipfixprobe/process.hpp>
@@ -58,113 +55,114 @@
 #include <ipfixprobe/packet.hpp>
 #include <ipfixprobe/ipfix-elements.hpp>
 
-namespace ipxp {
+namespace ipxp
+{
 
 #ifndef MAX_TLS_LENGTHS
-# define MAX_TLS_LENGTHS 30
+#define MAX_TLS_LENGTHS 20
 #endif
 
-#ifndef TLSSTATS_MINLEN
-# define TLSSTATS_MINLEN 1
+#ifndef MAX_SEQ_NUM_TO_STORE
+#define MAX_SEQ_NUM_TO_STORE 5
 #endif
 
 
 
-
-
-
-typedef struct __attribute__((packed)) tls_header {
-   uint8_t content_type;
-   uint16_t version;
-   uint16_t length;
-} tls_header;
+   typedef struct __attribute__((packed)) tls_header
+   {
+      uint8_t content_type;
+      uint16_t version;
+      uint16_t length;
+   } tls_header;
 
 #define TLSSTATS_UNIREC_TEMPLATE "PPI_PKT_LENGTHS,PPI_PKT_TIMES,PPI_PKT_FLAGS,PPI_PKT_DIRECTIONS" /* TODO: unirec template */
 
-UR_FIELDS (
-   /* TODO: unirec fields definition */
-)
+   UR_FIELDS(
+       /* TODO: unirec fields definition */
+   )
 
-/**
- * \brief Flow record extension header for storing parsed TLSSTATS data.
- */
-struct RecordExtTLSSTATS : public RecordExt {
-   static int REGISTERED_ID;
-
-   uint16_t          tls_sizes[MAX_TLS_LENGTHS] = {0};
-
-   RecordExtTLSSTATS() : RecordExt(REGISTERED_ID)
+   /**
+    * \brief Flow record extension header for storing parsed TLSSTATS data.
+    */
+   struct RecordExtTLSSTATS : public RecordExt
    {
-   }
+      static int REGISTERED_ID;
+
+      uint16_t tls_sizes[MAX_TLS_LENGTHS] = {0};
+
+      RecordExtTLSSTATS() : RecordExt(REGISTERED_ID)
+      {
+      }
 
 #ifdef WITH_NEMEA
-   virtual void fill_unirec(ur_template_t *tmplt, void *record)
-   {
-   }
+      virtual void fill_unirec(ur_template_t *tmplt, void *record)
+      {
+      }
 
-   const char *get_unirec_tmplt() const
-   {
-      return TLSSTATS_UNIREC_TEMPLATE;
-   }
+      const char *get_unirec_tmplt() const
+      {
+         return TLSSTATS_UNIREC_TEMPLATE;
+      }
 #endif
 
-   virtual int fill_ipfix(uint8_t *buffer, int size)
-   {
-      return 0;
-   }
+      virtual int fill_ipfix(uint8_t *buffer, int size)
+      {
+         return 0;
+      }
 
-   const char **get_ipfix_tmplt() const
+      const char **get_ipfix_tmplt() const
+      {
+         static const char *ipfix_template[] = {
+             IPFIX_TLSSTATS_TEMPLATE(IPFIX_FIELD_NAMES)
+                 NULL};
+         return ipfix_template;
+      }
+   };
+
+   /**
+    * \brief Process plugin for parsing TLSSTATS packets.
+    */
+   class TLSSTATSPlugin : public ProcessPlugin
    {
-      static const char *ipfix_template[] = {
-         IPFIX_TLSSTATS_TEMPLATE(IPFIX_FIELD_NAMES)
-         NULL
+   public:
+      enum content_type
+      {
+         change_cipher_spec = 0x14,
+         alert = 0x15,
+         handshake = 0x16,
+         application_data = 0x17,
+         heartbeat = 0x18,
+         tls12_cid = 0x19,
+         ack = 0x1A,
       };
-      return ipfix_template;
-   }
-};
-
-/**
- * \brief Process plugin for parsing TLSSTATS packets.
- */
-class TLSSTATSPlugin : public ProcessPlugin
-{
-public:
-   enum content_type {
-      change_cipher_spec   = 0x14,
-      alert                = 0x15,
-      handshake            = 0x16,
-      application_data     = 0x17,
-      heartbeat            = 0x18,
-      tls12_cid            = 0x19,
-      ack                  = 0x1A,
-   };
-   enum tls_ver {
-      TLSV1        =0x301,
-      TLSV1DOT1    =0x302,
-      TLSV1DOT2    =0x303,
-      TLSV1DOT3    =0x304
-   };
+      enum tls_ver
+      {
+         TLSV1 = 0x301,
+         TLSV1DOT1 = 0x302,
+         TLSV1DOT2 = 0x303,
+         TLSV1DOT3 = 0x304
+      };
 
 
 
 
-   TLSSTATSPlugin();
-   ~TLSSTATSPlugin();
-   void init(const char *params);
-   void close();
-   OptionsParser *get_parser() const { return new OptionsParser("tlsstats", "Parse TLSSTATS traffic"); }
-   std::string get_name() const { return "tlsstats"; }
-   RecordExt *get_ext() const { return new RecordExtTLSSTATS(); }
-   ProcessPlugin *copy();
 
-   int pre_create(Packet &pkt);
-   int post_create(Flow &rec, const Packet &pkt);
-   int pre_update(Flow &rec, Packet &pkt);
-   int post_update(Flow &rec, const Packet &pkt);
-   void pre_export(Flow &rec);
+      TLSSTATSPlugin();
+      ~TLSSTATSPlugin();
+      void init(const char *params);
+      void close();
+      OptionsParser *get_parser() const { return new OptionsParser("tlsstats", "Parse TLSSTATS traffic"); }
+      std::string get_name() const { return "tlsstats"; }
+      RecordExt *get_ext() const { return new RecordExtTLSSTATS(); }
+      ProcessPlugin *copy();
+
+      int pre_create(Packet &pkt);
+      int post_create(Flow &rec, const Packet &pkt);
+      int pre_update(Flow &rec, Packet &pkt);
+      int post_update(Flow &rec, const Packet &pkt);
+      void pre_export(Flow &rec);
 
 
-};
 
 }
 #endif /* IPXP_PROCESS_TLSSTATS_HPP */

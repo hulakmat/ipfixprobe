@@ -43,82 +43,64 @@
 
 #include "tlsstats.hpp"
 
-
-// #define DEBUG_TLS 
-
-#ifdef  DEBUG_TLS
-# define DEBUG_MSG(format, ...) fprintf(stderr, format, ## __VA_ARGS__)
+#ifdef DEBUG_TLS
+#define DEBUG_MSG(format, ...) fprintf(stderr, format, ##__VA_ARGS__)
 #else
-# define DEBUG_MSG(format, ...)
+#define DEBUG_MSG(format, ...)
 #endif
 
-
-namespace ipxp {
+namespace ipxp
 {
 
-int RecordExtTLSSTATS::REGISTERED_ID = -1;
+   int RecordExtTLSSTATS::REGISTERED_ID = -1;
 
-__attribute__((constructor)) static void register_this_plugin()
-{
-   static PluginRecord rec = PluginRecord("tlsstats", [](){return new TLSSTATSPlugin();});
-   register_plugin(&rec);
-   RecordExtTLSSTATS::REGISTERED_ID = register_extension();
-}
+   __attribute__((constructor)) static void register_this_plugin()
+   {
+      static PluginRecord rec = PluginRecord("tlsstats", []()
+                                             { return new TLSSTATSPlugin(); });
+      register_plugin(&rec);
+      RecordExtTLSSTATS::REGISTERED_ID = register_extension();
+   }
 
-TLSSTATSPlugin::TLSSTATSPlugin()
-{
-
-}
    {
    }
+   TLSSTATSPlugin::~TLSSTATSPlugin()
    {
    }
 
-
-void TLSSTATSPlugin::init(const char *params)
-{
-}
-
-void TLSSTATSPlugin::close()
-{
-}
-
-ProcessPlugin *TLSSTATSPlugin::copy()
-{
-   return new TLSSTATSPlugin(*this);
-}
-
-int TLSSTATSPlugin::pre_create(Packet &pkt)
-{
-   return 0;
-}
-
-int TLSSTATSPlugin::post_create(Flow &rec, const Packet &pkt)
-{
-   get_data(pkt);
-   return 0;
-}
-
-int TLSSTATSPlugin::pre_update(Flow &rec, Packet &pkt)
-{
-   return 0;
-}
-
-int TLSSTATSPlugin::post_update(Flow &rec, const Packet &pkt)
-{
-   get_data(pkt);
-   return 0;
-}
-   {
-   }
+   void TLSSTATSPlugin::init(const char *params)
    {
    }
 
-
+   void TLSSTATSPlugin::close()
+   {
    }
 
-
+   ProcessPlugin *TLSSTATSPlugin::copy()
    {
+      return new TLSSTATSPlugin(*this);
+   }
+
+   int TLSSTATSPlugin::pre_create(Packet &pkt)
+   {
+      return 0;
+   }
+
+   int TLSSTATSPlugin::post_create(Flow &rec, const Packet &pkt)
+   {
+      get_data(pkt);
+      return 0;
+   }
+
+   int TLSSTATSPlugin::pre_update(Flow &rec, Packet &pkt)
+   {
+      return 0;
+   }
+
+   int TLSSTATSPlugin::post_update(Flow &rec, const Packet &pkt)
+   {
+      get_data(pkt);
+      return 0;
    }
    {
    }
