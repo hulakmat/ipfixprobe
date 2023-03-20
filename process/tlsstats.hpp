@@ -66,7 +66,17 @@ namespace ipxp
 #define MAX_SEQ_NUM_TO_STORE 5
 #endif
 
+   typedef struct __attribute__((packed)) tls_frames
+   {
+      uint32_t num;
+      uint16_t frame_len;
+   } tls_frames;
 
+   typedef struct __attribute__((packed)) seq_num_data
+   {
+      uint32_t seq_num;
+      uint16_t data_left;
+   } seq_num_data;
 
    typedef struct __attribute__((packed)) tls_header
    {
@@ -143,9 +153,22 @@ namespace ipxp
          TLSV1DOT3 = 0x304
       };
 
+      // first in pair je vzdy nasledujuce in order ocakavane seq number
+      // second in pair je pocet dat ktore potrebujem este prijat v pripade ze je tls
+      // napriec viacerymi paketmi
 
+      tls_frames tls_frames_arr[MAX_TLS_LENGTHS];
+      uint8_t last_free = 0;
 
+      seq_num_data global_offsets_side1[MAX_SEQ_NUM_TO_STORE];
+      uint8_t last_free1 = 0;
+      seq_num_data global_offsets_side2[MAX_SEQ_NUM_TO_STORE];
+      uint8_t last_free2 = 0;
 
+      seq_num_data *current = nullptr;
+      uint8_t *current_last_free = nullptr;
+
+      // std::map<uint16_t, std::vector<std::pair<uint32_t,uint16_t>>> global_offsets;
 
       TLSSTATSPlugin();
       ~TLSSTATSPlugin();
@@ -162,8 +185,15 @@ namespace ipxp
       int post_update(Flow &rec, const Packet &pkt);
       void pre_export(Flow &rec);
 
+      void get_data(const Packet &);
+      void fill_data(RecordExtTLSSTATS *);
 
+      bool check_if_tls(tls_header *);
+      void check_overlap(const uint8_t *, const uint8_t *, tls_header *, uint16_t, int8_t, const Packet &);
+
+      void process_paket(const Packet &);
+      bool find_seq(const Packet &, uint16_t &, int8_t &);
+   };
 
 }
 #endif /* IPXP_PROCESS_TLSSTATS_HPP */
-
