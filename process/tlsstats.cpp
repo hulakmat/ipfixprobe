@@ -329,12 +329,10 @@ namespace ipxp
       if (pkt.source_pkt)
       {
          current = global_offsets_side1;
-         current_last_free = &last_free1;
       }
       else
       {
          current = global_offsets_side2;
-         current_last_free = &last_free2;
       }
       if (current[0].seq_num == 0 && current[0].data_left == 0)
       {

@@ -161,12 +161,9 @@ namespace ipxp
       uint8_t last_free = 0;
 
       seq_num_data global_offsets_side1[MAX_SEQ_NUM_TO_STORE];
-      uint8_t last_free1 = 0;
       seq_num_data global_offsets_side2[MAX_SEQ_NUM_TO_STORE];
-      uint8_t last_free2 = 0;
 
       seq_num_data *current = nullptr;
-      uint8_t *current_last_free = nullptr;
 
       // std::map<uint16_t, std::vector<std::pair<uint32_t,uint16_t>>> global_offsets;
 
