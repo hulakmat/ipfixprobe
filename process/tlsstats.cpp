@@ -159,7 +159,7 @@ namespace ipxp
             // seq number for next packet and data left for number of tls data 
             // that needs to be obtained
             current[vector_index].seq_num =
-                current[vector_index].seq_num + pkt.payload_len;
+                pkt.tcp_seq + pkt.payload_len;
 
             current[vector_index].data_left =
                 be16toh(tls_h->length) - (payload_end - (payload_start + offset));
@@ -174,8 +174,7 @@ namespace ipxp
          // frame does not overlap so reset record to zeros
          if (vector_index > -1 && vector_index < MAX_SEQ_NUM_TO_STORE)
          {
-            current[vector_index].seq_num =
-                current[vector_index].seq_num + pkt.payload_len;
+            current[vector_index].seq_num = 0;
             current[vector_index].data_left = 0;
          }
          else
@@ -188,7 +187,7 @@ namespace ipxp
    bool TLSSTATSPlugin::find_seq(const Packet &pkt, uint16_t &local_offset, int8_t &vector_index)
    {
 
-      for (uint8_t i = 0; i < *current_last_free; i++)
+      for (uint8_t i = 0; i < MAX_SEQ_NUM_TO_STORE; i++)
       {
          // We dont have to handle example belove, because if we get in order no overlaping
          // or we get from the futer either way we look at start, so 
@@ -237,23 +236,9 @@ namespace ipxp
          //    TLS Start               TLS ends somewhere here,
          //    somewhere here          so we need to calculate
          //                            where    
-         if (pkt.payload == 0 && pkt.tcp_flags & 2 && pkt.tcp_seq == current[i].seq_num)
-         {
-            current[i].seq_num += 1;
-            return true;
-         }
-         else if (pkt.tcp_seq == current[i].seq_num +
-                                     current[i].data_left)
-         {
-            local_offset = 0;
-            vector_index = i;
-            current[i].seq_num = pkt.tcp_seq;
-            current[i].data_left = 0;
-
-            return true;
-         }
-         else if (pkt.tcp_seq >= current[i].seq_num &&
-                  pkt.tcp_seq <= current[i].seq_num + current[i].data_left)
+         if (
+            pkt.tcp_seq >= current[i].seq_num && 
+            pkt.tcp_seq <= current[i].seq_num + current[i].data_left)
          {
             // TLS ends here, 2. option
             if (current[i].seq_num + current[i].data_left -
@@ -297,14 +282,20 @@ namespace ipxp
       {
          // consider creating buffer record in the ckeck overlap
          // because we dont know yet If we will ned the record
-         if (*current_last_free < MAX_SEQ_NUM_TO_STORE)
+         vector_index = MAX_SEQ_NUM_TO_STORE;
+         for (uint8_t i = 0; i < MAX_SEQ_NUM_TO_STORE; i++)
          {
-            current[*current_last_free].seq_num = pkt.tcp_seq;
-            current[*current_last_free].data_left = 0;
+            if (current[i].seq_num == 0 && current[i].data_left == 0)
+            {
+               vector_index = i;
+               break;
+            }
+         }
+         if (vector_index < MAX_SEQ_NUM_TO_STORE)
+         {
+            current[vector_index].seq_num = pkt.tcp_seq;
+            current[vector_index].data_left = 0;
 
-            vector_index = *current_last_free;
-
-            *current_last_free += 1;
          }
          else
          {
@@ -373,12 +364,6 @@ namespace ipxp
       else
       {
          current = global_offsets_side2;
-      }
-      if (current[0].seq_num == 0 && current[0].data_left == 0)
-      {
-         current[0].seq_num = pkt.tcp_seq;
-         current[0].data_left = 0;
-         *current_last_free += 1;
       }
       process_paket(pkt);
    }
