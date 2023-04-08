@@ -64,6 +64,7 @@ namespace ipxp
 
    TLSSTATSPlugin::TLSSTATSPlugin()
    {
+      // initialze buffers for both sides
       for (uint8_t x = 0; x < MAX_SEQ_NUM_TO_STORE; x++)
       {
          global_offsets_side1[x].seq_num = 0;
@@ -152,14 +153,14 @@ namespace ipxp
 
       if ((payload_start + offset + be16toh(tls_h->length)) > payload_end)
       {
-         // frame presahuje takze bude niekde v nasledujucich paketoch koncit
+         // frame overlaps, so we need to update record in the buffer
          if (vector_index > -1 && vector_index < MAX_SEQ_NUM_TO_STORE)
          {
-            // nastav seq number na dalsi paket
+            // seq number for next packet and data left for number of tls data 
+            // that needs to be obtained
             current[vector_index].seq_num =
                 current[vector_index].seq_num + pkt.payload_len;
 
-            // nastav data left na pocet ktory je potrebne este PRIJAT
             current[vector_index].data_left =
                 be16toh(tls_h->length) - (payload_end - (payload_start + offset));
          }
@@ -170,13 +171,11 @@ namespace ipxp
       }
       else if ((payload_start + offset + be16toh(tls_h->length)) == payload_end)
       {
-         // frame nepresahuje
+         // frame does not overlap so reset record to zeros
          if (vector_index > -1 && vector_index < MAX_SEQ_NUM_TO_STORE)
          {
-            // nastav seq number na nasledujuci paket
             current[vector_index].seq_num =
                 current[vector_index].seq_num + pkt.payload_len;
-            // nastav data left na 0
             current[vector_index].data_left = 0;
          }
          else
@@ -191,64 +190,98 @@ namespace ipxp
 
       for (uint8_t i = 0; i < *current_last_free; i++)
       {
-         // zvacsi seq number pre prazdny paket ktory obsahuje SYN
+         // We dont have to handle example belove, because if we get in order no overlaping
+         // or we get from the futer either way we look at start, so 
+         // we dont have to calculate offset.
+
+         // 1.
+         // PKT1        PKT2        PKT3
+         // -------     -------     -------
+         // |     |     |     |     |     |
+         // -------     -------     -------
+         //             ^
+         //             |        
+
+         // or
+         
+         // 2.
+         // PKT1        PKT2        PKT3
+         // -------     -------     -------
+         // |     |     |     |     |     |
+         // -------     -------     -------
+         //             FULL OF     ^
+         //             TLS HERE    |        
+
+         // ------------------------------------------------------------------------
+
+         // 1.
+         // PKT1        THIS PKT    PKT3
+         // -------     -------     -------
+         // |     |     |     |     |     |
+         // -------     -------     -------
+         //     ^                       ^
+         //     |                       |
+         //    TLS Start,               TLS ends somewhere here,
+         //    somewhere here           so we just skip
+         
+         
+         // or
+
+         // 2.
+         // PKT1        PKT2        THIS PKT
+         // -------     -------     -------
+         // |     |     |     |     |     |
+         // -------     -------     -------
+         //     ^                       ^
+         //     |                       |
+         //    TLS Start               TLS ends somewhere here,
+         //    somewhere here          so we need to calculate
+         //                            where    
          if (pkt.payload == 0 && pkt.tcp_flags & 2 && pkt.tcp_seq == current[i].seq_num)
          {
             current[i].seq_num += 1;
             return true;
          }
-         // prisiel mi packet in order
-         // dlzka sa pripocitava aby sme preskocili pakety pokial sa frame rozlieha
          else if (pkt.tcp_seq == current[i].seq_num +
                                      current[i].data_left)
          {
-            // local offset pre tls parse
             local_offset = 0;
-            // vektor index aby som vedel co aktualizovat pre overlap/no overlap
             vector_index = i;
-            // pre istotu vynuluj tcp/data length
             current[i].seq_num = pkt.tcp_seq;
             current[i].data_left = 0;
 
             return true;
          }
-         // prisiel mi paket ktory spada do okna, okno je niekolko paketov ktore by mali obsahovat
-         // jeden tls ramec, v tomto pripade su dve moznosti
-
-         // 1. tento paket je zo stredu a tls tu nekonci -- nerobim nic
-         // 2. paket je hranicny a dany ramec tu konci -- zmenim seq cislo a nastavim pocet dat
-         //                                              ktore este potrebujem prijat
          else if (pkt.tcp_seq >= current[i].seq_num &&
                   pkt.tcp_seq <= current[i].seq_num + current[i].data_left)
          {
-            // hranicny paket, tls tu konci
+            // TLS ends here, 2. option
             if (current[i].seq_num + current[i].data_left -
                     pkt.tcp_seq <=
                 pkt.payload_len)
             {
-               // dopocitaj lokalny offset
+               // Calculate offset where TLS ends
                local_offset = current[i].seq_num + current[i].data_left -
                               pkt.tcp_seq;
-               // vektor index aby som vedel co aktualizovat pre overlap/no overlap
+               
                vector_index = i;
 
-               // pre istotu vynuluj tcp/data length
+               //reset tls buffer
                current[i].seq_num = pkt.tcp_seq;
                current[i].data_left = 0;
 
                return true;
             }
-            // paket zo stredu tls tu nekonci
+            // TLS does not end here 1. option 
             else
             {
-               // nastav lokal offset, parsovat nieje potreba
+               // TLS does not end here 1. option
                local_offset = pkt.payload_len;
                vector_index = -1;
                return true;
             }
          }
       }
-      // return false ked sme uplne out of order, v takom pripade novy zaznam
       return false;
    }
 
@@ -262,24 +295,21 @@ namespace ipxp
 
       if (!find_seq(pkt, local_offset, vector_index))
       {
-         // treba vytvorit novy zaznam
+         // consider creating buffer record in the ckeck overlap
+         // because we dont know yet If we will ned the record
          if (*current_last_free < MAX_SEQ_NUM_TO_STORE)
          {
-            // vytvor par
             current[*current_last_free].seq_num = pkt.tcp_seq;
             current[*current_last_free].data_left = 0;
 
-            // nastav vektor index na posledny prvok
             vector_index = *current_last_free;
 
-            // increment free position
             *current_last_free += 1;
          }
          else
          {
             DEBUG_MSG("Can`t process more out of order packets, returning\n");
-            // technicky tu asi nemusi byt return, akurat v check_overlap sa nic nesmie
-            // aktualizovat
+            // consider not returing here.
             return;
          }
       }
@@ -289,9 +319,10 @@ namespace ipxp
          tls_h = (tls_header *)(payload_start + local_offset);
          if (check_if_tls(tls_h))
          {
-            // posun offset za header
+            // skip tls header
             local_offset += sizeof(tls_header);
-            // skontroluj ci tls frame "konci za koncom paketu"
+            // check if tls overlaps multiple packets, if so setup buffer
+            // if not, we do not need record, so reset record
             check_overlap(payload_start, payload_end, tls_h, local_offset, vector_index, pkt);
             DEBUG_MSG("FRAME LENGTH %d\n", be16toh(tls_h->length));
             if (last_free < MAX_TLS_LENGTHS)
@@ -309,6 +340,7 @@ namespace ipxp
             }
             else
             {
+               // cant process more TLS records, so pointless to loop
                return;
             }
 
@@ -316,7 +348,10 @@ namespace ipxp
          }
          else
          {
-            DEBUG_MSG("IF THIS HAPPENS PROBABLY INCORRECTLY USING OFFSET\n");
+            DEBUG_MSG("THIS CAN HAPPEN IF YOU INCORRECTLY USE OFFSET OR WE DO NOT KNOW WHERE TO LOOK SO WE JUST LOOK AT START\n");
+            
+            // consider returning here
+            // return;
             local_offset++;
          }
       }
@@ -324,8 +359,13 @@ namespace ipxp
 
    void TLSSTATSPlugin::get_data(const Packet &pkt)
    {
+      // MAX_TLS_LENGTHS is set to 20 that means we can 
+      // process 20 TLS Frames, if the value is reached,
+      // stop processing
       if (last_free >= MAX_TLS_LENGTHS)
          return;
+      
+      // setup pointers based on direction
       if (pkt.source_pkt)
       {
          current = global_offsets_side1;
