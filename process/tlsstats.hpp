@@ -107,6 +107,14 @@ namespace ipxp
 #ifdef WITH_NEMEA
       virtual void fill_unirec(ur_template_t *tmplt, void *record)
       {
+         for (int i = 0; i < MAX_TLS_LENGTHS; i++)
+         {
+            if(tls_sizes[i] == 0){
+               break;
+            }
+            // "Automatically resizes array when index is out of array bounds"
+            ur_array_set(tmplt, record, F_STATS_TLS_SIZES, i, tls_sizes[i]);
+         }
       }
 
       const char *get_unirec_tmplt() const
@@ -117,7 +125,19 @@ namespace ipxp
 
       virtual int fill_ipfix(uint8_t *buffer, int size)
       {
-         return 0;
+         if (2*size < MAX_TLS_LENGTHS){
+            return -1;
+         }
+         int i = 0;
+         for (i = 0; i < MAX_TLS_LENGTHS ;i++)
+         {
+            if (tls_sizes[i] == 0){
+               break;
+            }
+            *(uint16_t *) (buffer + 2*i)  = ntohs(tls_sizes[i]);
+         }
+
+         return 2*i;
       }
 
       const char **get_ipfix_tmplt() const
