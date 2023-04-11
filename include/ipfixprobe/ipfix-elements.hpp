@@ -233,8 +233,6 @@ namespace ipxp {
 #define STATS_PCKT_DIRECTIONS(F)      F(0,       291,  -1,   nullptr) // BASIC LIST -- FIELD IS e8057id1016 (int8*)
 
 #define STATS_TLS_SIZES(F)            F(0,       291,  -1,   nullptr) // BASIC LIST -- FIELD IS e8057id1013 (uint16*)
-#define STATS_TLS_TYPES(F)            F(0,       291,  -1,   nullptr) // BASIC LIST -- FIELD IS e8057id1013 (uint16*)
-#define STATS_TLS_VERSIONS(F)         F(0,       291,  -1,   nullptr) // BASIC LIST -- FIELD IS e8057id1013 (uint16*)
 
 
 #define SBI_BRST_PACKETS(F)           F(0,       291,  -1,   nullptr) // BASIC LIST -- FIELD IS e8057id1050 (uint16*)
@@ -426,9 +424,7 @@ namespace ipxp {
    F(STATS_PCKT_DIRECTIONS)
 
 #define IPFIX_TLSSTATS_TEMPLATE(F) \
-   F(STATS_TLS_SIZES) \
-   F(STATS_TLS_TYPES) \
-   F(STATS_TLS_VERSIONS)
+   F(STATS_TLS_SIZES)
 
 #define IPFIX_OVPN_TEMPLATE(F) \
    F(OVPN_CONF_LEVEL)
