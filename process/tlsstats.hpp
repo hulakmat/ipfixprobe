@@ -85,10 +85,10 @@ namespace ipxp
       uint16_t length;
    } tls_header;
 
-#define TLSSTATS_UNIREC_TEMPLATE "PPI_PKT_LENGTHS,PPI_PKT_TIMES,PPI_PKT_FLAGS,PPI_PKT_DIRECTIONS" /* TODO: unirec template */
+#define TLSSTATS_UNIREC_TEMPLATE "STATS_TLS_SIZES" /* TODO: unirec template */
 
    UR_FIELDS(
-       /* TODO: unirec fields definition */
+       uint16* STATS_TLS_SIZES,
    )
 
    /**
