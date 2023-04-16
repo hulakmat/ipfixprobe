@@ -232,10 +232,10 @@ namespace ipxp {
 #define STATS_PCKT_TCPFLGS(F)         F(0,       291,  -1,   nullptr) // BASIC LIST -- FIELD IS e8057id1015 (uint8*)
 #define STATS_PCKT_DIRECTIONS(F)      F(0,       291,  -1,   nullptr) // BASIC LIST -- FIELD IS e8057id1016 (int8*)
 
-#define STATS_TLS_SIZES(F)            F(0,       291,  -1,   nullptr) // BASIC LIST -- FIELD IS e8057id1013 (uint16*)
-#define STATS_TLS_TIMESTAMPS(F)       F(0,       291,  -1,   nullptr) // BASIC LIST -- FIELD IS e8057id1013 (uint16*)
-#define STATS_TLS_DIRS(F)             F(0,       291,  -1,   nullptr) // BASIC LIST -- FIELD IS e8057id1013 (uint16*)
-#define STATS_TLS_TYPES(F)            F(0,       291,  -1,   nullptr) // BASIC LIST -- FIELD IS e8057id1013 (uint16*)
+#define STATS_TLS_SIZES(F)            F(0,       291,  -1,   nullptr) // BASIC LIST -- FIELD IS e8057id0804 (uint16*)
+#define STATS_TLS_TIMESTAMPS(F)       F(0,       291,  -1,   nullptr) // BASIC LIST -- FIELD IS e8057id0805 (time*)
+#define STATS_TLS_DIRS(F)             F(0,       291,  -1,   nullptr) // BASIC LIST -- FIELD IS e8057id0806 (int8*)
+#define STATS_TLS_TYPES(F)            F(0,       291,  -1,   nullptr) // BASIC LIST -- FIELD IS e8057id0807 (uint8*)
 
 
 #define SBI_BRST_PACKETS(F)           F(0,       291,  -1,   nullptr) // BASIC LIST -- FIELD IS e8057id1050 (uint16*)

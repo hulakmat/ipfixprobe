@@ -108,10 +108,10 @@ namespace ipxp
       // update this based on what Tomas create
       typedef enum eHdrFieldID
       {
-         Sizes = 1050,
-         Times = 1051,
-         Directions = 1052,
-         Types = 1053,
+         Sizes = 804,
+         Times = 805,
+         Directions = 806,
+         Types = 807,
       } eHdrFieldID;
       static int REGISTERED_ID;
 
