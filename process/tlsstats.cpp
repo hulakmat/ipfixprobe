@@ -118,8 +118,18 @@ namespace ipxp
       for (uint8_t x = 0; x < last_free; x++)
       {
          tlsstats_data->tls_sizes[x] = tls_frames_arr[x].frame_len;
-         DEBUG_MSG("%u ", tlsstats_data->tls_sizes[x]);
+         tlsstats_data->tls_timestamps[x] = tls_frames_arr[x].timestamp;
+         tlsstats_data->tls_directions[x] = tls_frames_arr[x].direction;
+         tlsstats_data->tls_types[x] = tls_frames_arr[x].type;
+         
+         DEBUG_MSG("---\n");
+         DEBUG_MSG("Size: %u \n", tlsstats_data->tls_sizes[x]);
+         DEBUG_MSG("Timeval: %u \n", tlsstats_data->tls_timestamps[x]);
+         DEBUG_MSG("Dir: %u \n", tlsstats_data->tls_directions[x]);
+         DEBUG_MSG("Type: %u \n", tlsstats_data->tls_types[x]);
+         DEBUG_MSG("---\n");
       }
+      tlsstats_data->records_parsed = last_free;
       DEBUG_MSG("\n");
    }
 
@@ -321,13 +331,16 @@ namespace ipxp
                if (pkt.source_pkt)
                {
                   tls_frames_arr[last_free].num = pkt.tcp_seq;
-                  tls_frames_arr[last_free++].frame_len = be16toh(tls_h->length);
                }
                else
                {
                   tls_frames_arr[last_free].num = pkt.tcp_ack;
-                  tls_frames_arr[last_free++].frame_len = be16toh(tls_h->length);
                }
+               tls_frames_arr[last_free].frame_len = be16toh(tls_h->length);
+               int8_t direction = (int8_t) !pkt.source_pkt;
+               tls_frames_arr[last_free].timestamp = pkt.ts;
+               tls_frames_arr[last_free].direction = direction;
+               tls_frames_arr[last_free++].type = tls_h->content_type;
             }
             else
             {

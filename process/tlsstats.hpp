@@ -53,6 +53,7 @@
 #include <ipfixprobe/process.hpp>
 #include <ipfixprobe/flowifc.hpp>
 #include <ipfixprobe/packet.hpp>
+#include <ipfixprobe/ipfix-basiclist.hpp>
 #include <ipfixprobe/ipfix-elements.hpp>
 
 namespace ipxp
@@ -68,8 +69,14 @@ namespace ipxp
 
    typedef struct __attribute__((packed)) tls_frames
    {
+      // timeval ts --> z packet.hpp
+      // smer --> z packet.hpp
+      // typ z check_if_tls
       uint32_t num;
       uint16_t frame_len;
+      timeval timestamp;
+      int8_t direction;
+      uint8_t type;
    } tls_frames;
 
    typedef struct __attribute__((packed)) seq_num_data
@@ -85,20 +92,35 @@ namespace ipxp
       uint16_t length;
    } tls_header;
 
-#define TLSSTATS_UNIREC_TEMPLATE "STATS_TLS_SIZES" /* TODO: unirec template */
+#define TLSSTATS_UNIREC_TEMPLATE "STATS_TLS_SIZES,STATS_TLS_TIMESTAMPS,STATS_TLS_DIRS,STATS_TLS_TYPES"
 
    UR_FIELDS(
-       uint16* STATS_TLS_SIZES,
-   )
+       uint16 *STATS_TLS_SIZES, 
+       time *STATS_TLS_TIMESTAMPS,
+       int8 *STATS_TLS_DIRS,
+       uint8 *STATS_TLS_TYPES
+       )
 
    /**
     * \brief Flow record extension header for storing parsed TLSSTATS data.
     */
    struct RecordExtTLSSTATS : public RecordExt
    {
+      // update this based on what Tomas create
+      typedef enum eHdrFieldID
+      {
+         Sizes = 1050,
+         Times = 1051,
+         Directions = 1052,
+         Types = 1053,
+      } eHdrFieldID;
       static int REGISTERED_ID;
 
       uint16_t tls_sizes[MAX_TLS_LENGTHS] = {0};
+      timeval tls_timestamps[MAX_TLS_LENGTHS] = {0};
+      int8_t tls_directions[MAX_TLS_LENGTHS] = {-1};
+      uint8_t tls_types[MAX_TLS_LENGTHS] = {0};
+      uint8_t records_parsed = MAX_TLS_LENGTHS;
 
       RecordExtTLSSTATS() : RecordExt(REGISTERED_ID)
       {
@@ -107,13 +129,13 @@ namespace ipxp
 #ifdef WITH_NEMEA
       virtual void fill_unirec(ur_template_t *tmplt, void *record)
       {
-         for (int i = 0; i < MAX_TLS_LENGTHS; i++)
+         for (int i = 0; i < records_parsed; i++)
          {
-            if(tls_sizes[i] == 0){
-               break;
-            }
             // "Automatically resizes array when index is out of array bounds"
             ur_array_set(tmplt, record, F_STATS_TLS_SIZES, i, tls_sizes[i]);
+            ur_array_set(tmplt, record, F_STATS_TLS_TIMESTAMPS, i, tls_timestamps[i].tv_usec);
+            ur_array_set(tmplt, record, F_STATS_TLS_DIRS, i, tls_directions[i]);
+            ur_array_set(tmplt, record, F_STATS_TLS_TYPES, i, tls_types[i]);
          }
       }
 
@@ -125,19 +147,27 @@ namespace ipxp
 
       virtual int fill_ipfix(uint8_t *buffer, int size)
       {
-         if (2*size < MAX_TLS_LENGTHS){
+         int32_t bufferPtr;
+         IpfixBasicList basiclist;
+
+         basiclist.hdrEnterpriseNum = IpfixBasicList::CesnetPEM;
+
+         int req_size = 4 * basiclist.HeaderSize() +
+                        sizeof(uint16_t) * records_parsed +
+                        sizeof(timeval) * records_parsed +
+                        sizeof(int8_t) * records_parsed +
+                        sizeof(uint8_t) * records_parsed;
+
+         if (req_size > size)
+         {
             return -1;
          }
-         int i = 0;
-         for (i = 0; i < MAX_TLS_LENGTHS ;i++)
-         {
-            if (tls_sizes[i] == 0){
-               break;
-            }
-            *(uint16_t *) (buffer + 2*i)  = ntohs(tls_sizes[i]);
-         }
+         bufferPtr = basiclist.FillBuffer(buffer, tls_sizes, records_parsed, (uint16_t)Sizes);
+         bufferPtr += basiclist.FillBuffer(buffer + bufferPtr, tls_timestamps, records_parsed, (uint16_t)Times);
+         bufferPtr += basiclist.FillBuffer(buffer + bufferPtr, tls_directions, records_parsed, (uint16_t)Directions);
+         bufferPtr += basiclist.FillBuffer(buffer + bufferPtr, tls_types, records_parsed, (uint16_t)Types);
 
-         return 2*i;
+         return bufferPtr;
       }
 
       const char **get_ipfix_tmplt() const
