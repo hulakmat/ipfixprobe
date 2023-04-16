@@ -95,11 +95,10 @@ namespace ipxp
 #define TLSSTATS_UNIREC_TEMPLATE "STATS_TLS_SIZES,STATS_TLS_TIMESTAMPS,STATS_TLS_DIRS,STATS_TLS_TYPES"
 
    UR_FIELDS(
-       uint16 *STATS_TLS_SIZES, 
+       uint16 *STATS_TLS_SIZES,
        time *STATS_TLS_TIMESTAMPS,
        int8 *STATS_TLS_DIRS,
-       uint8 *STATS_TLS_TYPES
-       )
+       uint8 *STATS_TLS_TYPES)
 
    /**
     * \brief Flow record extension header for storing parsed TLSSTATS data.
@@ -153,10 +152,10 @@ namespace ipxp
          basiclist.hdrEnterpriseNum = IpfixBasicList::CesnetPEM;
 
          int req_size = 4 * basiclist.HeaderSize() +
-                        sizeof(uint16_t) * records_parsed +
-                        sizeof(timeval) * records_parsed +
-                        sizeof(int8_t) * records_parsed +
-                        sizeof(uint8_t) * records_parsed;
+                        sizeof(uint16_t) * records_parsed + // sizes
+                        sizeof(uint64_t) * records_parsed + // timestamps
+                        sizeof(int8_t) * records_parsed +   // directions
+                        sizeof(uint8_t) * records_parsed;   // types
 
          if (req_size > size)
          {
