@@ -203,10 +203,6 @@ namespace ipxp
          TLSV1DOT3 = 0x304
       };
 
-      // first in pair je vzdy nasledujuce in order ocakavane seq number
-      // second in pair je pocet dat ktore potrebujem este prijat v pripade ze je tls
-      // napriec viacerymi paketmi
-
       tls_frames tls_frames_arr[MAX_TLS_LENGTHS];
       uint8_t last_free = 0;
 
@@ -214,8 +210,6 @@ namespace ipxp
       seq_num_data global_offsets_side2[MAX_SEQ_NUM_TO_STORE];
 
       seq_num_data *current = nullptr;
-
-      // std::map<uint16_t, std::vector<std::pair<uint32_t,uint16_t>>> global_offsets;
 
       TLSSTATSPlugin();
       ~TLSSTATSPlugin();
