@@ -142,13 +142,13 @@ namespace ipxp
 
    bool TLSSTATSPlugin::check_if_tls(tls_header *tls_h)
    {
-      if ((tls_h->content_type == change_cipher_spec ||
-           tls_h->content_type == alert ||
-           tls_h->content_type == handshake ||
-           tls_h->content_type == application_data ||
-           tls_h->content_type == heartbeat ||
-           tls_h->content_type == tls12_cid ||
-           tls_h->content_type == ack) &&
+      if ((tls_h->content_type == CHANGE_CIPHER_SPEC ||
+           tls_h->content_type == ALERT ||
+           tls_h->content_type == HANDSHAKE ||
+           tls_h->content_type == APPLICATION_DATA ||
+           tls_h->content_type == HEARTHBEAT ||
+           tls_h->content_type == TLS12_CID ||
+           tls_h->content_type == ACK) &&
           ((be16toh(tls_h->version) == TLSV1) ||
            (be16toh(tls_h->version) == TLSV1DOT1) ||
            (be16toh(tls_h->version) == TLSV1DOT2) ||

@@ -108,10 +108,10 @@ namespace ipxp
       // update this based on what Tomas create
       typedef enum eHdrFieldID
       {
-         Sizes = 804,
-         Times = 805,
-         Directions = 806,
-         Types = 807,
+         SIZES = 804,
+         TIMES = 805,
+         DIRECTIONS = 806,
+         TYPES = 807,
       } eHdrFieldID;
       static int REGISTERED_ID;
 
@@ -161,10 +161,10 @@ namespace ipxp
          {
             return -1;
          }
-         bufferPtr = basiclist.FillBuffer(buffer, tls_sizes, records_parsed, (uint16_t)Sizes);
-         bufferPtr += basiclist.FillBuffer(buffer + bufferPtr, tls_timestamps, records_parsed, (uint16_t)Times);
-         bufferPtr += basiclist.FillBuffer(buffer + bufferPtr, tls_directions, records_parsed, (uint16_t)Directions);
-         bufferPtr += basiclist.FillBuffer(buffer + bufferPtr, tls_types, records_parsed, (uint16_t)Types);
+         bufferPtr = basiclist.FillBuffer(buffer, tls_sizes, records_parsed, (uint16_t)SIZES);
+         bufferPtr += basiclist.FillBuffer(buffer + bufferPtr, tls_timestamps, records_parsed, (uint16_t)TIMES);
+         bufferPtr += basiclist.FillBuffer(buffer + bufferPtr, tls_directions, records_parsed, (uint16_t)DIRECTIONS);
+         bufferPtr += basiclist.FillBuffer(buffer + bufferPtr, tls_types, records_parsed, (uint16_t)TYPES);
 
          return bufferPtr;
       }
@@ -186,13 +186,14 @@ namespace ipxp
    public:
       enum content_type
       {
-         change_cipher_spec = 0x14,
-         alert = 0x15,
-         handshake = 0x16,
-         application_data = 0x17,
-         heartbeat = 0x18,
-         tls12_cid = 0x19,
-         ack = 0x1A,
+
+         CHANGE_CIPHER_SPEC = 0x14,
+         ALERT = 0x15,
+         HANDSHAKE = 0x16,
+         APPLICATION_DATA = 0x17,
+         HEARTHBEAT = 0x18,
+         TLS12_CID = 0x19,
+         ACK = 0x1A,
       };
       enum tls_ver
       {
