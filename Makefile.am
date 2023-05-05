@@ -139,6 +139,8 @@ endif
 
 if WITH_FLEXPROBE
 ipfixprobe_process_src+=\
+		input/flexprobe.cpp \
+		input/flexprobe.h \
 		process/flexprobe-data.h \
 		process/flexprobe-data-processing.cpp \
 		process/flexprobe-data-processing.h \
