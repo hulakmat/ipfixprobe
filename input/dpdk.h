@@ -55,7 +55,7 @@
 
 namespace ipxp {
 class DpdkOptParser : public OptionsParser {
-private:
+protected:
     static constexpr size_t DEFAULT_MBUF_BURST_SIZE = 256;
     static constexpr size_t DEFAULT_MBUF_POOL_SIZE = 16384;
     size_t pkt_buffer_size_;
@@ -64,9 +64,8 @@ private:
     uint16_t rx_queues_ = 1;
     std::string eal_;
 
-public:
-    DpdkOptParser()
-        : OptionsParser("dpdk", "Input plugin for reading packets using DPDK interface")
+    DpdkOptParser(const std::string& name, const std::string& info)
+        : OptionsParser(name, info)
         , pkt_buffer_size_(DEFAULT_MBUF_BURST_SIZE)
         , pkt_mempool_size_(DEFAULT_MBUF_POOL_SIZE)
     {
@@ -106,6 +105,9 @@ public:
             [this](const char *arg){eal_ = arg; return true;}, 
             OptionFlags::RequiredArgument);
     }
+public:
+    DpdkOptParser()
+        : DpdkOptParser("dpdk", "Input plugin for reading packets using DPDK interface"){}
 
     size_t pkt_buffer_size() const { return pkt_buffer_size_; }
 
@@ -203,7 +205,7 @@ public:
     ~DpdkReader();
     DpdkReader();
 
-private:
+protected:
     rte_mempool* rteMempool;
     std::vector<rte_mbuf*> mbufs_;
     
