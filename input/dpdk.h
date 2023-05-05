@@ -41,7 +41,7 @@
  *
  */
 #include <config.h>
-#ifdef WITH_DPDK
+#if defined(WITH_DPDK) || defined(WITH_FLEXPROBE)
 
 #ifndef IPXP_DPDK_READER_H
 #define IPXP_DPDK_READER_H
