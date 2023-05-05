@@ -138,6 +138,13 @@ public:
 
     int getRxTimestampOffset();
 
+    /**
+     * @brief Get the Rx Timestamp mbuf Dynflag for RTE_MBUF_DYNFLAG_RX_TIMESTAMP_NAME
+     * 
+     * @return int RTE_BIT64 value
+     */
+    int getRxTimestampDynflag();
+
     bool isNfbDpdkDriver();
 
     /**
@@ -216,6 +223,7 @@ protected:
     uint16_t m_rxQueueId;
     uint16_t m_portId;
     int m_rxTimestampOffset;
+    uint64_t m_rxTimestampDynflag;
 
     bool m_useHwRxTimestamp;
 
