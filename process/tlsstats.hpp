@@ -116,7 +116,7 @@ namespace ipxp
       static int REGISTERED_ID;
 
       uint16_t tls_sizes[MAX_TLS_LENGTHS] = {0};
-      timeval tls_timestamps[MAX_TLS_LENGTHS] = {0};
+      timeval tls_timestamps[MAX_TLS_LENGTHS] = {{0, 0}};
       int8_t tls_directions[MAX_TLS_LENGTHS] = {-1};
       uint8_t tls_types[MAX_TLS_LENGTHS] = {0};
       uint8_t records_parsed = MAX_TLS_LENGTHS;
