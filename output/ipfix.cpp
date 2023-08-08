@@ -50,6 +50,7 @@
 #include <assert.h>
 #include <endian.h>
 #include <memory>
+#include <lz4.h>
 
 #define __STDC_FORMAT_MACROS
 #include <inttypes.h>
@@ -139,6 +140,7 @@ IPFIXExporter::IPFIXExporter() :
    fd(-1), addrinfo(nullptr),
    host(""), port(4739), protocol(IPPROTO_TCP),
    ip(AF_UNSPEC), flags(0),
+   lz4_compress(false), compressBuffer(nullptr),
    reconnectTimeout(RECONNECT_TIMEOUT), lastReconnect(0), odid(0),
    templateRefreshTime(TEMPLATE_REFRESH_TIME),
    templateRefreshPackets(TEMPLATE_REFRESH_PACKETS),
@@ -171,6 +173,7 @@ void IPFIXExporter::init(const char *params)
    odid = parser.m_id;
    mtu = parser.m_mtu;
    dir_bit_field = parser.m_dir;
+   lz4_compress = parser.lz4_compress;
 
    if (parser.m_udp) {
       protocol = IPPROTO_UDP;
@@ -249,6 +252,12 @@ void IPFIXExporter::close()
       free(packetDataBuffer);
       packetDataBuffer = nullptr;
    }
+
+   if (compressBuffer != nullptr) {
+      free(compressBuffer);
+      compressBuffer = nullptr;
+   }
+
    if (extensions != nullptr) {
       delete [] extensions;
       extensions = nullptr;
@@ -809,7 +818,8 @@ void IPFIXExporter::flush()
  * When the collector disconnects, tries to reconnect and resend the data
  *
  * \param packet Packet to send
- * \return 0 on success, -1 on socket error, 1 when data needs to be resent (after reconnect)
+ * \return 0 on success, -1 on socket error, -2 on compress error,
+ *         1 when data needs to be resent (after reconnect)
  */
 int IPFIXExporter::send_packet(ipfix_packet_t *packet)
 {
@@ -821,10 +831,22 @@ int IPFIXExporter::send_packet(ipfix_packet_t *packet)
       return -1;
    }
 
+   auto data = packet->data;
+   auto dataLen = packet->length;
+
+   if (lz4_compress) {
+      int res = compress_packet(packet);
+      if (res == 0) {
+         return -2;
+      }
+      data = compressBuffer;
+      dataLen = res;
+   }
+
    /* sendto() does not guarantee that everything will be send in one piece */
-   while (sent < packet->length) {
+   while (sent < dataLen) {
       /* Send data to collector (TCP and SCTP ignores last two arguments) */
-      ret = sendto(fd, (void *) (packet->data + sent), packet->length - sent, 0,
+      ret = sendto(fd, (void *) (data + sent), dataLen - sent, 0,
             addrinfo->ai_addr, addrinfo->ai_addrlen);
 
       /* Check that the data were sent correctly */
@@ -859,6 +881,8 @@ int IPFIXExporter::send_packet(ipfix_packet_t *packet)
             /* Reset the sequences number since it is unique per connection */
             sequenceNum = 0;
             ((ipfix_header_t *) packet->data)->sequenceNumber = 0; /* no need to change byteorder of 0 */
+            reinterpret_cast<ipfix_header_t *>(
+               compressBuffer + sizeof(ipfix_compress_header_t))->sequenceNumber = 0;
 
             /* Say that we should try to connect and send data again */
             return 1;
@@ -1011,6 +1035,58 @@ int IPFIXExporter::reconnect()
    }
 
    return 0;
+}
+
+/**
+ * @brief Compresses the packet into IPFIXExporter::compressBuffer
+ *
+ * @param packet packet to compress
+ * @return length of the compressed data, 0 on error
+ */
+int IPFIXExporter::compress_packet(ipfix_packet_t *packet)
+{
+   // the format of the data is as follows:
+   //   first is stored the compression header
+   //   then is stored the ipfix header (uncompressed)
+   //   then is stored the compressed data
+
+   if (compressBuffer == nullptr) {
+      compressBuffer =
+         reinterpret_cast<uint8_t *>(malloc(mtu + sizeof(ipfix_compress_header_t)));
+   }
+
+   auto bufCHeader = reinterpret_cast<ipfix_compress_header_t *>(compressBuffer);
+   auto bufHeader =
+      reinterpret_cast<ipfix_header_t *>(compressBuffer + sizeof(ipfix_compress_header_t));
+
+   // check if the packet is already compressed in the buffer
+   if (ntohs(bufCHeader->uncompressedSize) + sizeof(ipfix_header_t) == packet->length
+      && memcmp(packet->data, bufHeader, sizeof(ipfix_header_t)) == 0)
+   {
+      return ntohs(bufCHeader->compressedSize)
+         + sizeof(ipfix_compress_header_t) + sizeof(ipfix_header_t);
+   }
+
+   auto bufData = compressBuffer + sizeof(ipfix_compress_header_t) + sizeof(ipfix_header_t);
+   auto pktData = packet->data + sizeof(ipfix_header_t);
+
+   // compress the data
+   auto res = LZ4_compress_default(
+      reinterpret_cast<char *>(pktData),
+      reinterpret_cast<char *>(bufData),
+      packet->length - sizeof(ipfix_header_t),
+      mtu - sizeof(ipfix_header_t)
+   );
+
+   if (res == 0) {
+      return 0;
+   }
+
+   bufCHeader->uncompressedSize = htons(packet->length - sizeof(ipfix_header_t));
+   bufCHeader->compressedSize = htons(static_cast<uint16_t>(res));
+   *bufHeader = *reinterpret_cast<ipfix_header_t *>(packet->data);
+
+   return res + sizeof(ipfix_compress_header_t) + sizeof(ipfix_header_t);
 }
 
 #define GEN_FIELDS_SUMLEN_INT(FIELD) FIELD_LEN(FIELD) +

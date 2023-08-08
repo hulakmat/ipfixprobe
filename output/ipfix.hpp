@@ -40,6 +40,7 @@
 
 #include <vector>
 #include <map>
+#include <cstdint>
 
 #include <ipfixprobe/output.hpp>
 #include <ipfixprobe/process.hpp>
@@ -76,9 +77,12 @@ public:
    uint64_t m_id;
    uint32_t m_dir;
    bool m_verbose;
+   bool lz4_compress;
 
    IpfixOptParser() : OptionsParser("ipfix", "Output plugin for ipfix export"),
-      m_host("127.0.0.1"), m_port(4739), m_mtu(DEFAULT_MTU), m_udp(false), m_id(DEFAULT_EXPORTER_ID), m_dir(0), m_verbose(false)
+      m_host("127.0.0.1"), m_port(4739), m_mtu(DEFAULT_MTU), m_udp(false),
+      m_id(DEFAULT_EXPORTER_ID), m_dir(0), m_verbose(false),
+      lz4_compress(false)
    {
       register_option("h", "host", "ADDR", "Remote collector address", [this](const char *arg){m_host = arg; return true;}, OptionFlags::RequiredArgument);
       register_option("p", "port", "PORT", "Remote collector port",
@@ -95,6 +99,11 @@ public:
          [this](const char *arg){try {m_dir = str2num<decltype(m_dir)>(arg);} catch(std::invalid_argument &e) {return false;} return true;},
          OptionFlags::RequiredArgument);
       register_option("v", "verbose", "", "Enable verbose mode", [this](const char *arg){m_verbose = true; return true;}, OptionFlags::NoArgument);
+      register_option("c", "compress", "", "Enable lz4 compression",
+         [this](const char *arg) {
+            lz4_compress = true;
+            return true;
+         }, OptionFlags::NoArgument);
    }
 };
 
@@ -224,6 +233,22 @@ typedef struct ipfix_template_set_header {
 
 } ipfix_template_set_header_t;
 
+/**
+ * @brief the header used for compressed data, all values are in big-endian
+ *
+ */
+typedef struct {
+   /**
+    * size of the data after it is decompressed (not including this header)
+    */
+   uint16_t uncompressedSize;
+
+   /**
+    * size of the data after when it is compressed (not including this header)
+    */
+   uint16_t compressedSize;
+} ipfix_compress_header_t;
+
 class IPFIXExporter : public OutputPlugin
 {
 public:
@@ -263,6 +288,9 @@ private:
    int ip; /**< IP protocol version (AF_INET, ...) */
    int flags; /**< getaddrinfo flags */
 
+   bool lz4_compress; /**< true when lz4 compression is enabled */
+   uint8_t *compressBuffer; /**< for compressed packet(s), see IPFIXExporter::compress_packet */
+
    uint32_t reconnectTimeout; /**< Timeout between connection retries */
    time_t lastReconnect; /**< Time in seconds of last connection retry */
    uint32_t odid; /**< Observation Domain ID */
@@ -288,6 +316,7 @@ private:
    int send_packet(ipfix_packet_t *packet);
    int connect_to_collector();
    int reconnect();
+   int compress_packet(ipfix_packet_t *packet);
    int fill_basic_flow(const Flow &flow, template_t *tmplt);
    int fill_extensions(RecordExt *ext, uint8_t *buffer, int size);
 
