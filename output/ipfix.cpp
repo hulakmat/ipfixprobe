@@ -140,12 +140,12 @@ IPFIXExporter::IPFIXExporter() :
    fd(-1), addrinfo(nullptr),
    host(""), port(4739), protocol(IPPROTO_TCP),
    ip(AF_UNSPEC), flags(0),
-   lz4_compress(false), compressBuffer(nullptr),
+   packetDataBuffer(),
    reconnectTimeout(RECONNECT_TIMEOUT), lastReconnect(0), odid(0),
    templateRefreshTime(TEMPLATE_REFRESH_TIME),
    templateRefreshPackets(TEMPLATE_REFRESH_PACKETS),
    dir_bit_field(0),
-   mtu(DEFAULT_MTU), packetDataBuffer(nullptr),
+   mtu(DEFAULT_MTU),
    tmpltMaxBufferSize(mtu - IPFIX_HEADER_SIZE)
 {
 }
@@ -163,6 +163,13 @@ void IPFIXExporter::init(const char *params)
    } catch (ParserError &e) {
       throw PluginError(e.what());
    }
+
+   // check if both compressino and udp is enabled
+   // (compression is not supported with udp)
+   if (parser.lz4_compress >= 0 && parser.m_udp) {
+      throw PluginError("Compression (c) is not supported with udp (u)");
+   }
+
    verbose = parser.m_verbose;
    if (verbose) {
       fprintf(stderr, "VERBOSE: IPFIX export plugin init start\n");
@@ -173,7 +180,28 @@ void IPFIXExporter::init(const char *params)
    odid = parser.m_id;
    mtu = parser.m_mtu;
    dir_bit_field = parser.m_dir;
-   lz4_compress = parser.lz4_compress;
+
+   int res;
+   // check if compression is enabled
+   if (parser.lz4_compress >= 0) {
+      res = packetDataBuffer.init(
+         true,
+         LZ4_COMPRESSBOUND(mtu) + CompressBuffer::C_ADD_SIZE,
+         // mtu * 3 is arbitrary value, it should be more than mtu * 2
+         std::max(parser.lz4_compress, mtu * 3)
+      );
+   } else {
+      res = packetDataBuffer.init(
+         false,
+         0,
+         mtu
+      );
+   }
+
+   if (res) {
+      packetDataBuffer.close();
+      throw PluginError("not enough memory");
+   }
 
    if (parser.m_udp) {
       protocol = IPPROTO_UDP;
@@ -183,10 +211,6 @@ void IPFIXExporter::init(const char *params)
       throw PluginError("IPFIX message MTU size should be at least " + std::to_string(IPFIX_HEADER_SIZE));
    }
    tmpltMaxBufferSize = mtu - IPFIX_HEADER_SIZE;
-   packetDataBuffer = (uint8_t *) malloc(sizeof(uint8_t) * mtu);
-   if (!packetDataBuffer) {
-      throw PluginError("not enough memory");
-   }
 
    int ret = connect_to_collector();
    if (ret) {
@@ -248,15 +272,7 @@ void IPFIXExporter::close()
    }
    templates = nullptr;
 
-   if (packetDataBuffer != nullptr) {
-      free(packetDataBuffer);
-      packetDataBuffer = nullptr;
-   }
-
-   if (compressBuffer != nullptr) {
-      free(compressBuffer);
-      compressBuffer = nullptr;
-   }
+   packetDataBuffer.close();
 
    if (extensions != nullptr) {
       delete [] extensions;
@@ -669,8 +685,8 @@ uint16_t IPFIXExporter::create_template_packet(ipfix_packet_t *packet)
 
    totalSize += IPFIX_HEADER_SIZE + IPFIX_SET_HEADER_SIZE;
 
-   /* Allocate memory for the packet */
-   packet->data = (uint8_t *) malloc(sizeof(uint8_t)*(totalSize));
+   /* Get memory for the packet */
+   packet->data = packetDataBuffer.getWriteBuffer(totalSize);
    if (!packet->data) {
       return 0;
    }
@@ -774,8 +790,6 @@ void IPFIXExporter::send_templates()
       /* After error, the plugin sends all templates after reconnection,
        * so we need not concern about it here */
       send_packet(&pkt);
-
-      free(pkt.data);
    }
 }
 
@@ -785,10 +799,30 @@ void IPFIXExporter::send_templates()
 void IPFIXExporter::send_data()
 {
    ipfix_packet_t pkt;
-   pkt.data = packetDataBuffer;
 
-   /* Send all new templates */
-   while (create_data_packet(&pkt)) {
+   /* Send all new templates
+    * Loop ends when len = create_data_packet() is 0
+    */
+   while (true) {
+      // reset for every new connection
+      // (reset is faster when requested before getWriteBuffer())
+      if (sequenceNum == 0) {
+         packetDataBuffer.requestReset();
+      }
+
+      pkt.data = packetDataBuffer.getWriteBuffer(mtu);
+      if (!pkt.data) {
+         // this should never happen because packetDataBuffer
+         // should already have enough allocated memory
+         return;
+      }
+
+      auto len = create_data_packet(&pkt);
+      packetDataBuffer.shrinkTo(len);
+      if (len == 0) {
+         return;
+      }
+
       int ret = send_packet(&pkt);
       if (ret == 1) {
          /* Collector reconnected, resend the packet */
@@ -815,6 +849,8 @@ void IPFIXExporter::flush()
 /**
  * \brief Sends packet using UDP or TCP as defined in plugin configuration
  *
+ * The packet data is take from the packetDataBuffer.
+ *
  * When the collector disconnects, tries to reconnect and resend the data
  *
  * \param packet Packet to send
@@ -831,17 +867,8 @@ int IPFIXExporter::send_packet(ipfix_packet_t *packet)
       return -1;
    }
 
-   auto data = packet->data;
-   auto dataLen = packet->length;
-
-   if (lz4_compress) {
-      int res = compress_packet(packet);
-      if (res == 0) {
-         return -2;
-      }
-      data = compressBuffer;
-      dataLen = res;
-   }
+   auto dataLen = packetDataBuffer.compress();
+   auto data = packetDataBuffer.getCompressed();
 
    /* sendto() does not guarantee that everything will be send in one piece */
    while (sent < dataLen) {
@@ -880,9 +907,7 @@ int IPFIXExporter::send_packet(ipfix_packet_t *packet)
 
             /* Reset the sequences number since it is unique per connection */
             sequenceNum = 0;
-            ((ipfix_header_t *) packet->data)->sequenceNumber = 0; /* no need to change byteorder of 0 */
-            reinterpret_cast<ipfix_header_t *>(
-               compressBuffer + sizeof(ipfix_compress_header_t))->sequenceNumber = 0;
+            ((ipfix_header_t *) packetDataBuffer.reviveLast())->sequenceNumber = 0; /* no need to change byteorder of 0 */
 
             /* Say that we should try to connect and send data again */
             return 1;
@@ -1037,56 +1062,251 @@ int IPFIXExporter::reconnect()
    return 0;
 }
 
-/**
- * @brief Compresses the packet into IPFIXExporter::compressBuffer
- *
- * @param packet packet to compress
- * @return length of the compressed data, 0 on error
- */
-int IPFIXExporter::compress_packet(ipfix_packet_t *packet)
+// compress buffer implementation
+
+CompressBuffer::CompressBuffer() :
+   shouldCompress(false), shouldReset(false), uncompressed(nullptr),
+   uncompressedSize(0), compressed(nullptr), compressedSize(0), readIndex(0),
+   readSize(0), lastReadIndex(0), lastReadSize(0), lz4Stream(nullptr) {}
+
+int CompressBuffer::init(bool compress, size_t compressSize, size_t writeSize)
 {
-   // the format of the data is as follows:
-   //   first is stored the compression header
-   //   then is stored the ipfix header (uncompressed)
-   //   then is stored the compressed data
+   shouldCompress = compress;
 
-   if (compressBuffer == nullptr) {
-      compressBuffer =
-         reinterpret_cast<uint8_t *>(malloc(mtu + sizeof(ipfix_compress_header_t)));
+   if (compress && compressSize < C_ADD_SIZE) {
+      return -1;
    }
 
-   auto bufCHeader = reinterpret_cast<ipfix_compress_header_t *>(compressBuffer);
-   auto bufHeader =
-      reinterpret_cast<ipfix_header_t *>(compressBuffer + sizeof(ipfix_compress_header_t));
-
-   // check if the packet is already compressed in the buffer
-   if (ntohs(bufCHeader->uncompressedSize) + sizeof(ipfix_header_t) == packet->length
-      && memcmp(packet->data, bufHeader, sizeof(ipfix_header_t)) == 0)
-   {
-      return ntohs(bufCHeader->compressedSize)
-         + sizeof(ipfix_compress_header_t) + sizeof(ipfix_header_t);
+   uncompressed = reinterpret_cast<uint8_t *>(malloc(sizeof(uint8_t) * writeSize));
+   if (!uncompressed) {
+      return -1;
    }
+   uncompressedSize = writeSize;
 
-   auto bufData = compressBuffer + sizeof(ipfix_compress_header_t) + sizeof(ipfix_header_t);
-   auto pktData = packet->data + sizeof(ipfix_header_t);
-
-   // compress the data
-   auto res = LZ4_compress_default(
-      reinterpret_cast<char *>(pktData),
-      reinterpret_cast<char *>(bufData),
-      packet->length - sizeof(ipfix_header_t),
-      mtu - sizeof(ipfix_header_t)
-   );
-
-   if (res == 0) {
+   if (!compress) {
       return 0;
    }
 
-   bufCHeader->uncompressedSize = htons(packet->length - sizeof(ipfix_header_t));
-   bufCHeader->compressedSize = htons(static_cast<uint16_t>(res));
-   *bufHeader = *reinterpret_cast<ipfix_header_t *>(packet->data);
+   compressed = reinterpret_cast<uint8_t *>(malloc(sizeof(uint8_t) * compressSize));
+   if (!compressed) {
+      return -1;
+   }
+   compressedSize = compressSize;
 
-   return res + sizeof(ipfix_compress_header_t) + sizeof(ipfix_header_t);
+   lz4Stream = LZ4_createStream();
+   if (!lz4Stream) {
+      return -1;
+   }
+
+   shouldReset = true;
+
+   return 0;
+}
+
+uint8_t *CompressBuffer::getWriteBuffer(size_t requiredSize) {
+   // the contents can happily fit into the buffer
+   if (requiredSize <= uncompressedSize - readIndex - readSize) {
+      auto res = uncompressed + readIndex + readSize;
+      readSize += requiredSize;
+      return res;
+   }
+
+   // readIndex is always 0 if the buffer is in non-compress mode
+
+   if (readIndex != 0 && readSize + requiredSize <= uncompressedSize) {
+      if (readSize != 0) {
+         // move the written data in the buffer to the start of the buffer
+         memmove(uncompressed, uncompressed + readIndex, sizeof(uint8_t) * readSize);
+         // the old data is definitely invalid
+         shouldReset = true;
+      }
+
+      // if readSize is 0, this just wraps the circular buffer to the begining
+      readIndex = 0;
+
+      auto res = uncompressed + readSize;
+      readSize += requiredSize;
+      return res;
+   }
+
+   // now it is necesary to resize the buffer
+   auto newSize = readIndex + readSize + requiredSize;
+   auto newPtr = realloc(uncompressed, sizeof(uint8_t) * newSize);
+   if (!newPtr) {
+      return nullptr;
+   }
+
+   // reset the stream if the data is not on the same position
+   if (shouldCompress && newPtr != uncompressed) {
+      requestReset();
+   }
+
+   uncompressed = reinterpret_cast<uint8_t *>(newPtr);
+   uncompressedSize = newSize;
+
+   auto res = uncompressed + readIndex + readSize;
+   readSize += requiredSize;
+   return res;
+}
+
+int CompressBuffer::compress() {
+   // The format is as follows:
+   //   each time the block of compressed data is preceaded by
+   //   the compression header that contains the size of the compressed
+   //   block and the size of the data in the block after it is decompressed
+   //
+   //   additionaly, with each reset this is also prepended with
+   //   four 0 bytes to signify reset, and the start compress header
+   //   which contains the circular buffer size, so when decompressing
+   //   the buffers can be synchronized.
+
+   if (readSize == 0) {
+      return 0;
+   }
+
+   // when not compressing, just map the compressed buffer to the
+   // uncompressed buffer
+   if (!shouldCompress) {
+      compressed = uncompressed;
+      compressedSize = readSize;
+      // readIndex stays 0
+      readSize = 0;
+      return compressedSize;
+   }
+
+   // resize the buffer if it may not be large enough
+   if (compressedSize < LZ4_COMPRESSBOUND(readSize) + C_ADD_SIZE) {
+      auto newSize = LZ4_COMPRESSBOUND(readSize);
+      auto newPtr = realloc(compressed, newSize);
+      if (newPtr) {
+         compressedSize = newSize;
+         compressed = reinterpret_cast<uint8_t *>(newPtr);
+      }
+      // even if the reallocation fails the buffer may still be large enough
+   }
+
+   auto com = compressed;
+   auto comSize = compressedSize;
+
+   if (shouldReset) {
+      // when reset, the buffer must start at 0
+      if (readIndex != 0) {
+         memmove(uncompressed, uncompressed + readIndex, readSize);
+         readIndex = 0;
+      }
+      LZ4_resetStream_fast(lz4Stream);
+
+      // fill the info about new stream
+
+      // set the 0 to tell the reciever that this is new stream
+      *reinterpret_cast<uint32_t *>(com) = 0;
+      com += 4;
+      comSize -= 4;
+
+      // set the recommended ring buffer size - large enough ring buffer so
+      // that it doesn't need to be perfectly synchronized
+      reinterpret_cast<ipfix_start_compress_header_t *>(com)->bufferSize =
+         htonl(uncompressedSize + compressedSize);
+      com += sizeof(ipfix_start_compress_header_t);
+      comSize -= sizeof(ipfix_start_compress_header_t);
+      shouldReset = false;
+   }
+
+   // set the info about the current block
+   auto hdr = reinterpret_cast<ipfix_compress_header_t *>(com);
+   hdr->uncompressedSize = htons(readSize);
+
+   com += sizeof(ipfix_compress_header_t);
+   comSize -= sizeof(ipfix_compress_header_t);
+
+   // compress the data
+   auto res = LZ4_compress_fast_continue(
+      lz4Stream,
+      reinterpret_cast<char *>(uncompressed + readIndex),
+      reinterpret_cast<char *>(com),
+      readSize,
+      comSize,
+      0 // 0 is default
+   );
+
+   if (res == 0) {
+      requestReset();
+      return -1;
+   }
+
+   hdr->compressedSize = htons(res);
+
+   lastReadIndex = readIndex;
+   lastReadSize = readSize;
+
+   readIndex += readSize;
+   readSize = 0;
+
+   return res + (com - compressed);
+}
+
+const uint8_t *CompressBuffer::getCompressed() const {
+   return compressed;
+}
+
+uint8_t *CompressBuffer::reviveLast() {
+   readSize = lastReadSize;
+   readIndex = lastReadIndex;
+
+   if (shouldCompress) {
+      requestReset();
+   }
+
+   return uncompressed + readIndex;
+}
+
+void CompressBuffer::shrinkTo(size_t size) {
+   readSize = std::min(readSize, size);
+}
+
+void CompressBuffer::requestReset() {
+   if (!shouldCompress) {
+      return;
+   }
+
+   // reset is costly when readIndex != 0
+   if (readSize == 0) {
+      readIndex = 0;
+   }
+   shouldReset = true;
+}
+
+void CompressBuffer::close() {
+   if (uncompressed) {
+      free(uncompressed);
+      uncompressedSize = 0;
+      uncompressed = nullptr;
+   }
+
+   readSize = 0;
+   lastReadSize = 0;
+
+   if (!shouldCompress) {
+      compressed = nullptr;
+      compressedSize = 0;
+      return;
+   }
+
+   if (compressed) {
+      free(compressed);
+      compressed = nullptr;
+      compressedSize = 0;
+   }
+
+   if (lz4Stream) {
+      LZ4_freeStream(lz4Stream);
+      lz4Stream = nullptr;
+   }
+
+   shouldReset = false;
+   shouldCompress = false;
+   readIndex = 0;
+   lastReadIndex = 0;
 }
 
 #define GEN_FIELDS_SUMLEN_INT(FIELD) FIELD_LEN(FIELD) +
