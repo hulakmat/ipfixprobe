@@ -31,7 +31,6 @@
 
 #include <config.h>
 
-int UnirecExporterOutputInterfaces = 0;
 #ifdef WITH_NEMEA
 
 #include <string>
