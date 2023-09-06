@@ -56,6 +56,65 @@
 
 namespace ipxp {
 
+template<typename F>
+class GuardedStructGuard;
+
+template <typename F>
+class GuardedStruct
+{
+public:
+    GuardedStruct() {}
+    GuardedStruct(const GuardedStruct&oth) : access_flag(false), guardedStruct(oth.guardedStruct) {}
+    GuardedStruct& operator=(GuardedStruct&oth) {
+        this->guardedStruct = oth.guardedStruct;
+    }
+private:
+    std::atomic_flag access_flag = ATOMIC_FLAG_INIT;
+    F guardedStruct = {};
+    
+    friend class GuardedStructGuard<F>;
+};
+
+
+template <typename F>
+class GuardedStructGuard
+{
+public:
+    GuardedStructGuard(GuardedStruct<F> &guardedStructObj) : guardedStructObj(guardedStructObj) {
+        this->claim();
+    }
+    GuardedStructGuard(const GuardedStructGuard&) = delete;
+    GuardedStructGuard& operator=(GuardedStructGuard&) = delete;
+    
+    ~GuardedStructGuard() {
+        this->release();
+    }
+    
+    void claim() {
+        while (guardedStructObj.access_flag.test_and_set(std::memory_order_acquire)) { // acquire lock
+#if defined(__cpp_lib_atomic_flag_test)
+            while (lock.test(std::memory_order_relaxed)) // test lock
+#endif
+        }
+    }
+    void release() {
+        guardedStructObj.access_flag.clear(std::memory_order_release); // release lock
+    }
+    
+    F* operator&()
+    {
+        return &guardedStructObj.guardedStruct;
+    }
+    
+    F* operator->() const
+    {
+        return &guardedStructObj.guardedStruct;
+    }
+    
+private:
+    GuardedStruct<F>& guardedStructObj;
+};
+
 class FlowStoreStat {
     std::string m_name;
 public:
