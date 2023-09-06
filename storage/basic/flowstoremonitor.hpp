@@ -46,6 +46,7 @@
 #include <string>
 #include <fstream>
 
+#include "flowstorestats.hpp"
 #include "flowstoreproxy.hpp"
 #include <ipfixprobe/options.hpp>
 
@@ -66,61 +67,69 @@ class FlowStoreMonitor : public FlowStoreProxySimple<F>
         uint64_t index_export = 0;
         uint64_t iter_export = 0;
     };
-    struct FlowStoreMonitorStats monitorStats = {};
+    GuardedStruct<FlowStoreMonitorStats> monitorStats;
+    typedef GuardedStructGuard<FlowStoreMonitorStats> StatsGuard;
 public:
     typedef typename F::packet_info PacketInfo;
     typedef typename F::accessor Access;
     typedef typename F::iterator Iter;
     typedef typename F::parser Parser;
-
-    PacketInfo prepare(Packet &pkt, bool inverse = false) { monitorStats.prepared++; return this->m_flowstore.prepare(pkt, inverse); }
+    
+    PacketInfo prepare(Packet &pkt, bool inverse = false) { StatsGuard stats(monitorStats); stats->prepared++; return this->m_flowstore.prepare(pkt, inverse); }
     Access lookup(PacketInfo &pkt) {
-        monitorStats.lookups++;
+        StatsGuard stats(monitorStats);
+        stats->lookups++;
         auto it = this->m_flowstore.lookup(pkt);
         if(it == lookup_end()) {
-            monitorStats.lookups_failed++;
+            stats->lookups_failed++;
         }
         return it;
     };
     Access lookup_empty(PacketInfo &pkt) {
-        monitorStats.lookups_empty++;
+        StatsGuard stats(monitorStats);
+        stats->lookups_empty++;
         auto it = this->m_flowstore.lookup_empty(pkt);
         if(it == lookup_end()) {
-            monitorStats.lookups_empty_failed++;
+            stats->lookups_empty_failed++;
         }
         return it;
     }
     Access lookup_end() { return this->m_flowstore.lookup_end(); }
     Access free(PacketInfo &pkt) {
-        monitorStats.free++;
+        StatsGuard stats(monitorStats);
+        stats->free++;
         auto it = this->m_flowstore.free(pkt);
         if(it == lookup_end()){
-            monitorStats.free_failed++;
+            stats->free_failed++;
         }
         return it;
     }
-    Access index_export(const Access &index, FlowRingBuffer &rb) { monitorStats.index_export++; return this->m_flowstore.index_export(index, rb); }
-    Access iter_export(const Iter &iter, FlowRingBuffer &rb) { monitorStats.iter_export++; return this->m_flowstore.iter_export(iter, rb); }
+    Access index_export(const Access &index, FlowRingBuffer &rb) {
+        StatsGuard stats(monitorStats); stats->index_export++; return this->m_flowstore.index_export(index, rb); }
+    Access iter_export(const Iter &iter, FlowRingBuffer &rb) {
+        StatsGuard stats(monitorStats); stats->iter_export++; return this->m_flowstore.iter_export(iter, rb); }
 
     FlowStoreStat::Ptr stats_export() {
+        StatsGuard stats(monitorStats);
         auto ptr = this->m_flowstore.stats_export();
         FlowStoreStat::PtrVector statVec = {
-            make_FSStatPrimitive("prepared" , monitorStats.prepared),
-            make_FSStatPrimitive("lookups" , monitorStats.lookups),
-            make_FSStatPrimitive("lookups_failed" , monitorStats.lookups_failed),
-            make_FSStatPrimitive("lookups_empty" , monitorStats.lookups_empty),
-            make_FSStatPrimitive("lookups_empty_failed" , monitorStats.lookups_empty_failed),
-            make_FSStatPrimitive("free" , monitorStats.free),
-            make_FSStatPrimitive("free_failed" , monitorStats.free_failed),
-            make_FSStatPrimitive("index_export" , monitorStats.index_export),
-            make_FSStatPrimitive("iter_export" , monitorStats.iter_export)
+            make_FSStatPrimitive("prepared" , stats->prepared),
+            make_FSStatPrimitive("lookups" , stats->lookups),
+            make_FSStatPrimitive("lookups_failed" , stats->lookups_failed),
+            make_FSStatPrimitive("lookups_empty" , stats->lookups_empty),
+            make_FSStatPrimitive("lookups_empty_failed" , stats->lookups_empty_failed),
+            make_FSStatPrimitive("free" , stats->free),
+            make_FSStatPrimitive("free_failed" , stats->free_failed),
+            make_FSStatPrimitive("index_export" , stats->index_export),
+            make_FSStatPrimitive("iter_export" , stats->iter_export)
         };
         FlowStoreStat::PtrVector monitorVec = { std::make_shared<FlowStoreStatVector>("monitor", statVec) };
         return FlowStoreStatExpand(ptr, monitorVec);
     };
 
     void stats_reset() {
-        memset(&monitorStats, 0, sizeof(monitorStats));
+        StatsGuard stats(monitorStats);
+        *(&stats) = {};
         this->m_flowstore.stats_reset();
     }
 };

@@ -139,13 +139,19 @@ private:
    uint32_t m_timeout_step;
    FIter m_timeout_iter;
 #ifdef FLOW_CACHE_STATS
-   uint64_t m_empty;
-   uint64_t m_not_empty;
-   uint64_t m_hits;
-   uint64_t m_expired;
-   uint64_t m_flushed;
+   struct FlowCacheStats {
+       uint64_t m_empty;
+       uint64_t m_not_empty;
+       uint64_t m_hits;
+       uint64_t m_expired;
+       uint64_t m_flushed;
+   };
+   GuardedStruct<FlowCacheStats> innerStats;
+   typedef GuardedStructGuard<FlowCacheStats> StatsGuard;
+   
    void reset_stats() {
-       m_empty = m_not_empty = m_hits = m_expired = m_flushed = 0;
+       StatsGuard stats(innerStats);
+       *(&stats) = {};
    }
 #endif /* FLOW_CACHE_STATS */
    uint32_t m_active;
@@ -258,7 +264,10 @@ void FlowCache<F>::finish()
       if (!(*it)->isEmpty()) {
          export_iter(it, FLOW_END_FORCED);
 #ifdef FLOW_CACHE_STATS
-         m_expired++;
+         {
+             StatsGuard stats(innerStats);
+             stats->m_expired++;
+         }
 #endif /* FLOW_CACHE_STATS */
       }
    }
@@ -268,7 +277,10 @@ template <class F>
 void FlowCache<F>::flush(FInfo &pkt_info, FAccess flowIt, int ret, bool source_flow)
 {
 #ifdef FLOW_CACHE_STATS
-   m_flushed++;
+   {
+      StatsGuard stats(innerStats);
+      stats->m_flushed++;
+   }
 #endif /* FLOW_CACHE_STATS */
 
    if (ret == FLOW_FLUSH_WITH_REINSERT) {
@@ -333,14 +345,23 @@ int FlowCache<F>::put_pkt(Packet &pkt)
          flowIt = export_acc(freeIt, FLOW_END_FORCED);
          /* Flow index has been freed for the incoming flow */
 #ifdef FLOW_CACHE_STATS
-         m_not_empty++;
+         {
+            StatsGuard stats(innerStats);
+            stats->m_not_empty++;
+         }
       } else {
-         m_empty++;
+         {
+            StatsGuard stats(innerStats);
+            stats->m_empty++;
+         }
 #endif /* FLOW_CACHE_STATS */
       }
    } else {
 #ifdef FLOW_CACHE_STATS
-      m_hits++;
+      {
+         StatsGuard stats(innerStats);
+         stats->m_hits++;
+      }
 #endif /* FLOW_CACHE_STATS */
    }
    return process_flow(pkt, pkt_info, flowIt);
@@ -387,7 +408,11 @@ int FlowCache<F>::process_flow(Packet &pkt, FInfo &pkt_info, FAccess &flowIt)
    {
       export_acc(flowIt, FLOW_END_INACTIVE, false);
 #ifdef FLOW_CACHE_STATS
-      m_expired++;
+      
+      {
+         StatsGuard stats(innerStats);
+         stats->m_expired++;
+      }
 #endif /* FLOW_CACHE_STATS */
       return put_pkt(pkt);
    }
@@ -424,7 +449,10 @@ int FlowCache<F>::process_flow(Packet &pkt, FInfo &pkt_info, FAccess &flowIt)
    {
       export_acc(flowIt, FLOW_END_ACTIVE);
 #ifdef FLOW_CACHE_STATS
-      m_expired++;
+      {
+         StatsGuard stats(innerStats);
+         stats->m_expired++;
+      }
 #endif /* FLOW_CACHE_STATS */
    }
 
@@ -441,7 +469,10 @@ void FlowCache<F>::export_expired(time_t ts)
       if (!(*m_timeout_iter)->isEmpty() && ts - (*m_timeout_iter)->m_flow.time_last.tv_sec >= m_inactive) {
          export_iter(m_timeout_iter, FLOW_END_INACTIVE);
 #ifdef FLOW_CACHE_STATS
-         m_expired++;
+         {
+            StatsGuard stats(innerStats);
+            stats->m_expired++;
+         }
 #endif /* FLOW_CACHE_STATS */
       }
       ++m_timeout_iter;
@@ -455,14 +486,17 @@ template <class F>
 void FlowCache<F>::print_report()
 {
     auto ptr = this->m_flow_store.stats_export();
-
-    FlowStoreStat::PtrVector statVec = {
-        make_FSStatPrimitive("hits" , m_hits),
-        make_FSStatPrimitive("empty" , m_empty),
-        make_FSStatPrimitive("not_empty" , m_not_empty),
-        make_FSStatPrimitive("expired" , m_expired),
-        make_FSStatPrimitive("flushed" , m_flushed),
-    };
+   FlowStoreStat::PtrVector statVec;
+    {    
+        StatsGuard stats(innerStats);
+        statVec = {
+            make_FSStatPrimitive("hits" , stats->m_hits),
+            make_FSStatPrimitive("empty" , stats->m_empty),
+            make_FSStatPrimitive("not_empty" , stats->m_not_empty),
+            make_FSStatPrimitive("expired" , stats->m_expired),
+            make_FSStatPrimitive("flushed" , stats->m_flushed),
+        };
+    }
     FlowStoreStat::PtrVector monitorVec = { std::make_shared<FlowStoreStatVector>("flowcache", statVec) };
     auto ptrCache = FlowStoreStatExpand(ptr, monitorVec);
     FlowStoreStatJSON(std::cerr, ptrCache);

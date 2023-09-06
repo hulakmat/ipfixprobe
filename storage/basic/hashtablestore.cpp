@@ -45,11 +45,7 @@ void HTFlowStore::init(HashTableStoreParser& parser)
    }
 
 #ifdef FLOW_CACHE_STATS
-   stats.m_lookups = 0;
-   stats.m_lookups2 = 0;
-   stats.m_searches = 0;
-   stats.m_searches2 = 0;
-   stats.m_cacheline_max_index = 0;
+   stats_reset();
 #endif /* FLOW_CACHE_STATS */
 }
 
@@ -99,7 +95,10 @@ HTFlowStore::accessor HTFlowStore::put(const accessor &acc)
     std::cout << "FL Valid: " << flowIndex.valid << " Fl I: " <<  flowIndex.flow_index << " Fl R: " << flowIndex.line_index << " R I: " << flowIndex.flow_index - flowIndex.line_index << std::endl;
 #endif
 #ifdef FLOW_CACHE_STATS
-    this->stats.m_cacheline_max_index = std::max(this->stats.m_cacheline_max_index, flowIndex.flow_index - flowIndex.line_index);
+    {
+        StatsGuard stats(innerStats);
+        stats->m_cacheline_max_index = std::max(stats->m_cacheline_max_index, flowIndex.flow_index - flowIndex.line_index);
+    }
 #endif
     moveToFront(flowIndex);
     return (m_flow_table.begin() + flowIndex.line_index);
