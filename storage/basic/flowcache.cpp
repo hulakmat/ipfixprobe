@@ -57,9 +57,11 @@
 
 #ifdef WITH_TRAP
 #include "flowstorestatsunirec.hpp"
+int UnirecExporterOutputInterfaces = 0;
 #endif
 
 namespace ipxp {
+
 
 Plugin *cons_cache_func()
 {
