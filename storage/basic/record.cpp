@@ -92,61 +92,61 @@ void FCRecord::reuse()
 
 void FCRecord::create(FCPacketInfo &pkt_info)
 {
-   const Packet &pkt = pkt_info.getPacket();
+   const Packet *pkt = pkt_info.getPacket();
    m_flow.src_packets = 1;
 
    m_hash = pkt_info.getHash();
-   m_flow.time_first = pkt.ts;
-   m_flow.time_last = pkt.ts;
+   m_flow.time_first = pkt->ts;
+   m_flow.time_last = pkt->ts;
 
-   memcpy(m_flow.src_mac, pkt.src_mac, 6);
-   memcpy(m_flow.dst_mac, pkt.dst_mac, 6);
+   memcpy(m_flow.src_mac, pkt->src_mac, 6);
+   memcpy(m_flow.dst_mac, pkt->dst_mac, 6);
 
-   if (pkt.ip_version == IP::v4) {
-      m_flow.ip_version = pkt.ip_version;
-      m_flow.ip_proto = pkt.ip_proto;
-      m_flow.src_ip.v4 = pkt.src_ip.v4;
-      m_flow.dst_ip.v4 = pkt.dst_ip.v4;
-      m_flow.src_bytes = pkt.ip_len;
-   } else if (pkt.ip_version == IP::v6) {
-      m_flow.ip_version = pkt.ip_version;
-      m_flow.ip_proto = pkt.ip_proto;
-      memcpy(m_flow.src_ip.v6, pkt.src_ip.v6, 16);
-      memcpy(m_flow.dst_ip.v6, pkt.dst_ip.v6, 16);
-      m_flow.src_bytes = pkt.ip_len;
+   if (pkt->ip_version == IP::v4) {
+      m_flow.ip_version = pkt->ip_version;
+      m_flow.ip_proto = pkt->ip_proto;
+      m_flow.src_ip.v4 = pkt->src_ip.v4;
+      m_flow.dst_ip.v4 = pkt->dst_ip.v4;
+      m_flow.src_bytes = pkt->ip_len;
+   } else if (pkt->ip_version == IP::v6) {
+      m_flow.ip_version = pkt->ip_version;
+      m_flow.ip_proto = pkt->ip_proto;
+      memcpy(m_flow.src_ip.v6, pkt->src_ip.v6, 16);
+      memcpy(m_flow.dst_ip.v6, pkt->dst_ip.v6, 16);
+      m_flow.src_bytes = pkt->ip_len;
    }
 
-   if (pkt.ip_proto == IPPROTO_TCP) {
-      m_flow.src_port = pkt.src_port;
-      m_flow.dst_port = pkt.dst_port;
-      m_flow.src_tcp_flags = pkt.tcp_flags;
-   } else if (pkt.ip_proto == IPPROTO_UDP) {
-      m_flow.src_port = pkt.src_port;
-      m_flow.dst_port = pkt.dst_port;
-   } else if (pkt.ip_proto == IPPROTO_ICMP ||
-      pkt.ip_proto == IPPROTO_ICMPV6) {
-      m_flow.src_port = pkt.src_port;
-      m_flow.dst_port = pkt.dst_port;
+   if (pkt->ip_proto == IPPROTO_TCP) {
+      m_flow.src_port = pkt->src_port;
+      m_flow.dst_port = pkt->dst_port;
+      m_flow.src_tcp_flags = pkt->tcp_flags;
+   } else if (pkt->ip_proto == IPPROTO_UDP) {
+      m_flow.src_port = pkt->src_port;
+      m_flow.dst_port = pkt->dst_port;
+   } else if (pkt->ip_proto == IPPROTO_ICMP ||
+      pkt->ip_proto == IPPROTO_ICMPV6) {
+      m_flow.src_port = pkt->src_port;
+      m_flow.dst_port = pkt->dst_port;
    }
 }
 
 void FCRecord::update(FCPacketInfo &pkt_info, bool src)
 {
-   Packet &pkt = pkt_info.getPacket();
-   m_flow.time_last = pkt.ts;
+   const Packet* pkt = pkt_info.getPacket();
+   m_flow.time_last = pkt->ts;
    if (src) {
       m_flow.src_packets++;
-      m_flow.src_bytes += pkt.ip_len;
+      m_flow.src_bytes += pkt->ip_len;
 
-      if (pkt.ip_proto == IPPROTO_TCP) {
-         m_flow.src_tcp_flags |= pkt.tcp_flags;
+      if (pkt->ip_proto == IPPROTO_TCP) {
+         m_flow.src_tcp_flags |= pkt->tcp_flags;
       }
    } else {
       m_flow.dst_packets++;
-      m_flow.dst_bytes += pkt.ip_len;
+      m_flow.dst_bytes += pkt->ip_len;
 
-      if (pkt.ip_proto == IPPROTO_TCP) {
-         m_flow.dst_tcp_flags |= pkt.tcp_flags;
+      if (pkt->ip_proto == IPPROTO_TCP) {
+         m_flow.dst_tcp_flags |= pkt->tcp_flags;
       }
    }
 }

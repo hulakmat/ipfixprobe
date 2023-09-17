@@ -35,6 +35,8 @@
 #include <stdexcept>
 #include <string>
 #include <iostream>
+#include <cstdint>
+#include "utils.hpp"
 
 namespace ipxp {
 
@@ -60,6 +62,20 @@ public:
    void parse(int argc, const char **argv) const;
    void usage(std::ostream &os, int indentation = 0, std::string mod_name = "") const;
 
+   static void process_plugin_argline(const std::string &args, std::string &plugin, std::string &params, char del = OptionsParser::DELIM)
+   {
+      size_t delim;
+
+      params = args;
+      delim = params.find(del);
+
+      plugin = params.substr(0, delim);
+      params.erase(0, delim == std::string::npos ? delim : delim + 1);
+
+      trim_str(plugin);
+      trim_str(params);
+   }
+   bool m_ignore_unknown;
 protected:
    std::string m_name;
    std::string m_info;
