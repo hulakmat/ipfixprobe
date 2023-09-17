@@ -305,6 +305,8 @@ public:
     FlowStoreStat::Ptr stats_export() {
         StatsGuard stats(innerStats);
         FlowStoreStat::PtrVector statVec = {
+            make_FSStatPrimitive("size" , m_cache_size),
+            make_FSStatPrimitive("line_size" , m_line_size),
             make_FSStatPrimitive("lookups" , stats->m_lookups),
             make_FSStatPrimitive("lookups2" , stats->m_lookups2),
             make_FSStatPrimitive("searches" , stats->m_searches),
