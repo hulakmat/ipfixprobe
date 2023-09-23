@@ -80,15 +80,14 @@ namespace ipxp {
 #define HISTOGRAM_OFFSET 0
 #define HISTOGRAM_SIZE 10
 
-#define PDHISTS_UNIREC_TEMPLATE "S_PDHISTS_CHAN,D_PDHISTS_CHAN,B_PDHISTS_CHAN,S_PDHISTS_DIST,D_PDHISTS_DIST,B_PDHISTS_DIST"
-
+#define PDHISTS_UNIREC_TEMPLATE "S_PDHISTS_CHAN,D_PDHISTS_CHAN,B_PDHISTS_CHAN,S_PDHISTS_INTF,D_PDHISTS_INTF,B_PDHISTS_INTF"
 UR_FIELDS(
-    uint32* S_PDHISTS_DIST_CHAN,
-    uint32* D_PDHISTS_DIST_CHAN,
-    uint32* B_PDHISTS_DIST_CHAN,
-    uint32* S_PDHISTS_DIST_INTF,
-    uint32* D_PDHISTS_DIST_INTF,
-    uint32* B_PDHISTS_DIST_INTF
+    uint32* S_PDHISTS_CHAN,
+    uint32* D_PDHISTS_CHAN,
+    uint32* B_PDHISTS_CHAN,
+    uint32* S_PDHISTS_INTF,
+    uint32* D_PDHISTS_INTF,
+    uint32* B_PDHISTS_INTF
 )
 
 class PDHISTSOptParser : public OptionsParser
@@ -139,20 +138,20 @@ struct RecordExtPDHISTS : public RecordExt {
    virtual void fill_unirec(ur_template_t *tmplt, void *record)
    {
       PDHISTS_DEBUG("Fill Unirec");
-      ur_array_allocate(tmplt, record, S_PDHISTS_DIST_CHAN, HISTOGRAM_SIZE);
-      ur_array_allocate(tmplt, record, D_PDHISTS_DIST_CHAN, HISTOGRAM_SIZE);
-      ur_array_allocate(tmplt, record, B_PDHISTS_DIST_CHAN, HISTOGRAM_SIZE);
-      ur_array_allocate(tmplt, record, S_PDHISTS_DIST_INTF, HISTOGRAM_SIZE);
-      ur_array_allocate(tmplt, record, D_PDHISTS_DIST_INTF, HISTOGRAM_SIZE);
-      ur_array_allocate(tmplt, record, B_PDHISTS_DIST_INTF, HISTOGRAM_SIZE);
+      ur_array_allocate(tmplt, record, F_S_PDHISTS_CHAN, HISTOGRAM_SIZE);
+      ur_array_allocate(tmplt, record, F_D_PDHISTS_CHAN, HISTOGRAM_SIZE);
+      ur_array_allocate(tmplt, record, F_B_PDHISTS_CHAN, HISTOGRAM_SIZE);
+      ur_array_allocate(tmplt, record, F_S_PDHISTS_INTF, HISTOGRAM_SIZE);
+      ur_array_allocate(tmplt, record, F_D_PDHISTS_INTF, HISTOGRAM_SIZE);
+      ur_array_allocate(tmplt, record, F_B_PDHISTS_INTF, HISTOGRAM_SIZE);
       for (int i = 0; i < HISTOGRAM_SIZE; i++) {
-         ur_array_set(tmplt, record, S_PDHISTS_DIST_CHAN, i, dist_hist_chan[0][i]);
-         ur_array_set(tmplt, record, D_PDHISTS_DIST_CHAN, i, dist_hist_chan[1][i]);
-         ur_array_set(tmplt, record, B_PDHISTS_DIST_CHAN, i, dist_hist_chan[2][i]);
+         ur_array_set(tmplt, record, F_S_PDHISTS_CHAN, i, dist_hist_chan[0][i]);
+         ur_array_set(tmplt, record, F_D_PDHISTS_CHAN, i, dist_hist_chan[1][i]);
+         ur_array_set(tmplt, record, F_B_PDHISTS_CHAN, i, dist_hist_chan[2][i]);
          
-         ur_array_set(tmplt, record, S_PDHISTS_DIST_INTF, i, dist_hist_intf[0][i]);
-         ur_array_set(tmplt, record, D_PDHISTS_DIST_INTF, i, dist_hist_intf[1][i]);
-         ur_array_set(tmplt, record, B_PDHISTS_DIST_INTF, i, dist_hist_intf[2][i]);
+         ur_array_set(tmplt, record, F_S_PDHISTS_INTF, i, dist_hist_intf[0][i]);
+         ur_array_set(tmplt, record, F_D_PDHISTS_INTF, i, dist_hist_intf[1][i]);
+         ur_array_set(tmplt, record, F_B_PDHISTS_INTF, i, dist_hist_intf[2][i]);
       }
    }
 
