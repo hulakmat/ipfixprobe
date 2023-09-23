@@ -612,10 +612,10 @@ inline uint16_t process_pppoe(const u_char *data_ptr, uint16_t data_len, Packet 
    return length;
 }
 
-void parse_packet(parser_opt_t *opt, struct timeval ts, const uint8_t *data, uint16_t len, uint16_t caplen)
+Packet *parse_packet(parser_opt_t *opt, struct timeval ts, const uint8_t *data, uint16_t len, uint16_t caplen)
 {
    if (opt->pblock->cnt >= opt->pblock->size) {
-      return;
+      return nullptr;
    }
    Packet *pkt = &opt->pblock->pkts[opt->pblock->cnt];
    uint16_t data_offset = 0;
@@ -681,7 +681,7 @@ void parse_packet(parser_opt_t *opt, struct timeval ts, const uint8_t *data, uin
          data_offset += process_pppoe(data + data_offset, caplen - data_offset, pkt);
       } else if (!opt->parse_all) {
          DEBUG_MSG("Unknown ethertype %x\n", pkt->ethertype);
-         return;
+         return nullptr;
       }
 
       l4_hdr_offset = data_offset;
@@ -696,7 +696,7 @@ void parse_packet(parser_opt_t *opt, struct timeval ts, const uint8_t *data, uin
       }
    } catch (const char *err) {
       DEBUG_MSG("%s\n", err);
-      return;
+      return nullptr;
    }
 
    uint16_t pkt_len = caplen;
@@ -725,6 +725,7 @@ void parse_packet(parser_opt_t *opt, struct timeval ts, const uint8_t *data, uin
    opt->packet_valid = true;
    opt->pblock->cnt++;
    opt->pblock->bytes += len;
+   return pkt;
 }
 
 }

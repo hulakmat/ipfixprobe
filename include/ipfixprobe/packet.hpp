@@ -41,11 +41,19 @@
 
 namespace ipxp {
 
+struct PacketTimeval {
+    struct timeval ts;
+    int64_t tv_ns;
+};
+
 /**
  * \brief Structure for storing parsed packet fields
  */
 struct Packet : public Record {
-   struct timeval ts;
+    union {
+        struct timeval ts;
+        struct PacketTimeval acc_ts;
+    };
     
    uint64_t    channel_index;
    uint64_t    link_index;

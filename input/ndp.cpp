@@ -48,7 +48,10 @@ void packet_ndp_handler(parser_opt_t *opt, const struct ndp_packet *ndp_packet, 
    ts.tv_sec = le32toh(ndp_header->timestamp_sec);
    ts.tv_usec = le32toh(ndp_header->timestamp_nsec) / 1000;
    
-   parse_packet(opt, ts, ndp_packet->data, ndp_packet->data_length, ndp_packet->data_length);
+   Packet *pkt = parse_packet(opt, ts, ndp_packet->data, ndp_packet->data_length, ndp_packet->data_length);
+   if(pkt) {
+       pkt->acc_ts.tv_ns = le32toh(ndp_header->timestamp_nsec) % 1000;
+   }
 }
 
 NdpPacketReader::NdpPacketReader() : m_input_index(0)

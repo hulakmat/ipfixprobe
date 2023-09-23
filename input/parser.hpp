@@ -65,7 +65,7 @@ typedef struct parser_opt_s {
    int datalink;
 } parser_opt_t;
 
-void parse_packet(parser_opt_t *opt, struct timeval ts, const uint8_t *data, uint16_t len, uint16_t caplen);
+Packet *parse_packet(parser_opt_t *opt, struct timeval ts, const uint8_t *data, uint16_t len, uint16_t caplen);
 
 }
 #endif /* IPXP_INPUT_PARSER_HPP */
