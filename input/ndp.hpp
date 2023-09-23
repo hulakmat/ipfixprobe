@@ -68,6 +68,7 @@ public:
 
 private:
    NdpReader ndpReader;
+    uint64_t m_input_index;
 
    void init_ifc(const std::string &dev);
 };

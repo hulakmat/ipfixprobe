@@ -31,6 +31,7 @@
 #ifndef IPXP_PROCESS_STATS_HPP
 #define IPXP_PROCESS_STATS_HPP
 
+#include <cstdint>
 #include <ostream>
 
 #include <ipfixprobe/process.hpp>

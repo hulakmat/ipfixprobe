@@ -85,6 +85,7 @@ HTFlowStore::accessor HTFlowStore::lookup_empty(packet_info &pkt)
 HTFlowStore::accessor HTFlowStore::free(packet_info &pkt)
 {
     FlowIndex flowRow_index = makeRowIndex(pkt.getHash());
+//    std::cerr << "Free index: " << flowRow_index.line_index+m_line_size-1 << " Table length: " << m_flow_table.size() << " Table address: " << (*m_flow_table.begin()) << " Record Address: " << *(m_flow_table.begin()+flowRow_index.line_index+m_line_size-1) << std::endl;
     return (m_flow_table.begin()+flowRow_index.line_index+m_line_size-1);
 }
 

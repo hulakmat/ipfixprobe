@@ -62,8 +62,24 @@ FCRecord::~FCRecord()
 void FCRecord::erase()
 {
    m_flow.remove_extensions();
-   m_hash = 0;
+   clear();
+}
+void FCRecord::reuse()
+{
+   m_flow.remove_extensions();
+   m_flow.time_first = m_flow.time_last;
+   m_flow.src_packets = 0;
+   m_flow.dst_packets = 0;
+   m_flow.src_bytes = 0;
+   m_flow.dst_bytes = 0;
+   m_flow.src_tcp_flags = 0;
+   m_flow.dst_tcp_flags = 0;
+}
 
+void FCRecord::clear()
+{
+   m_hash = 0;
+   
    memset(&m_flow.time_first, 0, sizeof(m_flow.time_first));
    memset(&m_flow.time_last, 0, sizeof(m_flow.time_last));
    m_flow.ip_version = 0;
@@ -72,17 +88,6 @@ void FCRecord::erase()
    memset(&m_flow.dst_ip, 0, sizeof(m_flow.dst_ip));
    m_flow.src_port = 0;
    m_flow.dst_port = 0;
-   m_flow.src_packets = 0;
-   m_flow.dst_packets = 0;
-   m_flow.src_bytes = 0;
-   m_flow.dst_bytes = 0;
-   m_flow.src_tcp_flags = 0;
-   m_flow.dst_tcp_flags = 0;
-}
-void FCRecord::reuse()
-{
-   m_flow.remove_extensions();
-   m_flow.time_first = m_flow.time_last;
    m_flow.src_packets = 0;
    m_flow.dst_packets = 0;
    m_flow.src_bytes = 0;

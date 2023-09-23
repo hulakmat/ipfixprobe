@@ -47,6 +47,7 @@
 #include <ipfixprobe/ring.h>
 #include "pluginmgr.hpp"
 #include "workers.hpp"
+#include "indexer.hpp"
 
 namespace ipxp {
 
@@ -179,6 +180,7 @@ struct ipxp_conf_t {
    uint32_t print_storage_stats_secs;
 
    PluginManager mgr;
+   ThreadPacketIndexer *indexer = nullptr;
    struct Plugins {
       std::vector<InputPlugin *> input;
       std::vector<StoragePlugin *> storage;
@@ -223,7 +225,10 @@ struct ipxp_conf_t {
          delete it.input.thread;
          delete it.input.promise;
       }
-
+      
+      if(indexer) {
+        delete indexer;
+      }
       for (auto &it : pipelines) {
          delete it.storage.plugin;
       }

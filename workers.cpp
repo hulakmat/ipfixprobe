@@ -26,17 +26,29 @@
  *
  */
 
+#include <queue>
+#include <mutex>
+#include <cmath>
+
 #include <unistd.h>
 #include <sys/time.h>
 
 #include "workers.hpp"
+#include "indexer.hpp"
 #include "ipfixprobe.hpp"
 
 namespace ipxp {
 
+//#define WORKER_DEBUG_ENABLE
+#ifdef WORKER_DEBUG_ENABLE
+#define WORKER_DEBUG(x) std::cerr << x << std::endl;
+#else
+#define WORKER_DEBUG(x)
+#endif
+
 #define MICRO_SEC 1000000L
 
-void input_storage_worker(InputPlugin *plugin, StoragePlugin *cache, size_t queue_size, uint64_t pkt_limit,
+void input_storage_worker(size_t pipeline_idx, InputPlugin *plugin, StoragePlugin *cache, size_t queue_size, uint64_t pkt_limit,
                   std::promise<WorkerResult> *out, std::atomic<InputStats> *out_stats)
 {
    struct timespec start_cache;
@@ -48,8 +60,15 @@ void input_storage_worker(InputPlugin *plugin, StoragePlugin *cache, size_t queu
    InputPlugin::Result ret;
    InputStats stats = {0, 0, 0, 0, 0};
    WorkerResult res = {false, ""};
-
+   
+   PacketIndexerQueue *indexerInQueue = nullptr;
+   if(ThreadPacketIndexer::GetInstance()) {
+       indexerInQueue = ThreadPacketIndexer::GetInstance()->get_input(pipeline_idx);
+   }
+   PacketQueue indexerOutQueue;
+   PacketQueue *indexerOutQueuePtr = &indexerOutQueue;
    PacketBlock block(queue_size);
+   WORKER_DEBUG("Wroker indexer Queue: " << indexerOutQueuePtr);
 
 #ifdef __linux__
    const clockid_t clk_id = CLOCK_MONOTONIC_COARSE;
@@ -93,11 +112,35 @@ void input_storage_worker(InputPlugin *plugin, StoragePlugin *cache, size_t queu
          stats.parsed = plugin->m_parsed;
          stats.dropped = plugin->m_dropped;
          stats.bytes += block.bytes;
+         /* Do the indexing */
+         if(indexerInQueue) {
+             for (unsigned i = 0; i < block.cnt; i++) {
+                auto pkt = &block.pkts[i];
+                WORKER_DEBUG("Indexing packet blockI: " << i << " - " << pkt);
+                auto pStr = PacketIndexerStruct(pkt, indexerOutQueuePtr);
+                indexerInQueue->push(pStr);
+             }
+         }
+         
          clock_gettime(clk_id, &start_cache);
          try {
-            for (unsigned i = 0; i < block.cnt; i++) {
-               cache->put_pkt(block.pkts[i]);
-            }
+             if(indexerInQueue) {
+                for (unsigned i = 0; i < block.cnt; i++) {
+                    indexerOutQueuePtr->wait_element();
+                    if(indexerOutQueuePtr->is_stopped()) {
+                        break;
+                    }
+                    
+                    auto pkt = indexerOutQueuePtr->front();
+                    WORKER_DEBUG("Putting packet blockI: " << i << " - " << pkt);
+                    cache->put_pkt(*pkt);
+                    indexerOutQueuePtr->pop();
+                }
+             } else {
+                for (unsigned i = 0; i < block.cnt; i++) {
+                    cache->put_pkt(block.pkts[i]);
+                }
+             }
             ts = block.pkts[block.cnt - 1].ts;
          } catch (PluginError &e) {
             res.error = true;

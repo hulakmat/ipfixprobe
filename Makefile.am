@@ -146,6 +146,8 @@ ipfixprobe_process_src=\
 		process/bstats.cpp \
 		process/phists.cpp \
 		process/phists.hpp \
+		process/pdhists.cpp \
+		process/pdhists.hpp \
 		process/pstats.hpp \
 		process/pstats.cpp \
 		process/ovpn.hpp \
@@ -233,6 +235,8 @@ ipfixprobe_src=\
 		ring.c \
 		workers.cpp \
 		workers.hpp \
+		indexer.cpp \
+		indexer.hpp \
 		stats.cpp \
 		stats.hpp \
 		ipfixprobe.hpp \

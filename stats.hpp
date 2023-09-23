@@ -29,6 +29,9 @@
 #ifndef IPXP_STATS_HPP
 #define IPXP_STATS_HPP
 
+#include <cstdint>
+#include <string>
+
 #define SERVICE_WAIT_BEFORE_TIMEOUT 250000  ///< Timeout after EAGAIN or EWOULDBLOCK errno returned from service send() and recv().
 #define SERVICE_WAIT_MAX_TRY 8  ///< A maximal count of repeated timeouts per each service recv() and send() function call.
 

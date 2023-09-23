@@ -91,6 +91,7 @@ public:
 
     void erase();
     void reuse();
+    void clear();
 
     inline __attribute__((always_inline)) bool isEmpty() const { return m_hash == 0; }
 

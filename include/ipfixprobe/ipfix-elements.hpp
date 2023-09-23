@@ -232,6 +232,14 @@ namespace ipxp {
 #define S_PHISTS_SIZES(F)             F(0,       291,  -1,   nullptr) // BASIC LIST -- FIELD IS e8057id1060 (uint32*)
 #define S_PHISTS_IPT(F)               F(0,       291,  -1,   nullptr) // BASIC LIST -- FIELD IS e8057id1061 (uint32*)
 
+
+#define S_PDHISTS_DIST_CHAN(F)        F(0,       291,  -1,   nullptr) // BASIC LIST -- FIELD IS e8057id1080 (uint32*)
+#define D_PDHISTS_DIST_CHAN(F)        F(0,       291,  -1,   nullptr) // BASIC LIST -- FIELD IS e8057id1081 (uint32*)
+#define B_PDHISTS_DIST_CHAN(F)        F(0,       291,  -1,   nullptr) // BASIC LIST -- FIELD IS e8057id1082 (uint32*)
+#define S_PDHISTS_DIST_INTF(F)        F(0,       291,  -1,   nullptr) // BASIC LIST -- FIELD IS e8057id1083 (uint32*)
+#define D_PDHISTS_DIST_INTF(F)        F(0,       291,  -1,   nullptr) // BASIC LIST -- FIELD IS e8057id1084 (uint32*)
+#define B_PDHISTS_DIST_INTF(F)        F(0,       291,  -1,   nullptr) // BASIC LIST -- FIELD IS e8057id1085 (uint32*)
+
 #define QUIC_SNI(F)                   F(8057,    890,  -1,   nullptr)
 #define QUIC_USER_AGENT(F)            F(8057,    891,  -1,   nullptr)
 #define QUIC_VERSION(F)               F(8057,    892,   4,   nullptr)
@@ -463,6 +471,15 @@ namespace ipxp {
   F(S_PHISTS_IPT) \
   F(D_PHISTS_SIZES) \
   F(D_PHISTS_IPT)
+
+
+#define IPFIX_PDHISTS_TEMPLATE(F) \
+  F(S_PDHISTS_DIST_CHAN) \
+  F(D_PDHISTS_DIST_CHAN) \
+  F(B_PDHISTS_DIST_CHAN) \
+  F(S_PDHISTS_DIST_INTF) \
+  F(D_PDHISTS_DIST_INTF) \
+  F(B_PDHISTS_DIST_INTF)
 
 #define IPFIX_WG_TEMPLATE(F) \
   F(WG_CONF_LEVEL) \

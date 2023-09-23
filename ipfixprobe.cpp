@@ -252,7 +252,11 @@ bool process_plugin_args(ipxp_conf_t &conf, IpfixprobeOptParser &parser)
       conf.outputs.push_back(tmp);
       conf.output_fut.push_back(output_res->get_future());
    }
-
+   
+   
+   conf.indexer = new ThreadPacketIndexer(parser.m_input.size(), 4);
+   conf.indexer->start();
+   
    // Input
    size_t pipeline_idx = 0;
    for (auto &it : parser.m_input) {
@@ -317,7 +321,7 @@ bool process_plugin_args(ipxp_conf_t &conf, IpfixprobeOptParser &parser)
       WorkPipeline tmp = {
          {
             input_plugin,
-            new std::thread(input_storage_worker, input_plugin, storage_plugin, conf.iqueue_size, 
+            new std::thread(input_storage_worker, pipeline_idx, input_plugin, storage_plugin, conf.iqueue_size, 
                conf.max_pkts, input_res, input_stats),
             input_res,
             input_stats
@@ -340,9 +344,15 @@ void finish(ipxp_conf_t &conf)
 
    // Terminate all inputs
    terminate_input = 1;
+   if(conf.indexer) {
+        conf.indexer->stop();
+   }
    for (auto &it : conf.pipelines) {
       it.input.thread->join();
       it.input.plugin->close();
+   }
+   if(conf.indexer) {
+        conf.indexer->join();
    }
 
    // Terminate all storages

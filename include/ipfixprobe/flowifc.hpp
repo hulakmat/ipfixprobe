@@ -36,8 +36,17 @@
 
 #include <config.h>
 #include <stdint.h>
+#include <iostream>
 #include <stdlib.h>
 #include <sys/time.h>
+
+
+//#define RECORD_DEBUG_ENABLE
+#ifdef RECORD_DEBUG_ENABLE
+#define RECORD_DEBUG(x) std::cerr << x << std::endl;
+#else
+#define RECORD_DEBUG(x)
+#endif
 
 #ifdef WITH_NEMEA
 #include <unirec/unirec.h>
@@ -144,7 +153,8 @@ struct RecordExt {
    }
 };
 
-struct Record {
+class Record {
+public:
    RecordExt *m_exts; /**< Extension headers. */
 
    /**
@@ -153,6 +163,7 @@ struct Record {
     */
    void add_extension(RecordExt* ext)
    {
+      RECORD_DEBUG("Adding: " << this <<  " extensions: " << ext);
       if (m_exts == nullptr) {
          m_exts = ext;
       } else {
@@ -171,6 +182,7 @@ struct Record {
     */
    RecordExt *get_extension(int id) const
    {
+      RECORD_DEBUG("Getting: " << this <<  " extension id: " << id );
       RecordExt *ext = m_exts;
       while (ext != nullptr) {
          if (ext->m_ext_id == id) {
@@ -215,6 +227,7 @@ struct Record {
    void remove_extensions()
    {
       if (m_exts != nullptr) {
+          RECORD_DEBUG("Remove extensions: " << m_exts);
          delete m_exts;
          m_exts = nullptr;
       }
@@ -245,7 +258,8 @@ struct Record {
 /**
  * \brief Flow record struct constaining basic flow record data and extension headers.
  */
-struct Flow : public Record {
+class Flow : public Record {
+public:
    struct timeval time_first;
    struct timeval time_last;
    uint64_t src_bytes;

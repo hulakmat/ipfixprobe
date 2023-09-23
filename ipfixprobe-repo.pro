@@ -39,6 +39,7 @@ SOURCES += \
         ./process/ovpn.cpp \
         ./process/passivedns.cpp \
         ./process/phists.cpp \
+        ./process/pdhists.cpp \
         ./process/pstats.cpp \
         ./process/quic.cpp \
         ./process/rtsp.cpp \
@@ -67,9 +68,11 @@ SOURCES += \
         ./ipfixprobe_stats.cpp \
         ./stats.cpp \
         ./workers.cpp \
+        ./indexer.cpp \
     storage/basic/flowcachehiear.cpp
 
 HEADERS += ./input/benchmark.hpp \
+        ./indexer.hpp \
         ./input/headers.hpp \
         ./input/ndp.hpp \
         ./input/nfbCInterface/include/ndpreader.hpp \
@@ -93,6 +96,7 @@ HEADERS += ./input/benchmark.hpp \
         ./process/ovpn.hpp \
         ./process/passivedns.hpp \
         ./process/phists.hpp \
+        ./process/pdhists.hpp \
         ./process/pstats.hpp \
         ./process/quic.hpp \
         ./process/rtsp.hpp \

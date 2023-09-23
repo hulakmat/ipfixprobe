@@ -157,7 +157,7 @@ public:
             //std::cerr << "Clearing cached entry: " << *insertEntry << std::endl;
             printHash((*insertEntry)->getHash());
             cachedPacketInfoMap.erase((*insertEntry)->getHash());
-            (*insertEntry)->erase();
+            (*insertEntry)->clear();
             m_item_moves++;
 
             //std::cerr << "Cleared cached entry: " << *insertEntry << std::endl;
@@ -186,7 +186,7 @@ public:
         cachedPacketInfoMap.insert(CachedPacketInfoMapPair(cachedPktInfo.getHash(), basePktInfo));
 
         //Remove the baseFSLookup from the BaseFS
-        (*baseFSLookup)->erase();
+        (*baseFSLookup)->clear();
 
         // Pkt needs to be kept uptoday with the accessor
         pkt = cachedPktInfo;
@@ -278,7 +278,7 @@ public:
 
         //Clear the cached entry
         cachedPacketInfoMap.erase((*insertEntry)->getHash());
-        (*insertEntry)->erase();
+        (*insertEntry)->clear();
 
 #ifdef CACHEDSTORE_DEBUG
         auto insertCh = cachedPacketInfoMap.find(cachedPktInfo.getHash());

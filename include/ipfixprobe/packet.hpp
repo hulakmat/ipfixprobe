@@ -46,6 +46,9 @@ namespace ipxp {
  */
 struct Packet : public Record {
    struct timeval ts;
+    
+   uint64_t    channel_index;
+   uint64_t    link_index;
 
    uint8_t     dst_mac[6];
    uint8_t     src_mac[6];
