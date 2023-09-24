@@ -54,6 +54,7 @@ public:
    uint64_t m_seen;
    uint64_t m_parsed;
    uint64_t m_dropped;
+   uint64_t m_packet_index;
 
    InputPlugin() : m_seen(0), m_parsed(0), m_dropped(0) {}
    virtual ~InputPlugin() {}

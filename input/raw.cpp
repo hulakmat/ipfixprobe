@@ -287,7 +287,7 @@ int RawReader::read_packets(PacketBlock &packets)
 
 int RawReader::process_packets(struct tpacket_block_desc *pbd, PacketBlock &packets)
 {
-   parser_opt_t opt = {&packets, false, false, DLT_EN10MB};
+   parser_opt_t opt = {&packets, false, false, DLT_EN10MB, &m_packet_index};
    uint32_t num_pkts = pbd->hdr.bh1.num_pkts;
    uint32_t capacity = RAW_PACKET_BLOCK_SIZE - packets.cnt;
    uint32_t to_read = 0;

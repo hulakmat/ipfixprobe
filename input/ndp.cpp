@@ -92,7 +92,7 @@ void NdpPacketReader::init_ifc(const std::string &dev)
 
 InputPlugin::Result NdpPacketReader::get(PacketBlock &packets)
 {
-   parser_opt_t opt = {&packets, false, false, 0};
+   parser_opt_t opt = {&packets, false, false, 0, &m_input_index};
    struct ndp_packet *ndp_packet;
    struct ndp_header *ndp_header;
    size_t read_pkts = 0;
@@ -113,11 +113,7 @@ InputPlugin::Result NdpPacketReader::get(PacketBlock &packets)
       read_pkts++;
       
       /* Counter for input channel */
-      auto pkt = &opt.pblock->pkts[opt.pblock->cnt];
-      pkt->channel_index = m_input_index;
-      
       packet_ndp_handler(&opt, ndp_packet, ndp_header);
-      m_input_index++;
    }
 
    m_seen += read_pkts;

@@ -719,6 +719,10 @@ Packet *parse_packet(parser_opt_t *opt, struct timeval ts, const uint8_t *data, 
       pkt->payload_len = pkt_len - data_offset;
    }
    pkt->payload = pkt->packet + data_offset;
+   if(opt->packet_index) {
+      pkt->channel_index = *opt->packet_index;
+      (*opt->packet_index)++;
+   }
 
    DEBUG_MSG("Payload length:\t%u\n", pkt->payload_len);
    DEBUG_MSG("Packet parser exits: packet parsed\n");

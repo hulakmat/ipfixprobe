@@ -90,6 +90,7 @@ private:
    uint32_t m_blocksize;
    uint32_t m_framesize;
    uint32_t m_blocknum;
+   uint64_t m_packet_index = 0;
 
    struct tpacket3_hdr *m_last_ppd;
    struct tpacket_block_desc *m_pbd;

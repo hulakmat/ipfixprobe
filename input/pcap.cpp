@@ -246,7 +246,7 @@ void PcapReader::set_filter(const std::string &filter_str)
 
 InputPlugin::Result PcapReader::get(PacketBlock &packets)
 {
-   parser_opt_t opt = {&packets, false, false, m_datalink};
+   parser_opt_t opt = {&packets, false, false, m_datalink, &m_packet_index};
    int ret;
 
    if (m_handle == nullptr) {

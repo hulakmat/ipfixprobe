@@ -217,7 +217,7 @@ void DpdkReader::init(const char* params)
 InputPlugin::Result DpdkReader::get(PacketBlock& packets)
 {
 #ifndef WITH_FLEXPROBE
-    parser_opt_t opt {&packets, false, false, 0};
+    parser_opt_t opt {&packets, false, false, 0, &m_packet_index};
 #endif
 
     packets.cnt = 0;

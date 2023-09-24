@@ -212,6 +212,7 @@ private:
     uint16_t m_rxQueueId;
     DpdkCore& m_dpdkCore;
     DpdkMbuf mBufs;
+    uint64_t m_packet_index = 0;
 };
 
 }

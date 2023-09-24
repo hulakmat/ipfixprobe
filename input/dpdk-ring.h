@@ -132,6 +132,7 @@ private:
     DpdkRingCore &m_dpdkRingCore;
     rte_ring *m_ring;
     bool is_reader_ready = false;
+    uint64_t m_packet_index = 0;
 
 
 };

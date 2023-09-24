@@ -63,6 +63,7 @@ typedef struct parser_opt_s {
    bool packet_valid;
    bool parse_all;
    int datalink;
+   uint64_t *packet_index;
 } parser_opt_t;
 
 Packet *parse_packet(parser_opt_t *opt, struct timeval ts, const uint8_t *data, uint16_t len, uint16_t caplen);
