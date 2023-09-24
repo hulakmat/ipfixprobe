@@ -253,9 +253,10 @@ bool process_plugin_args(ipxp_conf_t &conf, IpfixprobeOptParser &parser)
       conf.output_fut.push_back(output_res->get_future());
    }
    
-   
-   conf.indexer = new ThreadPacketIndexer(parser.m_input.size(), 4);
-   conf.indexer->start();
+   if(parser.m_reindex) {
+     conf.indexer = new ThreadPacketIndexer(parser.m_input.size(), 4);
+     conf.indexer->start();
+   }
    
    // Input
    size_t pipeline_idx = 0;

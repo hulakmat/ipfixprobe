@@ -79,6 +79,7 @@ public:
    std::vector<std::string> m_process;
    std::string m_pid;
    bool m_daemon;
+   bool m_reindex;
    uint32_t m_iqueue;
    uint32_t m_oqueue;
    uint32_t m_fps;
@@ -150,6 +151,10 @@ public:
           m_pid = arg;
           return m_pid != "";
       }, OptionFlags::RequiredArgument);
+      register_option("-r", "--reindex", "", "Reindex packets across all inputs", [this](const char *arg) {
+          m_reindex = true;
+          return true;
+      }, OptionFlags::NoArgument);
       register_option("-d", "--daemon", "", "Run as a standalone process", [this](const char *arg) {
           m_daemon = true;
           return true;
