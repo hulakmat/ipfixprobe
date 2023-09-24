@@ -267,7 +267,8 @@ public:
             } else {
                 throw std::logic_error("Cached store requires m_force_callback to be set");
             }
-            (*baseInsertEntry)->erase();
+            //Already erased by export
+            //(*baseInsertEntry)->erase();
         }
 
         //Save the FCRecord into baseFS
