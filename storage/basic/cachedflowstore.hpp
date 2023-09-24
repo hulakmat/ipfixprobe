@@ -412,8 +412,8 @@ public:
 
 
     FlowStoreStat::Ptr stats_export() {
-        auto cachedFS = getCachedStore();
-        auto baseFS = getBaseStore();
+        auto &cachedFS = getCachedStore();
+        auto &baseFS = getBaseStore();
         auto cStats = cachedFS.stats_export();
         cStats->setName("cachedStore");
         auto bStats = baseFS.stats_export();
