@@ -59,13 +59,13 @@ namespace ipxp {
 
 /* Offset == 0, Size == 8
  * 0-2      1. bin
- * 4-7      2. bin
- * 0-15     3. bin
- * 16-31    4. bin
- * 32-63    5. bin
- * 64-127   6. bin
- * 128-255  7. bin
- * 256-511  8. bin
+ * 3-4      2. bin
+ * 5-7     3. bin
+ * 8-15    4. bin
+ * 16-31    5. bin
+ * 32-63   6. bin
+ * 64-127  7. bin
+ * 128-255  8. bin
  */
 /* Offset == 2, Size == 8
  * 0-15     1. bin
