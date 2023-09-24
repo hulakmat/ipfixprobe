@@ -89,21 +89,21 @@ ProcessPlugin *PDHISTSPlugin::copy()
 
 void PDHISTSPlugin::update_hist(uint32_t value, uint32_t *histogram)
 {
-   PDHISTS_DEBUG("Update Hist");
    size_t index = (fastlog2_32(value) - HISTOGRAM_OFFSET - 1);
-   if (index < 0) {
+   PDHISTS_DEBUG("Hist update val: " << value << " ind: " << index);
+   if (index < 0 || value <= (2<<(HISTOGRAM_OFFSET+1))) {
       histogram[0] = no_overflow_increment(histogram[0]);
    } else if (index >= HISTOGRAM_SIZE) {
       histogram[HISTOGRAM_SIZE - 1] = no_overflow_increment(histogram[HISTOGRAM_SIZE - 1]);
    } else {
       histogram[index] = no_overflow_increment(histogram[index]);
    }
-   PDHISTS_DEBUG("Update Hist End");
    return;
 }
 
 uint64_t PDHISTSPlugin::calculate_packet_dst(uint64_t ind, uint64_t last_val)
 {
+   PDHISTS_DEBUG("Calc ind: " << ind << " last: " << last_val);
    if (last_val == RecordExtPDHISTS::dist_hist_empty_val) {
       return std::numeric_limits<uint64_t>::max();
    }
@@ -112,6 +112,9 @@ uint64_t PDHISTSPlugin::calculate_packet_dst(uint64_t ind, uint64_t last_val)
       /* Unwrapp */
       diff = std::numeric_limits<uint64_t>::max() - (ind - last_val);
    }
+   if(diff == 0) {
+      return std::numeric_limits<uint64_t>::max();
+   }  
    return diff;
 }
 
@@ -127,8 +130,8 @@ void PDHISTSPlugin::update_record(RecordExtPDHISTS *pdhists_data, const Packet &
    uint64_t pkt_chan_dst     = calculate_packet_dst(pkt.channel_index, pdhists_data->last_pkt_index_channel[2]);
    uint64_t pkt_link_dst     = calculate_packet_dst(pkt.link_index, pdhists_data->last_pkt_index_intf[2]);
    
-   PDHISTS_DEBUG("pkt_dir_chan_dst: " << pkt_dir_chan_dst <<
-                 " pkt_dir_link_dst: " << pkt_dir_link_dst<<
+   PDHISTS_DEBUG("dir: " << direction << "pkt_dir_chan_dst: " << pkt_dir_chan_dst <<
+                 " pkt_dir_link_dst: " << pkt_dir_link_dst <<
                  " pkt_chan_dst: " << pkt_chan_dst<<
                  " pkt_link_dst: " << pkt_link_dst);
    if (pkt_dir_chan_dst != inv_dst) {
@@ -144,12 +147,31 @@ void PDHISTSPlugin::update_record(RecordExtPDHISTS *pdhists_data, const Packet &
       update_hist((uint32_t) pkt_link_dst, pdhists_data->dist_hist_intf[2]);
    }
    
+   char dirs_c[] = {'s', 'd', 'b'};
+   for (size_t dir = 0; dir < sizeof(dirs_c); dir++) {
+      PDHISTS_DEBUG_RAW(dirs_c[dir] << "pdhistchan=(");
+      for (size_t i = 0; i < HISTOGRAM_SIZE; i++) {
+          PDHISTS_DEBUG_RAW(pdhists_data->dist_hist_chan[dir][i]);
+          if (i != HISTOGRAM_SIZE - 1) {
+              PDHISTS_DEBUG_RAW(",");
+          }
+      }
+      PDHISTS_DEBUG_RAW(")," << dirs_c[dir] << "pdhistintf=(");
+      for (size_t i = 0; i < HISTOGRAM_SIZE; i++) {
+          PDHISTS_DEBUG_RAW(pdhists_data->dist_hist_intf[dir][i]);
+          if (i != HISTOGRAM_SIZE - 1) {
+              PDHISTS_DEBUG_RAW(",");
+          }
+      }
+      PDHISTS_DEBUG_RAW("),");
+   }
+   PDHISTS_DEBUG("");
    /* Set last for direction */
-   *(pdhists_data->last_pkt_index_channel + direction) = pkt.channel_index;
-   *(pdhists_data->last_pkt_index_intf + direction) = pkt.link_index;
+   pdhists_data->last_pkt_index_channel[direction] = pkt.channel_index;
+   pdhists_data->last_pkt_index_intf[direction] = pkt.link_index;
    /* Set last for both directions */
-   *(pdhists_data->last_pkt_index_channel + 2) = pkt.channel_index;
-   *(pdhists_data->last_pkt_index_intf + 2) = pkt.link_index;
+   pdhists_data->last_pkt_index_channel[2] = pkt.channel_index;
+   pdhists_data->last_pkt_index_intf[2] = pkt.link_index;
 }
 
 

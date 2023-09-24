@@ -48,9 +48,11 @@ namespace ipxp {
 
 //#define PDHISTS_DEBUG_ENABLE
 #ifdef PDHISTS_DEBUG_ENABLE
-#define PDHISTS_DEBUG(x) std::cerr << x << std::endl;
+#define PDHISTS_DEBUG_RAW(x) std::cerr << x
+#define PDHISTS_DEBUG(x) PDHISTS_DEBUG_RAW(x) << std::endl
 #else
 #define PDHISTS_DEBUG(x)
+#define PDHISTS_DEBUG_RAW(x) 
 #endif
 
 #ifndef PDHISTS_MINLEN
