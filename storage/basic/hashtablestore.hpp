@@ -284,7 +284,7 @@ private:
 #ifdef FLOW_CACHE_STATS
     struct HashTableStoreStats {
         uint64_t m_searches = 0;
-        uint64_t m_searches2;
+        uint64_t m_searches2 = 0;
 
         uint64_t m_lookups = 0;
         uint64_t m_lookups2 = 0;

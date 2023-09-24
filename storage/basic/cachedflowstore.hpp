@@ -50,10 +50,7 @@ public:
 
     FlowStoreCached() : Base()
     {
-        m_cached_lookups = 0;
-        m_item_moves = 0;
-        m_item_move_rejects = 0;
-        m_move_exports = 0;
+        stats_reset();
     }
 
     accessor lookup(packet_info &pkt) {
@@ -64,7 +61,10 @@ public:
         printHash(cachedPktInfo.getHash());
         auto cachedFSLookup = cachedFS.lookup(cachedPktInfo);
         if(cachedFSLookup != this->lookup_end()) {
-            m_cached_lookups++;
+            {
+                StatsGuard stats(innerStats);
+                stats->m_cached_lookups++;
+            }
             //std::cerr << "Returing record of cached store" << std::endl;
             // Pkt needs to be kept uptoday with the accessor
             pkt = cachedPktInfo;
@@ -99,7 +99,10 @@ public:
             //Try to insert into baseFS
             insertEntry = cachedFS.free(cachedPktInfo);
             if(insertEntry == this->lookup_end()) {
-                m_item_move_rejects++;
+                {
+                    StatsGuard stats(innerStats);
+                    stats->m_item_move_rejects++;
+                }
                 //Caching Flowstore rejected flow movement
                 // Pkt needs to be kept uptoday with the accessor
                 pkt = basePktInfo;
@@ -127,7 +130,10 @@ public:
             auto baseInsertEntry = baseFS.lookup_empty(basePrevPktInfo);
             if(baseInsertEntry == this->lookup_end()) {
                 //std::cerr << "Base does not have empty line" << std::endl;
-                m_move_exports++;
+                {
+                    StatsGuard stats(innerStats);
+                    stats->m_move_exports++;
+                }
                 //Did not find empty space in base
                 baseInsertEntry = baseFS.free(basePrevPktInfo);
                 if((*baseInsertEntry)->getHash() == (*baseFSLookup)->getHash()) {
@@ -145,7 +151,7 @@ public:
                     throw std::logic_error("Cached store requires m_force_callback to be set");
                 }
             }
-
+            
             //Save the FCRecord into baseFS
             **baseInsertEntry = **insertEntry;
 
@@ -158,7 +164,10 @@ public:
             printHash((*insertEntry)->getHash());
             cachedPacketInfoMap.erase((*insertEntry)->getHash());
             (*insertEntry)->clear();
-            m_item_moves++;
+            {
+                StatsGuard stats(innerStats);
+                stats->m_item_moves++;
+            }
 
             //std::cerr << "Cleared cached entry: " << *insertEntry << std::endl;
             printHash((*insertEntry)->getHash());
@@ -251,7 +260,10 @@ public:
         auto baseInsertEntry = baseFS.lookup_empty(basePrevPktInfo);
         if(baseInsertEntry == this->lookup_end()) {
             //std::cerr << "Freeing space in base store by exporting " << std::endl;
-            m_move_exports++;
+            {
+                StatsGuard stats(innerStats);
+                stats->m_move_exports++;
+            }
             //Did not find empty space in base
             baseInsertEntry = baseFS.free(basePrevPktInfo);
 //            if((*baseInsertEntry)->getHash() == (*baseFSLookup)->getHash()) {
@@ -267,14 +279,15 @@ public:
             } else {
                 throw std::logic_error("Cached store requires m_force_callback to be set");
             }
-            //Already erased by export
-            //(*baseInsertEntry)->erase();
         }
 
         //Save the FCRecord into baseFS
         **baseInsertEntry = **insertEntry;
         baseFS.put(baseInsertEntry);
-        m_item_moves++;
+        {
+            StatsGuard stats(innerStats);
+            stats->m_item_moves++;
+        }
         //std::cerr << "Moved record from cached store to base" << std::endl;
 
         //Clear the cached entry
@@ -405,19 +418,34 @@ public:
         cStats->setName("cachedStore");
         auto bStats = baseFS.stats_export();
         bStats->setName("baseStore");
+        
+        StatsGuard stats(innerStats);
         FlowStoreStat::PtrVector statVec = {
-            make_FSStatPrimitive("cached_lookups" , m_cached_lookups),
-            make_FSStatPrimitive("item_moves" , m_item_moves),
-            make_FSStatPrimitive("item_move_rejects" , m_item_move_rejects),
-            make_FSStatPrimitive("move_exports" , m_move_exports),
+            make_FSStatPrimitive("cached_lookups" , stats->m_cached_lookups),
+            make_FSStatPrimitive("item_moves" , stats->m_item_moves),
+            make_FSStatPrimitive("item_move_rejects" , stats->m_item_move_rejects),
+            make_FSStatPrimitive("move_exports" , stats->m_move_exports),
             cStats,
             bStats
         };
         return std::make_shared<FlowStoreStatVector>("", statVec);
     }
-
+    
+    
+    struct CachedStoreStats {
+        uint32_t m_cached_lookups = 0;
+        uint32_t m_item_moves = 0;
+        uint32_t m_item_move_rejects = 0;
+        uint32_t m_move_exports = 0;
+    };
+    GuardedStruct<CachedStoreStats> innerStats;
+    typedef GuardedStructGuard<CachedStoreStats> StatsGuard;
+    
     void stats_reset() {
-        m_cached_lookups = m_item_moves =m_item_move_rejects = m_move_exports = 0;
+        {
+            StatsGuard stats(innerStats);
+            *(&stats) = {};
+        }
         Base::stats_reset();
     }
 
@@ -447,11 +475,7 @@ private:
     }
 
     CachedPacketInfoMap cachedPacketInfoMap;
-
-    uint32_t m_cached_lookups;
-    uint32_t m_item_moves;
-    uint32_t m_item_move_rejects;
-    uint32_t m_move_exports;
+    
 };
 
 }
