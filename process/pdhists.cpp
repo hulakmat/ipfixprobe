@@ -95,7 +95,11 @@ void PDHISTSPlugin::update_hist(uint32_t value, uint32_t *histogram)
    } else if (value > (2 << (HISTOGRAM_SIZE+HISTOGRAM_OFFSET))) {
       histogram[HISTOGRAM_SIZE - 1] = no_overflow_increment(histogram[HISTOGRAM_SIZE - 1]);
    } else {
-      histogram[fastlog2_32(value) - HISTOGRAM_OFFSET - 1] = no_overflow_increment(histogram[fastlog2_32(value) - HISTOGRAM_OFFSET -1]);// -2 means shift cause first bin corresponds to 2^4
+      size_t index = fastlog2_32(value) - HISTOGRAM_OFFSET - 1;
+      if(index >= HISTOGRAM_SIZE) {
+          std::cerr << "Weee wooo wee woo" << std::endl;
+      }
+      histogram[index] = no_overflow_increment(histogram[index]);
    }
    PDHISTS_DEBUG("Update Hist End");
    return;
@@ -122,7 +126,7 @@ void PDHISTSPlugin::update_record(RecordExtPDHISTS *pdhists_data, const Packet &
       return;
    }
    uint64_t inv_dst = std::numeric_limits<uint64_t>::max();
-   uint8_t direction = (uint8_t)!pkt.source_pkt;
+   uint8_t direction = pkt.source_pkt ? 0 : 1;
    uint64_t pkt_dir_chan_dst = calculate_packet_dst(pkt.channel_index, pdhists_data->last_pkt_index_channel + direction);
    uint64_t pkt_dir_link_dst = calculate_packet_dst(pkt.link_index, pdhists_data->last_pkt_index_intf + direction);
    uint64_t pkt_chan_dst     = calculate_packet_dst(pkt.channel_index, pdhists_data->last_pkt_index_channel + 2);
@@ -130,7 +134,6 @@ void PDHISTSPlugin::update_record(RecordExtPDHISTS *pdhists_data, const Packet &
    
    PDHISTS_DEBUG("pkt_dir_chan_dst: " << pkt_dir_chan_dst <<
                  " pkt_dir_link_dst: " << pkt_dir_link_dst<<
-                 " pkt_chan_dst: " << pkt_chan_dst<<
                  " pkt_chan_dst: " << pkt_chan_dst<<
                  " pkt_link_dst: " << pkt_link_dst);
    if (pkt_dir_chan_dst != inv_dst) {
