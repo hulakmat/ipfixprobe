@@ -62,13 +62,13 @@ void input_storage_worker(size_t pipeline_idx, InputPlugin *plugin, StoragePlugi
    WorkerResult res = {false, ""};
    
    PacketIndexerQueue *indexerInQueue = nullptr;
+   PacketQueue *indexerOutQueuePtr = nullptr;
    if(ThreadPacketIndexer::GetInstance()) {
        indexerInQueue = ThreadPacketIndexer::GetInstance()->get_input(pipeline_idx);
+       indexerOutQueuePtr = ThreadPacketIndexer::GetInstance()->alloc_packet_queue();
+       WORKER_DEBUG("Wroker indexer Queue: " << indexerOutQueuePtr);
    }
-   PacketQueue indexerOutQueue;
-   PacketQueue *indexerOutQueuePtr = &indexerOutQueue;
    PacketBlock block(queue_size);
-   WORKER_DEBUG("Wroker indexer Queue: " << indexerOutQueuePtr);
 
 #ifdef __linux__
    const clockid_t clk_id = CLOCK_MONOTONIC_COARSE;
@@ -116,7 +116,7 @@ void input_storage_worker(size_t pipeline_idx, InputPlugin *plugin, StoragePlugi
          if(indexerInQueue) {
              for (unsigned i = 0; i < block.cnt; i++) {
                 auto pkt = &block.pkts[i];
-                WORKER_DEBUG("Indexing packet blockI: " << i << " - " << pkt);
+                WORKER_DEBUG("Indexing packet blockI: " << i << " - " << pkt << " to: " << indexerOutQueuePtr);
                 auto pStr = PacketIndexerStruct(pkt, indexerOutQueuePtr);
                 indexerInQueue->push(pStr);
              }

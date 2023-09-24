@@ -5,6 +5,7 @@
 #include <cmath>
 #include <queue>
 #include <thread>
+#include <atomic>
 #include <condition_variable>
 #include <ipfixprobe/input.hpp>
 
@@ -29,7 +30,7 @@ template<typename T>
 class ConcurrentQueue
 {
 public:
-    ConcurrentQueue() {
+    ConcurrentQueue() : stopped(false) {
         INDEXER_QUEUE_DEBUG("ConcurrentQueue Constructed: " << this);
     }
     
@@ -47,7 +48,7 @@ public:
     {
         std::unique_lock<std::mutex> lock(the_mutex);
         if(the_queue.empty()) {
-            INDEXER_QUEUE_DEBUG("ConcurrentQueue Waiting");
+            INDEXER_QUEUE_DEBUG("ConcurrentQueue Waiting: " << this);
         }
         while (the_queue.empty() && !stopped)
             the_condition_variable.wait(lock);
@@ -67,7 +68,7 @@ public:
     T& wait_and_pop()
     {
         std::unique_lock<std::mutex> lock(the_mutex);
-        while (the_queue.empty())
+        while (the_queue.empty() && !stopped)
             the_condition_variable.wait(lock);
         T& popped_value = the_queue.front();
         the_queue.pop();
@@ -81,7 +82,9 @@ public:
     }
     
     void stop() {
-        INDEXER_QUEUE_DEBUG("ConcurrentQueue stopped");
+        if(stopped) return;
+        INDEXER_QUEUE_DEBUG("ConcurrentQueue stopped: " << this);
+        std::unique_lock<std::mutex> lock(the_mutex, std::try_to_lock);
         stopped = true;
         the_condition_variable.notify_all();
     }
@@ -91,7 +94,7 @@ public:
     }
     
 private:
-    bool stopped = false;
+    std::atomic<bool> stopped;
     std::queue<T> the_queue;
     mutable std::mutex the_mutex;
     std::condition_variable the_condition_variable;
@@ -103,6 +106,7 @@ typedef ConcurrentQueue<PacketIndexerStruct> PacketIndexerQueue;
 class ThreadRunner
 {
 public:
+    ThreadRunner() : running(false) {}
     virtual ~ThreadRunner() {}
     void start() {
         INDEXER_DEBUG("Starting: " << this->name());
@@ -135,7 +139,7 @@ public:
     
 protected:
     virtual void process() {}
-    bool running = true;
+    std::atomic<bool> running;
     
 private:
     std::thread m_thread;
@@ -144,7 +148,7 @@ private:
 class ThreadPacketIndexerInner : public ThreadRunner
 {
 public:
-    ThreadPacketIndexerInner(PacketIndexerQueue *inputQueue) : input(inputQueue) {
+    ThreadPacketIndexerInner(PacketIndexerQueue *inputQueue) : ThreadRunner(), input(inputQueue) {
         INDEXER_DEBUG("Indexer input: " << inputQueue);
     }
     
@@ -164,8 +168,8 @@ public:
     }
     
     void stop() {
-        input->stop();
         ThreadRunner::stop();
+        input->stop();
     }
     
     const char* name() {
@@ -183,7 +187,7 @@ bool IndexLocalMinCMP(const PacketIndexerStructLocalMinStruct& a, const PacketIn
 class ThreadPacketSorterInner : public ThreadRunner
 {
 public:
-    ThreadPacketSorterInner(std::vector<PacketIndexerQueue*> inputs, PacketIndexerQueue* output) : inputQueues(inputs), output(output) {
+    ThreadPacketSorterInner(std::vector<PacketIndexerQueue*> inputs, PacketIndexerQueue* output) : ThreadRunner(), inputQueues(inputs), output(output) {
         INDEXER_DEBUG("Inputs len: " << inputs.size());
         for(auto i : inputs) {
             INDEXER_DEBUG(" - " << i);
@@ -193,7 +197,12 @@ public:
     
     void process() {
         /* Wait for all inputs */
+        INDEXER_DEBUG("Waiting for inputs");
         for(auto &i : inputQueues) {
+            if(!this->running) {
+                return;
+            }
+            INDEXER_DEBUG("Input: " << i);
             i->wait_element();
         }
         if(!this->running) {
@@ -207,6 +216,7 @@ public:
         auto min = *(std::min_element(localMin.begin(), localMin.end(), IndexLocalMinCMP));
         auto queue = std::get<1>(min);
         
+        INDEXER_DEBUG("Found minimum Queue: " << queue);
         queue->wait_element();
         if(!this->running) {
             return;
@@ -218,10 +228,10 @@ public:
     }
     
     void stop() {
+        ThreadRunner::stop();
         for(auto i : inputQueues) {
             i->stop();
         }
-        ThreadRunner::stop();
     }
     
     const char* name() {
@@ -240,36 +250,36 @@ public:
         return _singleton;
     }
     
-    ThreadPacketIndexer(size_t ins, size_t procs) {
+    ThreadPacketIndexer(size_t ins, size_t procs) : ThreadRunner() {
         INDEXER_DEBUG("Packet Indexer inputs: " << ins << " procs: " << ins);
         if(ins == 0) {
             return;
         }
         
         _singleton = this;
-        size_t depth = std::log(ins)/std::log(procs);
-        
         for(size_t i = 0; i < ins; i++) {
             inputs.push_back(new PacketIndexerQueue());
         }
         
         std::vector<PacketIndexerQueue*> currentInputs = inputs;
         std::vector<PacketIndexerQueue*> nextInputs;
-        for(size_t i = 0; i < depth; i++) {
-            for(size_t z = 0; z < currentInputs.size()/procs; z++) {
+        int i = 0;
+        while(currentInputs.size() != 1) {
+            for(size_t z = 0; z < std::min((size_t)(currentInputs.size()/procs), (size_t)1); z++) {
                 INDEXER_DEBUG("Packet Indexer create depth: " << i << " ind: " << z);
                 auto oQ = new PacketIndexerQueue();
                 inputs.push_back(oQ);
                 nextInputs.push_back(oQ);
                 
                 size_t startInd = z*procs;
-                size_t endInd = (z+1)*procs;
+                size_t endInd = std::max((z+1)*procs, currentInputs.size());
                 INDEXER_DEBUG("Inputs Size: " << currentInputs.size() << " Slice Indexes: " << z*procs << ":" << startInd << " - " <<  endInd - startInd);
                 auto sortInputs = std::vector<PacketIndexerQueue*>(currentInputs.begin()+startInd, currentInputs.begin()+endInd);
                 auto sorter = new ThreadPacketSorterInner(sortInputs, oQ);
                 sorters.push_back(sorter);
             }
             currentInputs = nextInputs;
+            i++;
         }
         
         /* Should be one */
@@ -301,6 +311,12 @@ public:
             s->stop();
         }
         indexer->stop();
+        for(auto i : inputs) {
+            i->stop();
+        }
+        for(auto p : pQueues) {
+            p->stop();
+        }
     }
     
     void join() {
@@ -315,8 +331,16 @@ public:
         return inputs[index];
     }
     
+    PacketQueue* alloc_packet_queue()
+    {
+        auto p = new PacketQueue();
+        pQueues.push_back(p);
+        return p;
+    }
+    
 private:
     static ThreadPacketIndexer *_singleton;
+    std::vector<PacketQueue*> pQueues;
     std::vector<PacketIndexerQueue*> inputs;
     std::vector<ThreadPacketSorterInner*> sorters;
     ThreadPacketIndexerInner *indexer;
