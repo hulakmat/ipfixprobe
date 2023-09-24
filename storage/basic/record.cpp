@@ -79,6 +79,7 @@ void FCRecord::reuse()
 void FCRecord::clear()
 {
    m_hash = 0;
+   m_flow.m_exts = nullptr;
    
    memset(&m_flow.time_first, 0, sizeof(m_flow.time_first));
    memset(&m_flow.time_last, 0, sizeof(m_flow.time_last));
