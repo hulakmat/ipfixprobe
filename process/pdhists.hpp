@@ -105,7 +105,7 @@ public:
  * \brief Flow record extension header for storing parsed PDHISTS packets.
  */
 struct RecordExtPDHISTS : public RecordExt {
-   static const uint32_t dist_hist_empty_val; 
+   static const uint64_t dist_hist_empty_val; 
    static int REGISTERED_ID;
 
    typedef enum eHdrFieldID {
@@ -127,10 +127,12 @@ struct RecordExtPDHISTS : public RecordExt {
       PDHISTS_DEBUG("Records create");
       // inicializing histograms with zeros
       for (int i = 0; i < 3; i++) {
-         memset(dist_hist_chan[i], 0, sizeof(uint32_t) * HISTOGRAM_SIZE);
-         memset(dist_hist_intf[i], 0, sizeof(uint32_t) * HISTOGRAM_SIZE);
-         last_pkt_index_channel[i] = 0;
-         last_pkt_index_intf[i] = 0;
+          for (int z = 0; z < HISTOGRAM_SIZE; z++) {
+            memset(dist_hist_chan[i], 0, sizeof(uint32_t) * HISTOGRAM_SIZE);
+            memset(dist_hist_intf[i], 0, sizeof(uint32_t) * HISTOGRAM_SIZE);
+          }
+         last_pkt_index_channel[i] = dist_hist_empty_val;
+         last_pkt_index_intf[i] = dist_hist_empty_val;
       }
    }
 
@@ -251,7 +253,7 @@ private:
    void update_record(RecordExtPDHISTS *pdhists_data, const Packet &pkt);
    void update_hist(uint32_t value, uint32_t *histogram);
    void pre_export(Flow &rec);
-   uint64_t calculate_packet_dst(uint64_t ind, uint64_t *last_val);
+   uint64_t calculate_packet_dst(uint64_t ind, uint64_t last_val);
 
    static const uint32_t log2_lookup32[32];
 
