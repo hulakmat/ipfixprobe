@@ -90,15 +90,12 @@ ProcessPlugin *PDHISTSPlugin::copy()
 void PDHISTSPlugin::update_hist(uint32_t value, uint32_t *histogram)
 {
    PDHISTS_DEBUG("Update Hist");
-   if (value <  (2 << (2+HISTOGRAM_OFFSET))) {
+   size_t index = (fastlog2_32(value) - HISTOGRAM_OFFSET - 1);
+   if (index < 0) {
       histogram[0] = no_overflow_increment(histogram[0]);
-   } else if (value > (2 << (HISTOGRAM_SIZE+HISTOGRAM_OFFSET))) {
+   } else if (index >= HISTOGRAM_SIZE) {
       histogram[HISTOGRAM_SIZE - 1] = no_overflow_increment(histogram[HISTOGRAM_SIZE - 1]);
    } else {
-      size_t index = fastlog2_32(value) - HISTOGRAM_OFFSET - 1;
-      if(index >= HISTOGRAM_SIZE) {
-          std::cerr << "Weee wooo wee woo" << std::endl;
-      }
       histogram[index] = no_overflow_increment(histogram[index]);
    }
    PDHISTS_DEBUG("Update Hist End");
