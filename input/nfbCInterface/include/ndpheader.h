@@ -6,6 +6,39 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
+#define NDK_APP_NIC_HEADER
+
+#ifdef NDK_APP_NIC_HEADER
+/**
+ * \brief Format of NDP APP NIC header.
+ */
+struct ndp_header {
+    union {
+	struct {
+		uint32_t timestamp_nsec; //!< Nanoseconds part of capture timestamp.
+		uint32_t timestamp_sec; //!< Seconds part of capture timestamp.
+	};
+    	uint64_t timestamp;
+    };
+    uint16_t vlan_tci;
+    uint8_t vlan_flags : 2;
+    uint8_t ip_csum_status : 2;
+    uint8_t l4_csum_status : 2;
+    uint8_t parser_status : 2;
+    uint8_t l2_len : 7;
+    uint16_t l3_len : 9;
+    uint8_t l4_len : 8;
+    uint8_t l2_type : 4;
+    uint8_t l3_type : 4;
+    uint8_t l4_type : 4;
+
+    uint8_t  interface : 4;
+    uint64_t hash;
+
+    uint16_t  application_function;
+    uint8_t reserved[6];
+} __attribute__((__packed__));
+#else
 /**
  * \brief Format of NDP header of data received from NSF firmware.
  */
@@ -18,6 +51,7 @@ struct ndp_header {
     uint32_t timestamp_nsec; //!< Nanoseconds part of capture timestamp.
     uint32_t timestamp_sec; //!< Seconds part of capture timestamp.
 } __attribute__((__packed__));
+#endif
 
 #ifdef __cplusplus
 }

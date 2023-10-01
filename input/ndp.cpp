@@ -45,6 +45,11 @@ __attribute__((constructor)) static void register_this_plugin()
 void packet_ndp_handler(parser_opt_t *opt, const struct ndp_packet *ndp_packet, const struct ndp_header *ndp_header)
 {
    struct timeval ts;
+#ifdef NDK_APP_NIC_HEADER
+   if(ndp_header->timestamp == 0xffffffffffffffffL) {
+	std::cerr << "Recieved invalid timestamp from FW tsu not working ?" << std::endl;
+   }
+#endif
    ts.tv_sec = le32toh(ndp_header->timestamp_sec);
    ts.tv_usec = le32toh(ndp_header->timestamp_nsec) / 1000;
    
