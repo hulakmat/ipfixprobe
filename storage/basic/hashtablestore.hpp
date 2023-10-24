@@ -78,9 +78,10 @@ public:
    uint32_t m_line_size;
    uint32_t m_active;
    uint32_t m_inactive;
+   bool m_biflowkey;
 
    HashTableStoreParser(const std::string &name = "hash", const std::string &desc = "Desc") : OptionsParser(name, desc),
-      m_cache_size(1 << DEFAULT_FLOW_CACHE_SIZE), m_line_size(1 << DEFAULT_FLOW_LINE_SIZE)
+       m_cache_size(1 << DEFAULT_FLOW_CACHE_SIZE), m_line_size(1 << DEFAULT_FLOW_LINE_SIZE), m_biflowkey(false)
    {
       register_option("s", "size", "EXPONENT", "Cache size exponent to the power of two",
          [this](const char *arg){try {unsigned exp = str2num<decltype(exp)>(arg);
@@ -97,6 +98,10 @@ public:
                }
             } catch(std::invalid_argument &e) {return false;} return true;},
          OptionFlags::RequiredArgument);
+      register_option("-b", "--biflow-key", "", "Use a biflow key for the hashtable", [this](const char *arg) {
+              m_biflowkey = true;
+              return true;
+          }, OptionFlags::NoArgument);
    }
 };
 
@@ -136,14 +141,16 @@ class HTFlowsStorePacketInfo : public FCPacketInfo {
 
     flow_key_t m_key;
     KeyType m_type;
+    bool m_bidir;
 
     size_t getLength() const { return this->m_type == KeyType::v4 ? flow_key_v4_len : flow_key_v6_len; }
     void calcHash() { this->m_hash = XXH64(reinterpret_cast<uint8_t*>(&this->m_key), this->getLength(), 0);};
 public:
-    HTFlowsStorePacketInfo(Packet &pkt, bool inverse, flow_key_t key) : FCPacketInfo(pkt, inverse), m_key(key), m_type(static_cast<KeyType>(key.ip_version))
+    HTFlowsStorePacketInfo(Packet &pkt, bool inverse, flow_key_t key, bool bidir) : FCPacketInfo(pkt, inverse), m_key(key), m_type(static_cast<KeyType>(key.ip_version)), m_bidir(bidir)
         { this->calcHash(); }
-    static HTFlowsStorePacketInfo from_packet(Packet &pkt, bool inverse = false);
+    static HTFlowsStorePacketInfo from_packet(Packet &pkt, bool bidir, bool inverse = false);
     bool isValid() const { return this->m_type != KeyType::None; };
+    bool isInversable() const { return !m_bidir; }
     friend class HTFlowStore;
 };
 
@@ -277,6 +284,7 @@ private:
     uint32_t m_line_size;
     uint32_t m_line_mask;
     uint32_t m_line_new_idx;
+    bool m_biflowkey;
 
     FCRPtrVector m_flow_table;
     FCRVector m_flow_records;

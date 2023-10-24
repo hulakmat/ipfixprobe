@@ -1,23 +1,41 @@
 #include "hashtablestore.hpp"
 #include "flowcache.hpp"
 #include <cstring>
+#include <cstdio>
 
 namespace ipxp {
 
-HTFlowsStorePacketInfo HTFlowsStorePacketInfo::from_packet(Packet &pkt, bool inverse) {
+HTFlowsStorePacketInfo HTFlowsStorePacketInfo::from_packet(Packet &pkt, bool bidir, bool inverse) {
     flow_key_t key;
     key.proto = pkt.ip_proto;
     key.ip_version = pkt.ip_version;
-    key.src_port = !inverse ? pkt.src_port : pkt.dst_port;
-    key.dst_port = !inverse ? pkt.dst_port : pkt.src_port;
-    if (pkt.ip_version == IP::v4) {
-        key.ip.v4.src_ip = !inverse ? pkt.src_ip.v4 : pkt.dst_ip.v4;
-        key.ip.v4.dst_ip = !inverse ? pkt.dst_ip.v4 : pkt.src_ip.v4;
-    } else if (pkt.ip_version == IP::v6) {
-        memcpy(key.ip.v6.src_ip.data(), !inverse ? pkt.src_ip.v6 : pkt.dst_ip.v6, sizeof(pkt.src_ip.v6));
-        memcpy(key.ip.v6.dst_ip.data(), !inverse ? pkt.dst_ip.v6 : pkt.src_ip.v6, sizeof(pkt.dst_ip.v6));
+    
+    if(!bidir) {
+        key.src_port = !inverse ? pkt.src_port : pkt.dst_port;
+        key.dst_port = !inverse ? pkt.dst_port : pkt.src_port;
+        if (pkt.ip_version == IP::v4) {
+            key.ip.v4.src_ip = !inverse ? pkt.src_ip.v4 : pkt.dst_ip.v4;
+            key.ip.v4.dst_ip = !inverse ? pkt.dst_ip.v4 : pkt.src_ip.v4;
+        } else if (pkt.ip_version == IP::v6) {
+            memcpy(key.ip.v6.src_ip.data(), !inverse ? pkt.src_ip.v6 : pkt.dst_ip.v6, sizeof(pkt.src_ip.v6));
+            memcpy(key.ip.v6.dst_ip.data(), !inverse ? pkt.dst_ip.v6 : pkt.src_ip.v6, sizeof(pkt.dst_ip.v6));
+        }
+    } else {
+        bool pLower = pkt.src_port < pkt.dst_port;
+        key.src_port = pLower ? pkt.src_port : pkt.dst_port;
+        key.dst_port = pLower ? pkt.dst_port : pkt.src_port;
+        
+        if (pkt.ip_version == IP::v4) {
+            bool ipLower = std::memcmp(&pkt.src_ip.v4, &pkt.dst_ip.v4, sizeof(pkt.src_ip.v4));
+            key.ip.v4.src_ip = !ipLower ? pkt.src_ip.v4 : pkt.dst_ip.v4;
+            key.ip.v4.dst_ip = !ipLower ? pkt.dst_ip.v4 : pkt.src_ip.v4;
+        } else if (pkt.ip_version == IP::v6) {
+            bool ipLower = std::memcmp(key.ip.v6.src_ip.data(), key.ip.v6.dst_ip.data(), sizeof(key.ip.v6.dst_ip.size()));
+            memcpy(key.ip.v6.src_ip.data(), !ipLower ? pkt.src_ip.v6 : pkt.dst_ip.v6, sizeof(pkt.src_ip.v6));
+            memcpy(key.ip.v6.dst_ip.data(), !ipLower ? pkt.dst_ip.v6 : pkt.src_ip.v6, sizeof(pkt.dst_ip.v6));
+        }
     }
-    return HTFlowsStorePacketInfo(pkt, inverse, key);
+    return HTFlowsStorePacketInfo(pkt, inverse, key, bidir);
 }
 
 void HTFlowStore::init(HashTableStoreParser& parser)
@@ -26,6 +44,7 @@ void HTFlowStore::init(HashTableStoreParser& parser)
    m_line_size = parser.m_line_size;
    m_line_mask = (m_cache_size - 1) & ~(m_line_size - 1);
    m_line_new_idx = m_line_size / 2;
+   m_biflowkey = parser.m_biflowkey;
 
    if (m_line_size > m_cache_size) {
       throw PluginError("flow cache line size must be greater or equal to cache size");
@@ -51,7 +70,7 @@ void HTFlowStore::init(HashTableStoreParser& parser)
 
 HTFlowStore::packet_info HTFlowStore::prepare(Packet &pkt, bool inverse = false)
 {
-   return HTFlowsStorePacketInfo::from_packet(pkt, inverse);
+   return HTFlowsStorePacketInfo::from_packet(pkt, m_biflowkey, inverse);
 }
 
 HTFlowStore::accessor HTFlowStore::lookup(packet_info &pkt)
