@@ -163,7 +163,7 @@ InputPlugin::Result DpdkRingReader::get(PacketBlock& packets)
         usleep(1000);
     }
 
-    parser_opt_t opt {&packets, false, false, 0, &m_packet_index};
+    parser_opt_t opt {&packets, false, false, 0, &m_packet_index, 0};
 
     packets.cnt = 0;
     for (auto i = 0; i < pkts_read_; i++) {

@@ -44,13 +44,18 @@ class NdpOptParser : public OptionsParser
 public:
    std::string m_dev;
    uint64_t m_id;
-
-   NdpOptParser() : OptionsParser("ndp", "Input plugin for reading packets from a ndp device"), m_dev(""), m_id(0)
+   bool m_index_reserved;
+   
+   NdpOptParser() : OptionsParser("ndp", "Input plugin for reading packets from a ndp device"), m_dev(""), m_id(0), m_index_reserved(false)
    {
       register_option("d", "dev", "PATH", "Path to a device file", [this](const char *arg){m_dev = arg; return true;}, OptionFlags::RequiredArgument);
       register_option("I", "id", "NUM", "Link identifier number",
          [this](const char *arg){try {m_id = str2num<decltype(m_id)>(arg);} catch(std::invalid_argument &e) {return false;} return true;},
          OptionFlags::RequiredArgument);
+      register_option("-l", "--index-reserved", "", "Parser reserved field as index", [this](const char *arg) {
+              m_index_reserved = true;
+              return true;
+          }, OptionFlags::NoArgument);
    }
 };
 
@@ -68,7 +73,8 @@ public:
 
 private:
    NdpReader ndpReader;
-    uint64_t m_input_index;
+   uint64_t m_input_index;
+   bool m_index_reserved;
 
    void init_ifc(const std::string &dev);
 };

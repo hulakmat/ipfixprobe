@@ -42,6 +42,16 @@ __attribute__((constructor)) static void register_this_plugin()
    register_plugin(&rec);
 }
 
+uint64_t le48toh(uint8_t *data) {
+   uint64_t result = ((uint64_t)data[5] << 40) |
+                     ((uint64_t)data[4] << 32) |
+                     ((uint64_t)data[3] << 24) |
+                     ((uint64_t)data[2] << 16) |
+                     ((uint64_t)data[1] << 8)  |
+                     ((uint64_t)data[0] << 0);
+   return result;
+}
+
 void packet_ndp_handler(parser_opt_t *opt, const struct ndp_packet *ndp_packet, const struct ndp_header *ndp_header)
 {
    struct timeval ts;
@@ -52,6 +62,9 @@ void packet_ndp_handler(parser_opt_t *opt, const struct ndp_packet *ndp_packet, 
 #endif
    ts.tv_sec = le32toh(ndp_header->timestamp_sec);
    ts.tv_usec = le32toh(ndp_header->timestamp_nsec) / 1000;
+   if(m_index_reserved) {
+       opt->link_index = le48toh(ndp_header->reserved);
+   }
    
    Packet *pkt = parse_packet(opt, ts, ndp_packet->data, ndp_packet->data_length, ndp_packet->data_length);
    if(pkt) {
@@ -81,6 +94,7 @@ void NdpPacketReader::init(const char *params)
       throw PluginError("specify device path");
    }
    init_ifc(parser.m_dev);
+   m_index_reserved = parser.m_index_reserved;
 }
 
 void NdpPacketReader::close()
@@ -97,7 +111,7 @@ void NdpPacketReader::init_ifc(const std::string &dev)
 
 InputPlugin::Result NdpPacketReader::get(PacketBlock &packets)
 {
-   parser_opt_t opt = {&packets, false, false, 0, &m_input_index};
+   parser_opt_t opt = {&packets, false, false, 0, &m_input_index, 0};
    struct ndp_packet *ndp_packet;
    struct ndp_header *ndp_header;
    size_t read_pkts = 0;
