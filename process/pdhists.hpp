@@ -89,7 +89,10 @@ UR_FIELDS(
     uint32* B_PDHISTS_CHAN,
     uint32* S_PDHISTS_INTF,
     uint32* D_PDHISTS_INTF,
-    uint32* B_PDHISTS_INTF
+    uint32* B_PDHISTS_INTF,
+    uint32* S_PDHISTS_STORE,
+    uint32* D_PDHISTS_STORE,
+    uint32* B_PDHISTS_STORE
 )
 
 class PDHISTSOptParser : public OptionsParser
@@ -117,12 +120,17 @@ struct RecordExtPDHISTS : public RecordExt {
        SPdhistsIntf = 1083,
        DPdhistsIntf = 1084,
        BPdhistsIntf = 1085,
+       SPdhistsStore = 1086,
+       DPdhistsStore = 1087,
+       BPdhistsStore = 1088,
    } eHdrSemantic;
    
    uint32_t dist_hist_chan[3][HISTOGRAM_SIZE];
    uint32_t dist_hist_intf[3][HISTOGRAM_SIZE];
+   uint32_t dist_hist_store[3][HISTOGRAM_SIZE];
    uint64_t last_pkt_index_channel[3];
    uint64_t last_pkt_index_intf[3];
+   uint64_t last_pkt_index_store[3];
 
    RecordExtPDHISTS() : RecordExt(REGISTERED_ID)
    {
@@ -132,9 +140,11 @@ struct RecordExtPDHISTS : public RecordExt {
           for (int z = 0; z < HISTOGRAM_SIZE; z++) {
             memset(dist_hist_chan[i], 0, sizeof(uint32_t) * HISTOGRAM_SIZE);
             memset(dist_hist_intf[i], 0, sizeof(uint32_t) * HISTOGRAM_SIZE);
+            memset(dist_hist_store[i], 0, sizeof(uint32_t) * HISTOGRAM_SIZE);
           }
          last_pkt_index_channel[i] = dist_hist_empty_val;
          last_pkt_index_intf[i] = dist_hist_empty_val;
+         last_pkt_index_store[i] = dist_hist_empty_val;
       }
    }
 
@@ -148,6 +158,9 @@ struct RecordExtPDHISTS : public RecordExt {
       ur_array_allocate(tmplt, record, F_S_PDHISTS_INTF, HISTOGRAM_SIZE);
       ur_array_allocate(tmplt, record, F_D_PDHISTS_INTF, HISTOGRAM_SIZE);
       ur_array_allocate(tmplt, record, F_B_PDHISTS_INTF, HISTOGRAM_SIZE);
+      ur_array_allocate(tmplt, record, F_S_PDHISTS_STORE, HISTOGRAM_SIZE);
+      ur_array_allocate(tmplt, record, F_D_PDHISTS_STORE, HISTOGRAM_SIZE);
+      ur_array_allocate(tmplt, record, F_B_PDHISTS_STORE, HISTOGRAM_SIZE);
       for (int i = 0; i < HISTOGRAM_SIZE; i++) {
          ur_array_set(tmplt, record, F_S_PDHISTS_CHAN, i, dist_hist_chan[0][i]);
          ur_array_set(tmplt, record, F_D_PDHISTS_CHAN, i, dist_hist_chan[1][i]);
@@ -156,6 +169,10 @@ struct RecordExtPDHISTS : public RecordExt {
          ur_array_set(tmplt, record, F_S_PDHISTS_INTF, i, dist_hist_intf[0][i]);
          ur_array_set(tmplt, record, F_D_PDHISTS_INTF, i, dist_hist_intf[1][i]);
          ur_array_set(tmplt, record, F_B_PDHISTS_INTF, i, dist_hist_intf[2][i]);
+         
+         ur_array_set(tmplt, record, F_S_PDHISTS_INTF, i, dist_hist_store[0][i]);
+         ur_array_set(tmplt, record, F_D_PDHISTS_INTF, i, dist_hist_store[1][i]);
+         ur_array_set(tmplt, record, F_B_PDHISTS_INTF, i, dist_hist_store[2][i]);
       }
    }
 
@@ -173,8 +190,8 @@ struct RecordExtPDHISTS : public RecordExt {
 
       basiclist.hdrEnterpriseNum = IpfixBasicList::CesnetPEM;
       // Check sufficient size of buffer
-      int req_size = 6 * basiclist.HeaderSize()  /* sizes, times, flags, dirs */
-        + 6 * HISTOGRAM_SIZE * sizeof(uint32_t); /* sizes */
+      int req_size = 9 * basiclist.HeaderSize()  /* sizes, times, flags, dirs */
+        + 9 * HISTOGRAM_SIZE * sizeof(uint32_t); /* sizes */
 
       if (req_size > size) {
          return -1;
@@ -185,10 +202,13 @@ struct RecordExtPDHISTS : public RecordExt {
       bufferPtr += basiclist.FillBuffer(buffer + bufferPtr, dist_hist_chan[1], HISTOGRAM_SIZE, (uint32_t) DPdhistsChan);
       bufferPtr += basiclist.FillBuffer(buffer + bufferPtr, dist_hist_chan[2], HISTOGRAM_SIZE, (uint32_t) BPdhistsChan);
       
-      
       bufferPtr += basiclist.FillBuffer(buffer + bufferPtr, dist_hist_intf[0], HISTOGRAM_SIZE, (uint32_t) DPdhistsIntf);
       bufferPtr += basiclist.FillBuffer(buffer + bufferPtr, dist_hist_intf[1], HISTOGRAM_SIZE, (uint32_t) BPdhistsIntf);
       bufferPtr += basiclist.FillBuffer(buffer + bufferPtr, dist_hist_intf[2], HISTOGRAM_SIZE, (uint32_t) DPdhistsIntf);
+      
+      bufferPtr += basiclist.FillBuffer(buffer + bufferPtr, dist_hist_store[0], HISTOGRAM_SIZE, (uint32_t) DPdhistsIntf);
+      bufferPtr += basiclist.FillBuffer(buffer + bufferPtr, dist_hist_store[1], HISTOGRAM_SIZE, (uint32_t) BPdhistsIntf);
+      bufferPtr += basiclist.FillBuffer(buffer + bufferPtr, dist_hist_store[2], HISTOGRAM_SIZE, (uint32_t) DPdhistsIntf);
 
       return bufferPtr;
    } // fill_ipfix
@@ -225,6 +245,13 @@ struct RecordExtPDHISTS : public RecordExt {
                out << ",";
             }
          }
+         out << ")," << dirs_c[dir] << "pdhiststore=(";
+         for (size_t i = 0; i < HISTOGRAM_SIZE; i++) {
+            out << dist_hist_store[dir][i];
+            if (i != HISTOGRAM_SIZE - 1) {
+               out << ",";
+            }
+         }
          out << "),";
       }
       return out.str();
@@ -232,7 +259,7 @@ struct RecordExtPDHISTS : public RecordExt {
 };
 
 /**
- * \brief Flow cache plugin for parsing PDHISTS packets.
+ * \brief Flow store plugin for parsing PDHISTS packets.
  */
 class PDHISTSPlugin : public ProcessPlugin
 {

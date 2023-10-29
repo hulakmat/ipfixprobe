@@ -54,9 +54,9 @@ struct Packet : public Record {
         struct timeval ts;
         struct PacketTimeval acc_ts;
     };
-    
    uint64_t    channel_index;
    uint64_t    link_index;
+   uint64_t    store_index;
 
    uint8_t     dst_mac[6];
    uint8_t     src_mac[6];

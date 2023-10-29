@@ -127,24 +127,35 @@ void PDHISTSPlugin::update_record(RecordExtPDHISTS *pdhists_data, const Packet &
    uint8_t direction = pkt.source_pkt ? 0 : 1;
    uint64_t pkt_dir_chan_dst = calculate_packet_dst(pkt.channel_index, pdhists_data->last_pkt_index_channel[direction]);
    uint64_t pkt_dir_link_dst = calculate_packet_dst(pkt.link_index, pdhists_data->last_pkt_index_intf[direction]);
+   uint64_t pkt_dir_store_dst = calculate_packet_dst(pkt.store_index, pdhists_data->last_pkt_index_store[direction]);
    uint64_t pkt_chan_dst     = calculate_packet_dst(pkt.channel_index, pdhists_data->last_pkt_index_channel[2]);
    uint64_t pkt_link_dst     = calculate_packet_dst(pkt.link_index, pdhists_data->last_pkt_index_intf[2]);
+   uint64_t pkt_store_dst     = calculate_packet_dst(pkt.store_index, pdhists_data->last_pkt_index_store[2]);
    
    PDHISTS_DEBUG("dir: " << direction << "pkt_dir_chan_dst: " << pkt_dir_chan_dst <<
                  " pkt_dir_link_dst: " << pkt_dir_link_dst <<
-                 " pkt_chan_dst: " << pkt_chan_dst<<
-                 " pkt_link_dst: " << pkt_link_dst);
+                 " pkt_dir_store_dst: " << pkt_dir_store_dst <<
+                 " pkt_chan_dst: " << pkt_chan_dst <<
+                 " pkt_link_dst: " << pkt_link_dst <<
+                 " pkt_store_dst: " << pkt_store_dst);
+   
    if (pkt_dir_chan_dst != inv_dst) {
       update_hist((uint32_t) pkt_dir_chan_dst, pdhists_data->dist_hist_chan[direction]);
    }
    if (pkt_dir_link_dst != inv_dst) {
       update_hist((uint32_t) pkt_dir_link_dst, pdhists_data->dist_hist_intf[direction]);
    }
+   if (pkt_dir_store_dst != inv_dst) {
+      update_hist((uint32_t) pkt_dir_store_dst, pdhists_data->dist_hist_store[direction]);
+   }
    if (pkt_chan_dst != inv_dst) {
       update_hist((uint32_t) pkt_chan_dst, pdhists_data->dist_hist_chan[2]);
    }
    if (pkt_link_dst != inv_dst) {
       update_hist((uint32_t) pkt_link_dst, pdhists_data->dist_hist_intf[2]);
+   }
+   if (pkt_store_dst != inv_dst) {
+      update_hist((uint32_t) pkt_store_dst, pdhists_data->dist_hist_store[2]);
    }
    
    char dirs_c[] = {'s', 'd', 'b'};
@@ -163,18 +174,25 @@ void PDHISTSPlugin::update_record(RecordExtPDHISTS *pdhists_data, const Packet &
               PDHISTS_DEBUG_RAW(",");
           }
       }
+      PDHISTS_DEBUG_RAW(")," << dirs_c[dir] << "pdhiststore=(");
+      for (size_t i = 0; i < HISTOGRAM_SIZE; i++) {
+          PDHISTS_DEBUG_RAW(pdhists_data->dist_hist_store[dir][i]);
+          if (i != HISTOGRAM_SIZE - 1) {
+              PDHISTS_DEBUG_RAW(",");
+          }
+      }
       PDHISTS_DEBUG_RAW("),");
    }
    PDHISTS_DEBUG("");
    /* Set last for direction */
    pdhists_data->last_pkt_index_channel[direction] = pkt.channel_index;
    pdhists_data->last_pkt_index_intf[direction] = pkt.link_index;
+   pdhists_data->last_pkt_index_store[direction] = pkt.store_index;
    /* Set last for both directions */
    pdhists_data->last_pkt_index_channel[2] = pkt.channel_index;
    pdhists_data->last_pkt_index_intf[2] = pkt.link_index;
+   pdhists_data->last_pkt_index_store[2] = pkt.store_index;
 }
-
-
 
 void PDHISTSPlugin::pre_export(Flow &rec)
 {
