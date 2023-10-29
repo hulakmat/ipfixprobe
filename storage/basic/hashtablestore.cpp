@@ -30,7 +30,7 @@ HTFlowsStorePacketInfo HTFlowsStorePacketInfo::from_packet(Packet &pkt, bool bid
             key.ip.v4.src_ip = !ipLower ? pkt.src_ip.v4 : pkt.dst_ip.v4;
             key.ip.v4.dst_ip = !ipLower ? pkt.dst_ip.v4 : pkt.src_ip.v4;
         } else if (pkt.ip_version == IP::v6) {
-            bool ipLower = std::memcmp(key.ip.v6.src_ip.data(), key.ip.v6.dst_ip.data(), sizeof(key.ip.v6.dst_ip.size()));
+            bool ipLower = std::memcmp(pkt.src_ip.v6, pkt.dst_ip.v6, sizeof(pkt.dst_ip.v6));
             memcpy(key.ip.v6.src_ip.data(), !ipLower ? pkt.src_ip.v6 : pkt.dst_ip.v6, sizeof(pkt.src_ip.v6));
             memcpy(key.ip.v6.dst_ip.data(), !ipLower ? pkt.dst_ip.v6 : pkt.src_ip.v6, sizeof(pkt.dst_ip.v6));
         }
