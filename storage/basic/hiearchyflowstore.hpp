@@ -355,9 +355,45 @@ private:
     F* m_fstore;
 };
 
+class ParserDelimiter
+{
+public:
+    virtual char get() = 0;
+};
 
+class ParserDelimiterPipe : ParserDelimiter
+{
+public:
+    char get() {
+        return '|';
+    }
+};
 
-template <typename ...Fs>
+class ParserDelimiterColon : ParserDelimiter
+{
+public:
+    char get() {
+        return ':';
+    }
+};
+
+class ParserDelimiterComma : ParserDelimiter
+{
+public:
+    char get() {
+        return ',';
+    }
+};
+
+class ParserDelimiterTilda : ParserDelimiter
+{
+public:
+    char get() {
+        return '~';
+    }
+};
+
+template <typename ParserDelimiter = ParserDelimiterPipe, typename ...Fs>
 class FlowStoreHiearchyParser : public OptionsParser {
 public:
     typedef std::tuple<
@@ -387,12 +423,14 @@ public:
         auto &p = std::get<I>(t);
         auto &destStr = std::get<0>(p);
         auto &parser = std::get<1>(p);
-        parser.setDelim('|');
+        char parserDelim = ParserDelimiter().get();
+        parser.setDelim(parserDelim);
+        std::string helpString = std::string("ARG1") + parserDelim + std::string("ARG2") + parserDelim + std::string("ARG3");
         
         std::stringstream ss;
         ss << std::endl;
         parser.usage(ss, 8);
-        register_option((std::to_string(I)), ("--" + std::to_string(I)), std::string("ARG1|ARG2|ARG3"), std::string(ss.str()),
+        register_option((std::to_string(I)), ("--" + std::to_string(I)), helpString, std::string(ss.str()),
                 [&](const char *arg) {
                     destStr = std::string(arg);
                     return true;
@@ -430,8 +468,7 @@ public:
     }
 };
 
-
-template <typename ...Fs>
+template <typename ParserDelim, typename ...Fs>
 struct FSHTypes
 {
     typedef std::tuple<
@@ -451,7 +488,7 @@ struct FSHTypes
     typedef typename range::iterator iter;
     typedef FSHierarchyPacketInfo<Fs...> info;
     typedef FSHierarchyAccessor<Fs...> access; 
-    typedef FlowStoreHiearchyParser<Fs...> parser; 
+    typedef FlowStoreHiearchyParser<ParserDelim, Fs...> parser; 
     typedef FlowStore
     <
         info, 
@@ -557,12 +594,12 @@ struct FSHTypes
     }
  };
 
-template <typename ...Fs>
-class FlowStoreHiearchy : public FSHTypes<Fs...>::Base
+template <typename ParserDelim, typename ...Fs>
+class FlowStoreHiearchyFull : public FSHTypes<ParserDelim, Fs...>::Base
 {
 protected:
-    typedef FSHTypes<Fs...> Types;
-    typedef typename FSHTypes<Fs...>::Base Base;
+    typedef FSHTypes<ParserDelim, Fs...> Types;
+    typedef typename FSHTypes<ParserDelim, Fs...>::Base Base;
 public:    
     typedef typename Types::range range;
     typedef typename Types::wrap_stores wrap_stores;
@@ -582,7 +619,7 @@ public:
         }
     };
 
-    FlowStoreHiearchy() : Base() 
+    FlowStoreHiearchyFull() : Base() 
     {
         for_each(m_fstores, ConstuctVisitor());
     }
@@ -872,7 +909,11 @@ protected:
     wrap_stores m_fstores;
 };
 
-}
+/* Create a default hiearchy class without the Parser delimiter argument */
+template <typename ...Fs>
+class FlowStoreHiearchy : public FlowStoreHiearchyFull<ParserDelimiterPipe, Fs...> {
+};
 
+}
 
 #endif //IPXP_HIEARCHY_STORE_HPP
