@@ -42,7 +42,7 @@ __attribute__((constructor)) static void register_this_plugin()
    register_plugin(&rec);
 }
 
-uint64_t le48toh(uint8_t *data) {
+uint64_t le48toh(const uint8_t *data) {
    uint64_t result = ((uint64_t)data[5] << 40) |
                      ((uint64_t)data[4] << 32) |
                      ((uint64_t)data[3] << 24) |
@@ -62,9 +62,6 @@ void packet_ndp_handler(parser_opt_t *opt, const struct ndp_packet *ndp_packet, 
 #endif
    ts.tv_sec = le32toh(ndp_header->timestamp_sec);
    ts.tv_usec = le32toh(ndp_header->timestamp_nsec) / 1000;
-   if(m_index_reserved) {
-       opt->link_index = le48toh(ndp_header->reserved);
-   }
    
    Packet *pkt = parse_packet(opt, ts, ndp_packet->data, ndp_packet->data_length, ndp_packet->data_length);
    if(pkt) {
@@ -132,6 +129,10 @@ InputPlugin::Result NdpPacketReader::get(PacketBlock &packets)
       read_pkts++;
       
       /* Counter for input channel */
+      opt.link_index = 0;
+      if(m_index_reserved) {
+          opt.link_index = le48toh(ndp_header->reserved);
+      }
       packet_ndp_handler(&opt, ndp_packet, ndp_header);
    }
 
