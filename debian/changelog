@@ -1,3 +1,24 @@
+ipfixprobe (4.11.1ubuntu1) focal; urgency=medium
+
+  * Changes in 4.11.1:
+    - minor bugfixes to build on openwrt
+  * Changes in 4.11.0:
+    - ipfix - propose new variable (ipfix template refresh rate)
+    - vlan plugin: fix ipfix output
+  * Changes in 4.10.0:
+    - dpdk: improvement of config and init script
+    - QUIC: bugfixes and checks
+    - GRE: add new plugin to export GRE tunnel information
+    - VLAN: add new plugin to export VLAN information
+    - Flow Hash: add new plugin to export Flow Hash field
+    - Nettisa: optimization - skip for short flows
+    - icmp: add new plugin to export ICMP information
+    - flow cache: improve hashing to incorporate VLAN info
+    - bugfixes - templates and byte encoding (HTTP)
+    - statistics: improved monitoring capabality, added additional statistics
+
+ -- Tomas Cejka <cejkat@cesnet.cz>  Mon, 30 Oct 2023 19:57:19 +0000
+
 ipfixprobe (4.9.2ubuntu1) focal; urgency=medium
 
   * Changes in 4.9.2:
