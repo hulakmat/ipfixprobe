@@ -1,4 +1,4 @@
-ipfixprobe (4.11.1ubuntu1) focal; urgency=medium
+ipfixprobe (4.11.1ubuntu2) focal; urgency=medium
 
   * Changes in 4.11.1:
     - minor bugfixes to build on openwrt

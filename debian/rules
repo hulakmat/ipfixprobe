@@ -20,7 +20,7 @@ DH_VERBOSE = 1
 	dh $@
 
 override_dh_auto_configure:
-	dh_auto_configure -- --with-pcap --with-quic
+	dh_auto_configure -- --with-pcap --with-quic --with-nemea
 
 # debmake generated override targets
 # For example, set multiarch library install file path.  
