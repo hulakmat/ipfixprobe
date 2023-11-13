@@ -82,7 +82,12 @@ namespace ipxp {
 #define HISTOGRAM_OFFSET 0
 #define HISTOGRAM_SIZE 10
 
-#define PDHISTS_UNIREC_TEMPLATE "S_PDHISTS_CHAN,D_PDHISTS_CHAN,B_PDHISTS_CHAN,S_PDHISTS_INTF,D_PDHISTS_INTF,B_PDHISTS_INTF"
+
+/* Last bin larger than 1ms */
+#define HISTOGRAM_IPT_OFFSET 0
+#define HISTOGRAM_IPT_SIZE 20
+
+#define PDHISTS_UNIREC_TEMPLATE "S_PDHISTS_CHAN,D_PDHISTS_CHAN,B_PDHISTS_CHAN,S_PDHISTS_INTF,D_PDHISTS_INTF,B_PDHISTS_INTF,S_PTHISTS,D_PTHISTS,B_PTHISTS"
 UR_FIELDS(
     uint32* S_PDHISTS_CHAN,
     uint32* D_PDHISTS_CHAN,
@@ -92,7 +97,10 @@ UR_FIELDS(
     uint32* B_PDHISTS_INTF,
     uint32* S_PDHISTS_STORE,
     uint32* D_PDHISTS_STORE,
-    uint32* B_PDHISTS_STORE
+    uint32* B_PDHISTS_STORE,
+    uint32* S_PTHISTS,
+    uint32* D_PTHISTS,
+    uint32* B_PTHISTS
 )
 
 class PDHISTSOptParser : public OptionsParser
@@ -123,14 +131,19 @@ struct RecordExtPDHISTS : public RecordExt {
        SPdhistsStore = 1086,
        DPdhistsStore = 1087,
        BPdhistsStore = 1088,
+       SPthistsStore = 1086,
+       DPthistsStore = 1087,
+       BPthistsStore = 1088,
    } eHdrSemantic;
    
    uint32_t dist_hist_chan[3][HISTOGRAM_SIZE];
    uint32_t dist_hist_intf[3][HISTOGRAM_SIZE];
    uint32_t dist_hist_store[3][HISTOGRAM_SIZE];
+   uint32_t ipt_hist[3][HISTOGRAM_IPT_SIZE];
    uint64_t last_pkt_index_channel[3];
    uint64_t last_pkt_index_intf[3];
    uint64_t last_pkt_index_store[3];
+   struct PacketTimeval last_pkt_time[3];
 
    RecordExtPDHISTS() : RecordExt(REGISTERED_ID)
    {
@@ -141,10 +154,12 @@ struct RecordExtPDHISTS : public RecordExt {
             memset(dist_hist_chan[i], 0, sizeof(uint32_t) * HISTOGRAM_SIZE);
             memset(dist_hist_intf[i], 0, sizeof(uint32_t) * HISTOGRAM_SIZE);
             memset(dist_hist_store[i], 0, sizeof(uint32_t) * HISTOGRAM_SIZE);
+            memset(ipt_hist[i], 0, sizeof(uint32_t) * HISTOGRAM_IPT_SIZE);
           }
          last_pkt_index_channel[i] = dist_hist_empty_val;
          last_pkt_index_intf[i] = dist_hist_empty_val;
          last_pkt_index_store[i] = dist_hist_empty_val;
+         memset(&last_pkt_time[i], 0, sizeof(PacketTimeval));
       }
    }
 
@@ -161,6 +176,11 @@ struct RecordExtPDHISTS : public RecordExt {
       ur_array_allocate(tmplt, record, F_S_PDHISTS_STORE, HISTOGRAM_SIZE);
       ur_array_allocate(tmplt, record, F_D_PDHISTS_STORE, HISTOGRAM_SIZE);
       ur_array_allocate(tmplt, record, F_B_PDHISTS_STORE, HISTOGRAM_SIZE);
+      
+      ur_array_allocate(tmplt, record, F_S_PTHISTS, HISTOGRAM_IPT_SIZE);
+      ur_array_allocate(tmplt, record, F_B_PTHISTS, HISTOGRAM_IPT_SIZE);
+      ur_array_allocate(tmplt, record, F_D_PTHISTS, HISTOGRAM_IPT_SIZE);
+      
       for (int i = 0; i < HISTOGRAM_SIZE; i++) {
          ur_array_set(tmplt, record, F_S_PDHISTS_CHAN, i, dist_hist_chan[0][i]);
          ur_array_set(tmplt, record, F_D_PDHISTS_CHAN, i, dist_hist_chan[1][i]);
@@ -173,6 +193,10 @@ struct RecordExtPDHISTS : public RecordExt {
          ur_array_set(tmplt, record, F_S_PDHISTS_INTF, i, dist_hist_store[0][i]);
          ur_array_set(tmplt, record, F_D_PDHISTS_INTF, i, dist_hist_store[1][i]);
          ur_array_set(tmplt, record, F_B_PDHISTS_INTF, i, dist_hist_store[2][i]);
+         
+         ur_array_set(tmplt, record, F_S_PTHISTS, i, ipt_hist[0][i]);
+         ur_array_set(tmplt, record, F_D_PTHISTS, i, ipt_hist[1][i]);
+         ur_array_set(tmplt, record, F_B_PTHISTS, i, ipt_hist[2][i]);
       }
    }
 
@@ -202,13 +226,17 @@ struct RecordExtPDHISTS : public RecordExt {
       bufferPtr += basiclist.FillBuffer(buffer + bufferPtr, dist_hist_chan[1], HISTOGRAM_SIZE, (uint32_t) DPdhistsChan);
       bufferPtr += basiclist.FillBuffer(buffer + bufferPtr, dist_hist_chan[2], HISTOGRAM_SIZE, (uint32_t) BPdhistsChan);
       
-      bufferPtr += basiclist.FillBuffer(buffer + bufferPtr, dist_hist_intf[0], HISTOGRAM_SIZE, (uint32_t) DPdhistsIntf);
-      bufferPtr += basiclist.FillBuffer(buffer + bufferPtr, dist_hist_intf[1], HISTOGRAM_SIZE, (uint32_t) BPdhistsIntf);
-      bufferPtr += basiclist.FillBuffer(buffer + bufferPtr, dist_hist_intf[2], HISTOGRAM_SIZE, (uint32_t) DPdhistsIntf);
+      bufferPtr += basiclist.FillBuffer(buffer + bufferPtr, dist_hist_intf[0], HISTOGRAM_SIZE, (uint32_t) SPdhistsIntf);
+      bufferPtr += basiclist.FillBuffer(buffer + bufferPtr, dist_hist_intf[1], HISTOGRAM_SIZE, (uint32_t) DPdhistsIntf);
+      bufferPtr += basiclist.FillBuffer(buffer + bufferPtr, dist_hist_intf[2], HISTOGRAM_SIZE, (uint32_t) BPdhistsIntf);
       
-      bufferPtr += basiclist.FillBuffer(buffer + bufferPtr, dist_hist_store[0], HISTOGRAM_SIZE, (uint32_t) DPdhistsIntf);
-      bufferPtr += basiclist.FillBuffer(buffer + bufferPtr, dist_hist_store[1], HISTOGRAM_SIZE, (uint32_t) BPdhistsIntf);
-      bufferPtr += basiclist.FillBuffer(buffer + bufferPtr, dist_hist_store[2], HISTOGRAM_SIZE, (uint32_t) DPdhistsIntf);
+      bufferPtr += basiclist.FillBuffer(buffer + bufferPtr, dist_hist_store[0], HISTOGRAM_SIZE, (uint32_t) SPdhistsIntf);
+      bufferPtr += basiclist.FillBuffer(buffer + bufferPtr, dist_hist_store[1], HISTOGRAM_SIZE, (uint32_t) DPdhistsIntf);
+      bufferPtr += basiclist.FillBuffer(buffer + bufferPtr, dist_hist_store[2], HISTOGRAM_SIZE, (uint32_t) BPdhistsIntf);
+      
+      bufferPtr += basiclist.FillBuffer(buffer + bufferPtr, ipt_hist[0], HISTOGRAM_IPT_SIZE, (uint32_t) SPthistsStore);
+      bufferPtr += basiclist.FillBuffer(buffer + bufferPtr, ipt_hist[1], HISTOGRAM_IPT_SIZE, (uint32_t) DPthistsStore);
+      bufferPtr += basiclist.FillBuffer(buffer + bufferPtr, ipt_hist[2], HISTOGRAM_IPT_SIZE, (uint32_t) BPthistsStore);
 
       return bufferPtr;
    } // fill_ipfix
@@ -252,6 +280,13 @@ struct RecordExtPDHISTS : public RecordExt {
                out << ",";
             }
          }
+         out << ")," << dirs_c[dir] << "pthist=(";
+         for (size_t i = 0; i < HISTOGRAM_IPT_SIZE; i++) {
+            out << ipt_hist[dir][i];
+            if (i != HISTOGRAM_IPT_SIZE - 1) {
+               out << ",";
+            }
+         }
          out << "),";
       }
       return out.str();
@@ -280,9 +315,10 @@ private:
    bool use_zeros;
 
    void update_record(RecordExtPDHISTS *pdhists_data, const Packet &pkt);
-   void update_hist(uint32_t value, uint32_t *histogram);
+   void update_hist(uint32_t value, uint32_t *histogram, size_t hist_offset, size_t hist_size);
    void pre_export(Flow &rec);
    uint64_t calculate_packet_dst(uint64_t ind, uint64_t last_val);
+   uint64_t calculate_packet_ipt(const ipxp::PacketTimeval &val, const ipxp::PacketTimeval last_val);
 
    static const uint32_t log2_lookup32[32];
 
