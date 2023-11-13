@@ -176,9 +176,6 @@ struct RecordExtPDHISTS : public RecordExt {
       ur_array_allocate(tmplt, record, F_S_PDHISTS_STORE, HISTOGRAM_SIZE);
       ur_array_allocate(tmplt, record, F_D_PDHISTS_STORE, HISTOGRAM_SIZE);
       ur_array_allocate(tmplt, record, F_B_PDHISTS_STORE, HISTOGRAM_SIZE);
-      ur_array_allocate(tmplt, record, F_S_PTHISTS, HISTOGRAM_IPT_SIZE);
-      ur_array_allocate(tmplt, record, F_B_PTHISTS, HISTOGRAM_IPT_SIZE);
-      ur_array_allocate(tmplt, record, F_D_PTHISTS, HISTOGRAM_IPT_SIZE);
       
       for (int i = 0; i < HISTOGRAM_SIZE; i++) {
          ur_array_set(tmplt, record, F_S_PDHISTS_CHAN, i, dist_hist_chan[0][i]);
@@ -192,10 +189,15 @@ struct RecordExtPDHISTS : public RecordExt {
          ur_array_set(tmplt, record, F_S_PDHISTS_INTF, i, dist_hist_store[0][i]);
          ur_array_set(tmplt, record, F_D_PDHISTS_INTF, i, dist_hist_store[1][i]);
          ur_array_set(tmplt, record, F_B_PDHISTS_INTF, i, dist_hist_store[2][i]);
-         
-         ur_array_set(tmplt, record, F_S_PTHISTS, i, ipt_hist[0][i]);
-         ur_array_set(tmplt, record, F_D_PTHISTS, i, ipt_hist[1][i]);
-         ur_array_set(tmplt, record, F_B_PTHISTS, i, ipt_hist[2][i]);
+      }
+      
+      ur_array_allocate(tmplt, record, F_S_PTHISTS, HISTOGRAM_IPT_SIZE);
+      ur_array_allocate(tmplt, record, F_D_PTHISTS, HISTOGRAM_IPT_SIZE);
+      ur_array_allocate(tmplt, record, F_B_PTHISTS, HISTOGRAM_IPT_SIZE);
+      for (int i = 0; i < HISTOGRAM_IPT_SIZE; i++) {
+        ur_array_set(tmplt, record, F_S_PTHISTS, i, ipt_hist[0][i]);
+        ur_array_set(tmplt, record, F_D_PTHISTS, i, ipt_hist[1][i]);
+        ur_array_set(tmplt, record, F_B_PTHISTS, i, ipt_hist[2][i]);
       }
    }
 
