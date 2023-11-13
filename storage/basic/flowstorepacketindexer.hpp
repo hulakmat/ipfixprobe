@@ -52,7 +52,7 @@
 namespace ipxp {
 
 template <typename F>
-class FlowStoreMonitor : public FlowStoreProxySimple<F>
+class FlowStorePacketIndexer : public FlowStoreProxySimple<F>
 {
 private:
     uint64_t store_index = 0;
