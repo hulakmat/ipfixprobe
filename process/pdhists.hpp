@@ -186,9 +186,9 @@ struct RecordExtPDHISTS : public RecordExt {
          ur_array_set(tmplt, record, F_D_PDHISTS_INTF, i, dist_hist_intf[1][i]);
          ur_array_set(tmplt, record, F_B_PDHISTS_INTF, i, dist_hist_intf[2][i]);
          
-         ur_array_set(tmplt, record, F_S_PDHISTS_INTF, i, dist_hist_store[0][i]);
-         ur_array_set(tmplt, record, F_D_PDHISTS_INTF, i, dist_hist_store[1][i]);
-         ur_array_set(tmplt, record, F_B_PDHISTS_INTF, i, dist_hist_store[2][i]);
+         ur_array_set(tmplt, record, F_S_PDHISTS_STORE, i, dist_hist_store[0][i]);
+         ur_array_set(tmplt, record, F_D_PDHISTS_STORE, i, dist_hist_store[1][i]);
+         ur_array_set(tmplt, record, F_B_PDHISTS_STORE, i, dist_hist_store[2][i]);
       }
       
       ur_array_allocate(tmplt, record, F_S_PTHISTS, HISTOGRAM_IPT_SIZE);
