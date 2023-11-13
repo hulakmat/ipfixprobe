@@ -137,6 +137,7 @@ void PDHISTSPlugin::update_record(RecordExtPDHISTS *pdhists_data, const Packet &
       return;
    }
    uint64_t inv_dst = std::numeric_limits<uint64_t>::max();
+   uint64_t inv_ipt = std::numeric_limits<uint64_t>::max();
    uint8_t direction = pkt.source_pkt ? 0 : 1;
    uint64_t pkt_dir_chan_dst    = calculate_packet_dst(pkt.channel_index, pdhists_data->last_pkt_index_channel[direction]);
    uint64_t pkt_dir_link_dst    = calculate_packet_dst(pkt.link_index, pdhists_data->last_pkt_index_intf[direction]);
@@ -163,7 +164,7 @@ void PDHISTSPlugin::update_record(RecordExtPDHISTS *pdhists_data, const Packet &
    if (pkt_dir_store_dst != inv_dst) {
       update_hist((uint32_t) pkt_dir_store_dst, pdhists_data->dist_hist_store[direction], HISTOGRAM_OFFSET, HISTOGRAM_SIZE);
    }
-   if (pkt_dir_ipt != inv_dst) {
+   if (pkt_dir_ipt != inv_ipt) {
       update_hist((uint32_t) pkt_dir_ipt, pdhists_data->ipt_hist[direction], HISTOGRAM_IPT_OFFSET, HISTOGRAM_IPT_SIZE);
    }
    if (pkt_chan_dst != inv_dst) {
@@ -175,7 +176,7 @@ void PDHISTSPlugin::update_record(RecordExtPDHISTS *pdhists_data, const Packet &
    if (pkt_store_dst != inv_dst) {
       update_hist((uint32_t) pkt_store_dst, pdhists_data->dist_hist_store[2], HISTOGRAM_OFFSET, HISTOGRAM_SIZE);
    }
-   if (pkt_ipt != inv_dst) {
+   if (pkt_ipt != inv_ipt) {
       update_hist((uint32_t) pkt_ipt, pdhists_data->ipt_hist[2], HISTOGRAM_IPT_OFFSET, HISTOGRAM_IPT_SIZE);
    }
    
