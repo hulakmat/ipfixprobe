@@ -786,11 +786,13 @@ public:
         auto &p = std::get<I>(t);
         auto &fhstore = std::get<0>(p);
         auto &fstore = std::get<1>(p);
-        auto indexStore = getIndex<I+1>(index.getFStore());
-        if(&fstore != indexStore) { //Fstores needs to be lazy checked in case of same types
-            return put_for_each<I + 1, Tp...>(t, index);
+        
+        /* Iteration should visit all fstores */
+        /* Fstores needs to be lazy checked in case of same types to select proper typing */
+        if(typeid(&fstore) == index.getFStore().type() && &fstore == getIndex<I+1>(index.getFStore())) {
+            return fhstore.put(index);
         }
-        return fhstore.put(index);
+        return put_for_each<I + 1, Tp...>(t, index);
     }
 
     accessor put(const accessor& index) {
@@ -812,12 +814,13 @@ public:
         auto &p = std::get<I>(t);
         auto &fhstore = std::get<0>(p);
         auto &fstore = std::get<1>(p);
-        auto indexStore = getIndex<I+1>(index.getFStore());
-
-        if(&fstore != indexStore) { //Fstores needs to be lazy checked in case of same types
-            return index_export_for_each<I + 1, Tp...>(t, index, rb);
+        
+        /* Iteration should visit all fstores */
+        /* Fstores needs to be lazy checked in case of same types to select proper typing */
+        if(typeid(&fstore) == index.getFStore().type() && &fstore == getIndex<I+1>(index.getFStore())) {
+            return fhstore.index_export(index, rb);
         }
-        return fhstore.index_export(index, rb);
+        return index_export_for_each<I + 1, Tp...>(t, index, rb);
     }
 
     accessor index_export(const accessor &index, FlowRingBuffer &rb) {
@@ -868,24 +871,26 @@ public:
 
     template<std::size_t I = 0, typename... Tp>
     inline typename std::enable_if<I == sizeof...(Tp), accessor>::type
-    iter_export_for_each(std::tuple<Tp...> &, const iterator& index, FlowRingBuffer &rb) // Unused arguments are given no names.
+    iter_export_for_each(std::tuple<Tp...> &, const iterator& iter, FlowRingBuffer &rb) // Unused arguments are given no names.
     { 
         return lookup_end();
     }
 
     template<std::size_t I = 0, typename... Tp>
     inline typename std::enable_if<I < sizeof...(Tp), accessor>::type
-    iter_export_for_each(std::tuple<Tp...>& t, const iterator& index, FlowRingBuffer &rb)
+    iter_export_for_each(std::tuple<Tp...>& t, const iterator& iter, FlowRingBuffer &rb)
     {
         auto &p = std::get<I>(t);
         auto &fhstore = std::get<0>(p);
         auto &fstore = std::get<1>(p);
-        auto storeTup = Types().storeFromRange(index);
-        auto indexStore = getIndex<I>(storeTup);
-        if(&fstore != indexStore) {
-            return iter_export_for_each<I + 1, Tp...>(t, index, rb);
+        auto storeTup = Types().storeFromRange(iter);
+        
+        /* Iteration should visit all fstores */
+        /* Fstores needs to be lazy checked in case of same types to select proper typing */
+        if(typeid(&fstore) == storeTup.type() && &fstore == getIndex<I>(storeTup)) {
+            return Types().iterExportRange(iter, fhstore, rb);
         }
-        return Types().iterExportRange(index, fhstore, rb);
+        return iter_export_for_each<I + 1, Tp...>(t, iter, rb);
     }
 
     accessor iter_export(const iterator &index, FlowRingBuffer &rb) {
