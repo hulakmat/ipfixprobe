@@ -9,7 +9,7 @@
 class NdpReader
 {
 public:
-   NdpReader(uint16_t packet_bufferSize = 50, uint64_t timeout = 300);
+   NdpReader(uint16_t packet_bufferSize = 64, uint64_t timeout = 300);
    ~NdpReader();
 
    int init_interface(const std::string &interface);
