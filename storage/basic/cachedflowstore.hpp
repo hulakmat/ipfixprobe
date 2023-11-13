@@ -16,12 +16,12 @@
 
 namespace ipxp {
 
-template <typename CacheFs, typename BaseFs>
-class FlowStoreCached : public FlowStoreHiearchy<CacheFs, BaseFs>
+template <typename ParserDelimiter, typename CacheFs, typename BaseFs>
+class FlowStoreCachedFull : public FlowStoreHiearchyFull<ParserDelimiter, CacheFs, BaseFs>
 {
 protected:
-    typedef FlowStoreHiearchy<CacheFs, BaseFs> Types;
-    typedef FlowStoreHiearchy<CacheFs, BaseFs> Base;
+    typedef FlowStoreHiearchyFull<ParserDelimiter, CacheFs, BaseFs> Types;
+    typedef FlowStoreHiearchyFull<ParserDelimiter, CacheFs, BaseFs> Base;
 public:
     typedef typename Types::range range;
     typedef typename Types::wrap_stores wrap_stores;
@@ -48,7 +48,7 @@ public:
         debugArray((uint8_t*)&hash, sizeof(hash));
     }
 
-    FlowStoreCached() : Base()
+    FlowStoreCachedFull() : Base()
     {
         stats_reset();
     }
@@ -476,6 +476,10 @@ private:
 
     CachedPacketInfoMap cachedPacketInfoMap;
     
+};
+
+template <typename CacheFs, typename BaseFs>
+class FlowStoreCached : public FlowStoreCachedFull<ParserDelimiterPipe, CacheFs, BaseFs> {
 };
 
 }
